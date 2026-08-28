@@ -6,11 +6,16 @@ export default function Tasks() {
     <div className="flex flex-col min-h-[calc(100dvh-5rem)] bg-[#f5f5f5] pb-24">
       
       {/* Banner Area */}
-      <div className="w-full h-36 bg-gray-900 relative overflow-hidden flex items-center justify-center">
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #3b0764 50%, #000000 100%)' }}></div>
-        <div className="z-10 text-center">
-           <h1 className="text-3xl font-black text-white tracking-tight italic">EARN POINTS</h1>
-           <p className="text-xs text-purple-300 font-bold mt-1 uppercase tracking-widest">Complete Tasks • Get Canva Pro</p>
+      <div className="relative w-full h-44 overflow-hidden bg-gray-900">
+        <img 
+          src="/earn-points-banner.png" 
+          alt="Earn Points" 
+          className="absolute inset-0 w-full h-full object-cover object-center z-10" 
+          onError={(e) => e.target.style.display = 'none'}
+        />
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-center" style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #3b0764 50%, #000000 100%)' }}>
+           <h1 className="text-3xl font-black text-white tracking-tight italic drop-shadow-md">EARN POINTS</h1>
+           <p className="text-xs text-purple-300 font-bold mt-1 uppercase tracking-widest drop-shadow-sm">Complete Tasks • Get Canva Pro</p>
         </div>
       </div>
 

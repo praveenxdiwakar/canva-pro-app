@@ -36,10 +36,15 @@ export default function FreeCanva() {
   return (
     <div className="flex flex-col min-h-[calc(100dvh-5rem)] bg-[#f5f5f5] pb-24">
       {/* Banner */}
-      <div className="relative w-full h-40 overflow-hidden bg-gray-900">
-        <img src="/banner.jpg" alt="Canva Pro" className="w-full h-full object-cover" onError={(e) => e.target.style.display = 'none'} />
+      <div className="relative w-full h-44 overflow-hidden bg-gray-900">
+        <img 
+          src="/banner.jpg" 
+          alt="Canva Pro" 
+          className="absolute inset-0 w-full h-full object-cover object-center z-10" 
+          onError={(e) => e.target.style.display = 'none'}
+        />
         <div className="absolute inset-0 flex flex-col items-center justify-center text-white" style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #06b6d4 100%)' }}>
-          <h1 className="text-4xl font-black italic tracking-tighter" style={{ fontFamily: 'Georgia, serif' }}>Canva</h1>
+          <h1 className="text-4xl font-black italic tracking-tighter drop-shadow-md" style={{ fontFamily: 'Georgia, serif' }}>Canva</h1>
         </div>
       </div>
 
