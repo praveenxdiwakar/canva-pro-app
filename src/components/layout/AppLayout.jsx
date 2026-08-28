@@ -2,10 +2,7 @@ import React from 'react';
 import { useTelegram } from '../../contexts/TelegramContext';
 
 export default function AppLayout({ children }) {
-  const { isLoading, error } = useTelegram();
-
-  // Check if the user is actually inside the Telegram App (blocks regular browsers)
-  const isTelegramApp = window.Telegram?.WebApp?.initData;
+  const { isLoading, error, initData } = useTelegram();
 
   // 1. Loading State (Shows the Canva gradient logo while authenticating)
   if (isLoading) {
@@ -19,12 +16,14 @@ export default function AppLayout({ children }) {
     );
   }
 
-  // 2. Connection Error State (Exact match to your screenshot)
-  // This triggers if there is an auth error OR if opened in a standard web browser
+  // 2. Connection Error State
+  // Strictly triggers if there is an auth error OR if opened outside Telegram
+  const isTelegramApp = !!initData && initData.length > 0;
+  
   if (error || !isTelegramApp) {
     return (
-      <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-[#fafafa] p-6 text-center">
-        <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mb-4">
+      <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-[#fafafa] p-6 text-center z-[9999] relative">
+        <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mb-4 shadow-sm">
           <span className="text-red-500 font-black text-2xl mt-0.5">!</span>
         </div>
         <h2 className="text-xl font-black text-gray-900 mb-1.5 tracking-tight">
@@ -37,7 +36,7 @@ export default function AppLayout({ children }) {
     );
   }
 
-  // 3. Normal App Content (Only shows if securely inside Telegram)
+  // 3. Normal App Content
   return (
     <div className="min-h-[100dvh] w-full mx-auto">
       {children}

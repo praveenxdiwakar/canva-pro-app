@@ -9,7 +9,6 @@ export default function Admin() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  // Fetch admin settings & permission check
   const { data: adminData, isLoading, error } = useQuery({
     queryKey: ['admin-settings'],
     queryFn: async () => {
@@ -30,16 +29,18 @@ export default function Admin() {
     );
   }
 
-  // 403 Access Denied / Non-Admin Screen matching source code
+  // 403 Access Denied Screen (Shows if the backend blocks access)
   if (error) {
     return (
       <div className="flex flex-col h-full min-h-[80vh] items-center justify-center gap-4 px-6 bg-[#f5f5f5] text-center">
         <div className="text-5xl">🔒</div>
         <div className="font-black text-gray-800 text-lg">Admin access required</div>
-        <div className="text-sm text-gray-400">Your Telegram ID must be in ADMIN_TELEGRAM_IDS.</div>
+        <div className="text-sm text-gray-400">
+          Your Telegram ID <span className="font-bold text-gray-700">(5589713552)</span> must be authorized in your backend's ADMIN_TELEGRAM_IDS variable.
+        </div>
         <button 
           onClick={() => navigate('/profile')} 
-          className="bg-gray-900 text-white font-bold px-6 py-3 rounded-xl shadow-md active:scale-95 transition-all"
+          className="mt-2 bg-gray-900 text-white font-bold px-6 py-3 rounded-xl shadow-md active:scale-95 transition-all"
         >
           Go Back
         </button>
@@ -75,16 +76,10 @@ export default function Admin() {
       </div>
 
       <div className="px-4 pt-4 space-y-3">
-        {/* Invite Pool Manager Accordion */}
         <InvitePoolSection initData={initData} />
-
-        {/* Channel Quotas Section */}
         <ChannelQuotaSection initData={initData} settings={adminData?.settings ?? []} />
-
-        {/* Monetag Ads Section */}
         <MonetagSection initData={initData} settings={adminData?.settings ?? []} />
 
-        {/* Dynamic Settings Groups */}
         {groups.filter(g => g !== "Monetag Ads" && g !== "Join Channels").map(groupName => (
           <SettingsGroup 
             key={groupName} 
@@ -94,7 +89,6 @@ export default function Admin() {
           />
         ))}
 
-        {/* Warning Notice */}
         <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 text-xs text-amber-700 shadow-sm">
           <span className="shrink-0 mt-0.5">⚠️</span>
           <span>Spin probability values must sum to <strong>1.0</strong>. Changes apply within 60s.</span>
@@ -175,21 +169,12 @@ function SettingRow({ setting, initData, onSaved }) {
 
       <div className="flex items-center gap-1.5 shrink-0">
         {isDirty && (
-          <button 
-            onClick={() => saveMutation.mutate(val)}
-            disabled={saveMutation.isPending}
-            className="w-7 h-7 bg-purple-600 text-white rounded-lg flex items-center justify-center hover:bg-purple-700 transition-colors shadow-xs"
-          >
+          <button onClick={() => saveMutation.mutate(val)} disabled={saveMutation.isPending} className="w-7 h-7 bg-purple-600 text-white rounded-lg flex items-center justify-center hover:bg-purple-700 transition-colors">
             {saveMutation.isPending ? '...' : '✓'}
           </button>
         )}
         {isModified && !isDirty && (
-          <button 
-            onClick={() => resetMutation.mutate()}
-            disabled={resetMutation.isPending}
-            className="w-7 h-7 bg-gray-100 text-gray-400 rounded-lg flex items-center justify-center hover:bg-gray-200 transition-colors text-xs font-bold"
-            title="Reset to default"
-          >
+          <button onClick={() => resetMutation.mutate()} disabled={resetMutation.isPending} className="w-7 h-7 bg-gray-100 text-gray-400 rounded-lg flex items-center justify-center hover:bg-gray-200 transition-colors text-xs font-bold" title="Reset to default">
             ↺
           </button>
         )}
@@ -206,10 +191,7 @@ function SettingsGroup({ groupName, settings, initData }) {
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-      <button 
-        className="w-full px-4 py-3.5 flex items-center gap-3 text-left hover:bg-gray-50 transition-colors"
-        onClick={() => setIsOpen(!isOpen)}
-      >
+      <button className="w-full px-4 py-3.5 flex items-center gap-3 text-left hover:bg-gray-50 transition-colors" onClick={() => setIsOpen(!isOpen)}>
         <div className="w-8 h-8 rounded-xl bg-purple-50 flex items-center justify-center text-base shrink-0">⚙️</div>
         <div className="flex-1 min-w-0">
           <div className="text-sm font-black text-purple-600">{groupName}</div>
@@ -232,7 +214,6 @@ function SettingsGroup({ groupName, settings, initData }) {
 // Subcomponent: Invite Pool Manager Section
 function InvitePoolSection({ initData }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [editingEntry, setEditingEntry] = useState(null);
   const queryClient = useQueryClient();
 
   const { data: poolList = [], isLoading } = useQuery({
@@ -246,34 +227,16 @@ function InvitePoolSection({ initData }) {
     staleTime: 15000
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: async (id) => {
-      const res = await fetch(`/api/admin/pool/${id}`, { method: 'DELETE', headers: { 'x-init-data': initData } });
-      if (!res.ok) throw await res.json();
-      return res.json();
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-pool'] })
-  });
-
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
       <div className="flex items-center">
-        <button 
-          className="flex-1 px-4 py-3.5 flex items-center gap-3 text-left hover:bg-gray-50 transition-colors"
-          onClick={() => setIsOpen(!isOpen)}
-        >
+        <button className="flex-1 px-4 py-3.5 flex items-center gap-3 text-left hover:bg-gray-50 transition-colors" onClick={() => setIsOpen(!isOpen)}>
           <div className="w-8 h-8 rounded-xl bg-purple-50 flex items-center justify-center text-base shrink-0">🎨</div>
           <div className="flex-1 min-w-0">
             <div className="text-sm font-black text-purple-600">Canva Invite Pool</div>
             <div className="text-[10px] text-gray-400 mt-0.5">{poolList.length} links configured</div>
           </div>
           <span className="text-gray-300 transition-transform duration-200" style={{ transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
-        </button>
-        <button 
-          onClick={() => setEditingEntry('new')}
-          className="mr-3 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition-colors shadow-xs"
-        >
-          + Add
         </button>
       </div>
 
@@ -282,7 +245,7 @@ function InvitePoolSection({ initData }) {
           {isLoading ? (
             <div className="text-center py-4 text-xs text-gray-400">Loading pool links...</div>
           ) : poolList.length === 0 ? (
-            <div className="text-center py-4 text-xs text-gray-400">No invite links added yet.</div>
+            <div className="text-center py-4 text-xs text-gray-400">No invite links added yet. Use the backend to add links.</div>
           ) : (
             poolList.map(entry => {
               const remaining = entry.totalSlots - entry.usedSlots;
@@ -293,10 +256,6 @@ function InvitePoolSection({ initData }) {
                     <div className="text-[10px] text-gray-400 mt-0.5">
                       {entry.usedSlots}/{entry.totalSlots} slots used · <span className={remaining > 0 ? "text-green-600 font-bold" : "text-red-500"}>{remaining} left</span>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => setEditingEntry(entry)} className="p-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600">Edit</button>
-                    <button onClick={() => confirm("Delete this pool item?") && deleteMutation.mutate(entry.id)} className="p-1.5 bg-red-50 text-red-500 rounded-lg text-xs font-bold">🗑️</button>
                   </div>
                 </div>
               );
@@ -313,10 +272,7 @@ function ChannelQuotaSection({ initData, settings }) {
   const [isOpen, setIsOpen] = useState(false);
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-      <button 
-        className="w-full px-4 py-3.5 flex items-center gap-3 text-left hover:bg-gray-50 transition-colors"
-        onClick={() => setIsOpen(!isOpen)}
-      >
+      <button className="w-full px-4 py-3.5 flex items-center gap-3 text-left hover:bg-gray-50 transition-colors" onClick={() => setIsOpen(!isOpen)}>
         <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center text-base shrink-0">📊</div>
         <div className="flex-1 min-w-0">
           <div className="text-sm font-black text-blue-600">Join Channel Quota</div>
@@ -324,10 +280,9 @@ function ChannelQuotaSection({ initData, settings }) {
         </div>
         <span className="text-gray-300 transition-transform duration-200" style={{ transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
       </button>
-
       {isOpen && (
         <div className="border-t border-gray-100 p-4 space-y-3 text-xs text-gray-500">
-          <p>Channel 01 and Channel 02 reward criteria and quotas can be customized live.</p>
+          <p>Channel 01 and Channel 02 reward criteria and quotas can be customized in the main settings below.</p>
         </div>
       )}
     </div>
@@ -339,10 +294,7 @@ function MonetagSection({ initData, settings }) {
   const [isOpen, setIsOpen] = useState(false);
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-      <button 
-        className="w-full px-4 py-3.5 flex items-center gap-3 text-left hover:bg-gray-50 transition-colors"
-        onClick={() => setIsOpen(!isOpen)}
-      >
+      <button className="w-full px-4 py-3.5 flex items-center gap-3 text-left hover:bg-gray-50 transition-colors" onClick={() => setIsOpen(!isOpen)}>
         <div className="w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center text-base shrink-0">📡</div>
         <div className="flex-1 min-w-0">
           <div className="text-sm font-black text-orange-600">Monetag Ad Settings</div>
@@ -350,10 +302,9 @@ function MonetagSection({ initData, settings }) {
         </div>
         <span className="text-gray-300 transition-transform duration-200" style={{ transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
       </button>
-
       {isOpen && (
         <div className="border-t border-gray-100 p-4 space-y-3 text-xs text-gray-500">
-          <p>Manage rewarded interstitials, popups, and in-app ad zones directly from your Monetag account dashboard.</p>
+          <p>Manage rewarded interstitials, popups, and in-app ad zones directly from your Monetag account dashboard and configure their Zone IDs below.</p>
         </div>
       )}
     </div>
