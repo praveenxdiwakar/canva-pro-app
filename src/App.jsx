@@ -4,16 +4,23 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TelegramProvider } from './contexts/TelegramContext';
 import AppLayout from './components/layout/AppLayout';
 
+// Import all your pages
 import FreeCanva from './pages/FreeCanva';
 import Tasks from './pages/Tasks';
 import Redeem from './pages/Redeem';
 import ProUsers from './pages/ProUsers';
 import Profile from './pages/Profile';
+import RewardHistory from './pages/RewardHistory';
+import Admin from './pages/Admin';
 
 const queryClient = new QueryClient();
 
 const BottomNav = () => {
   const location = useLocation();
+  
+  // Optional: Hide the bottom nav on the Admin dashboard to give it full screen space
+  if (location.pathname === '/admin') return null;
+
   const navItems = [
     { path: '/', emoji: '🎁', label: 'Free Canva', activeBg: '#ede9fe', activeColor: '#7c3aed' },
     { path: '/tasks', emoji: '🎯', label: 'Earn Points', activeBg: '#fee2e2', activeColor: '#ef4444' },
@@ -50,6 +57,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <TelegramProvider>
         <BrowserRouter>
+          {/* AppLayout now wraps the Routes AND the BottomNav */}
           <AppLayout>
             <Routes>
               <Route path="/" element={<FreeCanva />} />
@@ -57,9 +65,11 @@ export default function App() {
               <Route path="/redeem" element={<Redeem />} />
               <Route path="/pro-users" element={<ProUsers />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/reward-history" element={<RewardHistory />} />
+              <Route path="/admin" element={<Admin />} />
             </Routes>
+            <BottomNav />
           </AppLayout>
-          <BottomNav />
         </BrowserRouter>
       </TelegramProvider>
     </QueryClientProvider>
