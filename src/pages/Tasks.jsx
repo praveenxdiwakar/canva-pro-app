@@ -1,10 +1,17 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { useTelegram } from '../contexts/TelegramContext';
+import SpinEarnCard from '../components/SpinEarnCard';
 
 export default function Tasks() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { initData } = useTelegram();
+
   return (
     <div className="flex flex-col min-h-[calc(100dvh-5rem)] bg-[#f5f5f5] pb-24">
-      
       {/* Banner Area */}
       <div className="relative w-full h-44 overflow-hidden bg-gray-900">
         <img 
@@ -14,8 +21,8 @@ export default function Tasks() {
           onError={(e) => e.target.style.display = 'none'}
         />
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center" style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #3b0764 50%, #000000 100%)' }}>
-           <h1 className="text-3xl font-black text-white tracking-tight italic drop-shadow-md">EARN POINTS</h1>
-           <p className="text-xs text-purple-300 font-bold mt-1 uppercase tracking-widest drop-shadow-sm">Complete Tasks • Get Canva Pro</p>
+           <h1 className="text-3xl font-black text-white tracking-tight italic">EARN POINTS</h1>
+           <p className="text-xs text-purple-300 font-bold mt-1 uppercase tracking-widest">Complete Tasks • Get Canva Pro</p>
         </div>
       </div>
 
@@ -28,7 +35,10 @@ export default function Tasks() {
           <div className="bg-yellow-50 border border-yellow-200 rounded-full px-3 py-1 text-xs font-bold text-yellow-700 shadow-sm">
             ⭐ 0 pts
           </div>
-          <button className="bg-purple-50 text-purple-600 text-[10px] font-bold px-3 py-1.5 rounded-full hover:bg-purple-100 transition-colors">
+          <button 
+            onClick={() => navigate('/reward-history')}
+            className="bg-purple-50 hover:bg-purple-100 text-purple-600 text-xs font-bold px-3 py-1.5 rounded-full transition-colors"
+          >
             History
           </button>
         </div>
@@ -56,22 +66,8 @@ export default function Tasks() {
           <div className="text-[11px] text-gray-400 font-medium">20 more points needed</div>
         </motion.div>
 
-        {/* Spin & Earn */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="bg-white rounded-2xl p-4 border border-pink-100 shadow-sm ring-1 ring-pink-50">
-          <div className="flex justify-between items-center">
-            <div className="flex items-start gap-3">
-              <span className="text-2xl drop-shadow-sm mt-0.5">🎡</span>
-              <div>
-                <div className="font-bold text-gray-900 text-sm">Spin & Earn</div>
-                <div className="text-[10px] text-yellow-400 mt-0.5">⭐⭐⭐</div>
-                <div className="text-[10px] text-gray-400 font-medium mt-0.5">3/3 Spins</div>
-              </div>
-            </div>
-            <button className="text-sm font-bold text-blue-500 hover:text-blue-600 transition-colors">
-              Tap to Spin →
-            </button>
-          </div>
-        </motion.div>
+        {/* Spin & Earn Accordion Component */}
+        <SpinEarnCard onWin={() => queryClient.invalidateQueries({ queryKey: ['user'] })} />
 
         {/* Daily Check-in */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
