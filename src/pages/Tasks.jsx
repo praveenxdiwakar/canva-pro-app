@@ -1,130 +1,126 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { useTelegram } from '../contexts/TelegramContext';
+import React from 'react';
 import { motion } from 'framer-motion';
 
 export default function Tasks() {
-  const { initData } = useTelegram();
-  const [isWatchingAd, setIsWatchingAd] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  // Fetch Step Progress
-  const { data: stepData } = useQuery({
-    queryKey: ['steps'],
-    queryFn: async () => {
-      const res = await fetch('/api/tasks/home-ad-step', { headers: { 'x-init-data': initData } });
-      return res.ok ? res.json() : null;
-    },
-    enabled: !!initData
-  });
-
-  const allComplete = stepData?.allComplete ?? false;
-
-  const { data: canvaLinkData } = useQuery({
-    queryKey: ['canva-link'],
-    queryFn: async () => {
-      const res = await fetch('/api/users/canva-link', { headers: { 'x-init-data': initData } });
-      return res.ok ? res.json() : null;
-    },
-    enabled: !!initData && allComplete
-  });
-
-  const handleCopy = (link) => {
-    navigator.clipboard.writeText(link);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-    if (window.Telegram?.WebApp?.HapticFeedback) {
-      window.Telegram.WebApp.HapticFeedback.notificationOccurred("success");
-    }
-  };
-
-  const steps = stepData?.steps ?? [
-    { id: 1, completed: false }, 
-    { id: 2, completed: false },
-    { id: 3, completed: false }, 
-    { id: 4, completed: false }
-  ];
-
   return (
-    <div className="flex flex-col min-h-[calc(100dvh-5rem)] bg-[#f5f5f5]">
-      {/* Sleek Gradient Banner Header */}
-      <div 
-        className="w-full h-44 flex flex-col items-center justify-center text-white shadow-md relative overflow-hidden"
-        style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #06b6d4 100%)' }}
-      >
-        <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center mb-2 shadow-inner">
-          <span className="text-3xl font-black italic select-none" style={{ fontFamily: 'Georgia, serif' }}>C</span>
-        </div>
-        <h1 className="text-2xl font-black tracking-tight drop-shadow-sm">Canva Pro Team</h1>
-        <p className="text-xs text-white/80 font-medium">Unlock full access in 4 simple steps</p>
-      </div>
+    <div className="flex flex-col min-h-[calc(100dvh-5rem)] bg-[#f5f5f5] pb-24">
       
-      <div className="px-4 pt-4 pb-24 space-y-4">
-        {/* Info Banner */}
-        <div className="bg-white border border-gray-200 rounded-2xl px-4 py-3.5 flex items-start gap-3 shadow-sm">
-          <span className="text-xl">📢</span>
-          <p className="text-[13px] text-gray-600 leading-snug font-medium">
-            Complete all 4 steps below to unlock the official Canva Pro Team invite button.
-          </p>
+      {/* Banner Area */}
+      <div className="w-full h-36 bg-gray-900 relative overflow-hidden flex items-center justify-center">
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #3b0764 50%, #000000 100%)' }}></div>
+        <div className="z-10 text-center">
+           <h1 className="text-3xl font-black text-white tracking-tight italic">EARN POINTS</h1>
+           <p className="text-xs text-purple-300 font-bold mt-1 uppercase tracking-widest">Complete Tasks • Get Canva Pro</p>
         </div>
+      </div>
 
-        {/* 4 Steps Card */}
-        <motion.div 
-          initial={{ opacity: 0, y: 8 }} 
-          animate={{ opacity: 1, y: 0 }} 
-          className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm space-y-5"
-        >
-          {/* Progress Indicator */}
-          <div className="flex items-center justify-between px-2">
-            {steps.map((step, index) => (
-              <div key={index} className="flex items-center flex-1">
-                <div className="flex flex-col items-center gap-1">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-all ${step.completed ? 'bg-purple-600 text-white shadow-md shadow-purple-200' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
-                    {step.completed ? '✓' : step.id}
-                  </div>
-                  <span className="text-[10px] font-bold text-gray-400">Step {step.id}</span>
-                </div>
-                {index !== steps.length - 1 && (
-                  <div className="flex-1 h-[3px] mx-2 -mt-4 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-purple-600 transition-all duration-500" style={{ width: step.completed ? '100%' : '0%' }} />
-                  </div>
-                )}
-              </div>
-            ))}
+      {/* Header */}
+      <div className="bg-white px-4 pt-4 pb-3 flex items-center justify-between border-b border-gray-100 shadow-sm z-10">
+        <h1 className="text-xl font-black text-gray-900 flex items-center gap-2">
+          🎯 Earn Points
+        </h1>
+        <div className="flex items-center gap-2">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-full px-3 py-1 text-xs font-bold text-yellow-700 shadow-sm">
+            ⭐ 0 pts
           </div>
+          <button className="bg-purple-50 text-purple-600 text-[10px] font-bold px-3 py-1.5 rounded-full hover:bg-purple-100 transition-colors">
+            History
+          </button>
+        </div>
+      </div>
 
-          {/* Action Button */}
-          {allComplete ? (
-            <div className="space-y-3 pt-2">
-              <button 
-                onClick={() => window.open(canvaLinkData?.link, '_blank')} 
-                className="w-full bg-green-500 hover:bg-green-600 active:scale-[0.98] text-white font-bold py-4 rounded-2xl shadow-lg shadow-green-200 transition-all flex items-center justify-center gap-2 text-base"
-              >
-                🎉 Click to Open Canva Pro
-              </button>
-              <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 space-y-2">
-                <p className="text-xs text-gray-500 text-center font-medium">Or copy the link manually into your browser:</p>
-                <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl p-2">
-                  <span className="flex-1 text-xs text-gray-600 truncate font-mono px-1">{canvaLinkData?.link || "https://canva.com/brand/join?token=..."}</span>
-                  <button 
-                    onClick={() => handleCopy(canvaLinkData?.link || "")} 
-                    className="bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-bold px-3 py-2 rounded-lg transition-all shrink-0"
-                  >
-                    {copied ? "Copied!" : "Copy"}
-                  </button>
-                </div>
+      {/* Main Content / Cards */}
+      <div className="px-4 pt-4 space-y-3">
+        
+        {/* Next Canva Reward */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+          <div className="flex justify-between items-start mb-2.5">
+            <div>
+              <div className="font-black text-gray-900 text-sm flex items-center gap-1.5">
+                🏆 Next Canva Reward
+              </div>
+              <div className="text-xs text-gray-500 mt-0.5">Canva Pro · 7 Days</div>
+            </div>
+            <div className="text-[11px] font-bold bg-purple-50 text-purple-700 px-2.5 py-1 rounded-full">
+              0 / 20 pts
+            </div>
+          </div>
+          <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-1.5">
+            <div className="h-full bg-purple-500 rounded-full" style={{ width: '0%' }}></div>
+          </div>
+          <div className="text-[11px] text-gray-400 font-medium">20 more points needed</div>
+        </motion.div>
+
+        {/* Spin & Earn */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="bg-white rounded-2xl p-4 border border-pink-100 shadow-sm ring-1 ring-pink-50">
+          <div className="flex justify-between items-center">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl drop-shadow-sm mt-0.5">🎡</span>
+              <div>
+                <div className="font-bold text-gray-900 text-sm">Spin & Earn</div>
+                <div className="text-[10px] text-yellow-400 mt-0.5">⭐⭐⭐</div>
+                <div className="text-[10px] text-gray-400 font-medium mt-0.5">3/3 Spins</div>
               </div>
             </div>
-          ) : (
-            <button 
-              disabled={isWatchingAd} 
-              className="w-full bg-[#6200EA] hover:bg-[#4A00B4] active:scale-[0.98] disabled:opacity-60 text-white font-black text-lg py-5 rounded-2xl shadow-xl shadow-purple-200 transition-all flex items-center justify-center gap-2"
-            >
-              {isWatchingAd ? "Loading Ad..." : "Watch Ads to Unlock Canva Pro"}
+            <button className="text-sm font-bold text-blue-500 hover:text-blue-600 transition-colors">
+              Tap to Spin →
             </button>
-          )}
+          </div>
         </motion.div>
+
+        {/* Daily Check-in */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+          <div className="font-bold text-gray-900 text-sm mb-3 flex items-center gap-2">
+            <span>🗓️</span> Daily Check-in
+          </div>
+          <div className="flex justify-between mb-4">
+            {['D1|+1', 'D2|+1', 'D3|+1', 'D4|+2', 'D5|+2', 'D6|+2', 'D7|+3'].map((day, i) => {
+              const [d, pts] = day.split('|');
+              const isFirst = i === 0;
+              const isLast = i === 6;
+              return (
+                <div key={i} className={`flex flex-col items-center justify-center w-10 h-10 rounded-full border ${isFirst ? 'border-purple-300 bg-purple-50 text-purple-700 shadow-sm' : 'border-gray-100 text-gray-400'} text-[10px] font-bold leading-tight`}>
+                  {d}<br/><span className={isFirst ? 'text-purple-600' : isLast ? 'text-yellow-500' : 'text-gray-400'}>{pts}</span>
+                </div>
+              )
+            })}
+          </div>
+          <button className="w-full bg-[#10b981] hover:bg-[#059669] active:scale-[0.98] transition-transform text-white font-black py-3.5 rounded-xl text-sm shadow-md shadow-green-100">
+            CHECK-IN — Today's Reward: +1 pt
+          </button>
+        </motion.div>
+
+        {/* Task Cards */}
+        <TaskCard icon="📺" iconBg="bg-red-500" title="Watch Ads 01" subtitle="+1 Point / Ad" limit="0/5" btnText="WATCH ADS" btnColor="bg-[#ef4444]" />
+        <TaskCard icon="📺" iconBg="bg-orange-500" title="Watch Ads 02" subtitle="+1 Point / Ad" limit="0/5" btnText="WATCH ADS" btnColor="bg-[#ef4444]" />
+        <TaskCard icon="📢" iconBg="bg-blue-500" title="Join Channel 01" subtitle="+2 pts · One time" limit="91/1000" btnText="JOIN" btnColor="bg-[#3b82f6]" />
+        <TaskCard icon="📢" iconBg="bg-cyan-500" title="Join Channel 02" subtitle="+2 pts · One time" limit="86/1000" btnText="JOIN" btnColor="bg-[#3b82f6]" />
+        <TaskCard icon="👥" iconBg="bg-yellow-400" title="Invite Friends" subtitle="+5 pts / referral · Unlimited" btnText="COPY" btnColor="bg-[#06b6d4]" />
       </div>
     </div>
+  );
+}
+
+function TaskCard({ icon, iconBg, title, subtitle, limit, btnText, btnColor }) {
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center gap-3">
+      <div className={`w-11 h-11 rounded-full ${iconBg} flex items-center justify-center shrink-0 text-white text-xl shadow-inner`}>
+        {icon}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="font-bold text-gray-900 text-sm">{title}</div>
+        <div className="text-[11px] text-gray-500 mt-0.5">{subtitle} <span className="text-gray-300 mx-1">{limit ? '·' : ''}</span> {limit}</div>
+        {limit && (
+          <div className="flex items-center gap-1 mt-1.5">
+            <div className="flex gap-1">
+              {[1, 2, 3, 4, 5].map(i => <div key={i} className="w-1.5 h-1.5 rounded-full bg-gray-200"></div>)}
+            </div>
+          </div>
+        )}
+      </div>
+      <button className={`${btnColor} hover:opacity-90 active:scale-95 text-white font-bold text-xs px-4 py-2.5 rounded-xl shrink-0 transition-all shadow-sm`}>
+        {btnText}
+      </button>
+    </motion.div>
   );
 }
