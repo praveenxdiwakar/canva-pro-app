@@ -2,15 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: 260 30% 98%;
-  --foreground: 260 50% 10%;
-  --primary: 266 81% 54%;
-}
-
 body {
+  margin: 0;
   font-family: 'Outfit', sans-serif;
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
+  background-color: #f5f5f5;
   -webkit-font-smoothing: antialiased;
 }
