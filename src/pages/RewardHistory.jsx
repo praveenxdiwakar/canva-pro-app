@@ -4,7 +4,7 @@ import { useTelegram } from '../contexts/TelegramContext';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
-// Helper functions for matching colors and icons to task types[cite: 1]
+// Helper functions for matching colors and icons to task types
 function getTaskIcon(type) {
   if (type === "watch_ad" || type === "home_ad_step") return "📺";
   if (type === "lucky_wheel") return "🎡";
@@ -29,7 +29,6 @@ export default function RewardHistory() {
   const { initData } = useTelegram();
   const navigate = useNavigate();
 
-  // Fetch paginated history from the backend[cite: 1]
   const {
     data,
     fetchNextPage,
@@ -54,7 +53,7 @@ export default function RewardHistory() {
   const records = data?.pages.flatMap(page => page.records) ?? [];
   const totalRecords = data?.pages[0]?.pagination?.total ?? 0;
 
-  // Group records by formatted date string[cite: 1]
+  // Group records by formatted date string
   const groupedRecords = {};
   for (const record of records) {
     const dateStr = new Date(record.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
@@ -65,7 +64,7 @@ export default function RewardHistory() {
   return (
     <div className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24">
       
-      {/* Header exactly matching screenshot layout[cite: 1] */}
+      {/* Header matching screenshot layout */}
       <div className="bg-white px-4 pt-4 pb-3 flex items-center gap-3 border-b border-gray-100 shadow-sm relative z-10">
         <button 
           onClick={() => navigate("/profile")} 
@@ -90,7 +89,7 @@ export default function RewardHistory() {
           </div>
         ) : records.length === 0 ? (
           
-          /* Empty State Card Matching Screenshot[cite: 1] */
+          /* Empty State Card Matching Screenshot */
           <div className="bg-white rounded-2xl p-8 text-center border border-gray-100 shadow-sm">
             <div className="text-4xl mb-3">📭</div>
             <div className="font-bold text-gray-700 mb-1">No rewards yet</div>
