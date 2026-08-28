@@ -51,8 +51,7 @@ export default function RewardHistory() {
   });
 
   const records = data?.pages.flatMap(page => page.records) ?? [];
-  const totalRecords = data?.pages[0]?.pagination?.total ?? 0;
-
+  
   // Group records by formatted date string
   const groupedRecords = {};
   for (const record of records) {
@@ -63,23 +62,19 @@ export default function RewardHistory() {
 
   return (
     <div className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24">
-      {/* Header */}
-      <div className="bg-white px-4 pt-4 pb-3 flex items-center gap-3 border-b border-gray-100 shadow-sm relative z-10">
+      {/* Header (Exact match to screenshot) */}
+      <div className="bg-white h-14 px-4 flex items-center gap-3 shadow-sm relative z-10 border-b border-gray-100">
         <button 
           onClick={() => navigate("/profile")} 
-          className="p-1 rounded-lg hover:bg-gray-100 transition-colors shrink-0"
+          className="p-1.5 -ml-1.5 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors shrink-0"
         >
-          <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="m12 19-7-7 7-7"></path>
-            <path d="M19 12H5"></path>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
           </svg>
         </button>
-        <div>
-          <h1 className="text-xl font-black text-gray-900">📋 Reward History</h1>
-          {totalRecords > 0 && (
-            <div className="text-xs text-gray-400 font-medium mt-0.5">{totalRecords} total rewards earned</div>
-          )}
-        </div>
+        <h1 className="text-[17px] font-black text-gray-900 flex items-center gap-1.5">
+          📋 Reward History
+        </h1>
       </div>
 
       <div className="px-4 pt-4">
@@ -88,25 +83,28 @@ export default function RewardHistory() {
             <div className="w-8 h-8 animate-spin rounded-full border-4 border-purple-200 border-t-purple-600"></div>
           </div>
         ) : records.length === 0 ? (
-          <div className="bg-white rounded-3xl p-8 text-center border border-gray-100 shadow-sm mt-2">
-            <div className="text-5xl mb-3">📭</div>
-            <div className="font-bold text-gray-700 text-lg mb-1">No rewards yet</div>
-            <div className="text-sm text-gray-400">Complete tasks to start earning points!</div>
-          </div>
+          
+          /* Empty State Card (Exact match to screenshot) */
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl py-8 px-4 flex flex-col items-center justify-center border border-gray-100 shadow-sm">
+            <div className="text-3xl mb-2">📬</div>
+            <div className="text-[15px] font-bold text-gray-800 mb-1">No rewards yet</div>
+            <div className="text-[12px] text-gray-400">Complete tasks to start earning points!</div>
+          </motion.div>
+          
         ) : (
           <div className="space-y-4">
             {Object.entries(groupedRecords).map(([dateLabel, dayRecords]) => (
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} key={dateLabel}>
-                <div className="text-xs font-bold text-gray-500 mb-2 px-1 uppercase tracking-wider">{dateLabel}</div>
+                <div className="text-[11px] font-bold text-gray-400 mb-2 px-1 uppercase tracking-widest">{dateLabel}</div>
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                   {dayRecords.map((record, index) => (
                     <div key={record.id} className={`flex items-center gap-3 px-4 py-3 ${index < dayRecords.length - 1 ? "border-b border-gray-50" : ""}`}>
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${getTaskBg(record.type)}`}>
-                        <span className="text-lg">{getTaskIcon(record.type)}</span>
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${getTaskBg(record.type)}`}>
+                        <span className="text-base">{getTaskIcon(record.type)}</span>
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="font-bold text-sm text-gray-800 truncate">{record.description}</div>
-                        <div className="text-[10px] text-gray-400 mt-0.5">
+                        <div className="text-[10px] font-medium text-gray-400 mt-0.5">
                           {new Date(record.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </div>
                       </div>
