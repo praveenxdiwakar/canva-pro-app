@@ -4,7 +4,7 @@ import { useTelegram } from '../contexts/TelegramContext';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
-// Upgraded Helper Functions matching the new source
+// Helper functions for matching colors and icons to task types[cite: 1]
 function getTaskIcon(type) {
   if (type === "watch_ad" || type === "home_ad_step") return "📺";
   if (type === "lucky_wheel") return "🎡";
@@ -16,19 +16,20 @@ function getTaskIcon(type) {
 }
 
 function getTaskBg(type) {
-  if (type === "watch_ad" || type === "home_ad_step") return "bg-red-100";
-  if (type === "lucky_wheel") return "bg-yellow-100";
-  if (type === "mystery_gift") return "bg-amber-100";
-  if (type === "join_channel" || type === "join_zer0costedu") return "bg-blue-100";
-  if (type === "invite_friend") return "bg-orange-100";
-  if (type === "daily_checkin") return "bg-green-100";
-  return "bg-purple-100";
+  if (type === "watch_ad" || type === "home_ad_step") return "bg-red-100 text-red-500";
+  if (type === "lucky_wheel") return "bg-yellow-100 text-yellow-600";
+  if (type === "mystery_gift") return "bg-amber-100 text-amber-500";
+  if (type === "join_channel" || type === "join_zer0costedu") return "bg-blue-100 text-blue-500";
+  if (type === "invite_friend") return "bg-orange-100 text-orange-500";
+  if (type === "daily_checkin") return "bg-green-100 text-green-500";
+  return "bg-purple-100 text-purple-500";
 }
 
 export default function RewardHistory() {
   const { initData } = useTelegram();
   const navigate = useNavigate();
 
+  // Fetch paginated history from the backend[cite: 1]
   const {
     data,
     fetchNextPage,
@@ -51,9 +52,9 @@ export default function RewardHistory() {
   });
 
   const records = data?.pages.flatMap(page => page.records) ?? [];
-  const totalEarned = data?.pages[0]?.pagination?.total ?? 0;
+  const totalRecords = data?.pages[0]?.pagination?.total ?? 0;
 
-  // Upgraded grouping logic by date
+  // Group records by formatted date string[cite: 1]
   const groupedRecords = {};
   for (const record of records) {
     const dateStr = new Date(record.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
@@ -63,20 +64,21 @@ export default function RewardHistory() {
 
   return (
     <div className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24">
-      {/* Upgraded Header Layout */}
-      <div className="bg-white px-4 pt-4 pb-3 flex items-center gap-3 border-b border-gray-100">
+      
+      {/* Header exactly matching screenshot layout[cite: 1] */}
+      <div className="bg-white px-4 pt-4 pb-3 flex items-center gap-3 border-b border-gray-100 shadow-sm relative z-10">
         <button 
           onClick={() => navigate("/profile")} 
-          className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
+          className="p-1 rounded-lg hover:bg-gray-100 transition-colors shrink-0"
         >
           <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M15 18l-6-6 6-6" />
+            <path d="M15 18l-6-6 6-6"></path>
           </svg>
         </button>
         <div>
           <h1 className="text-xl font-black text-gray-900">📋 Reward History</h1>
-          {totalEarned > 0 && (
-            <div className="text-xs text-gray-400">{totalEarned} total rewards earned</div>
+          {totalRecords > 0 && (
+            <div className="text-xs text-gray-400 mt-0.5">{totalRecords} total rewards earned</div>
           )}
         </div>
       </div>
@@ -88,7 +90,7 @@ export default function RewardHistory() {
           </div>
         ) : records.length === 0 ? (
           
-          /* Upgraded Empty State */
+          /* Empty State Card Matching Screenshot[cite: 1] */
           <div className="bg-white rounded-2xl p-8 text-center border border-gray-100 shadow-sm">
             <div className="text-4xl mb-3">📭</div>
             <div className="font-bold text-gray-700 mb-1">No rewards yet</div>
@@ -99,17 +101,17 @@ export default function RewardHistory() {
           <div className="space-y-4">
             {Object.entries(groupedRecords).map(([dateLabel, dayRecords]) => (
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} key={dateLabel}>
-                <div className="text-xs font-bold text-gray-500 mb-2 px-1">{dateLabel}</div>
+                <div className="text-xs font-bold text-gray-500 mb-2 px-1 uppercase tracking-wider">{dateLabel}</div>
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                   {dayRecords.map((record, index) => (
                     <div key={record.id} className={`flex items-center gap-3 px-4 py-3 ${index < dayRecords.length - 1 ? "border-b border-gray-50" : ""}`}>
-                      <div className={`w-9 h-9 rounded-full ${getTaskBg(record.type)} flex items-center justify-center shrink-0`}>
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${getTaskBg(record.type)}`}>
                         <span className="text-base">{getTaskIcon(record.type)}</span>
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="font-bold text-sm text-gray-800 truncate">{record.description}</div>
-                        <div className="text-[10px] text-gray-400">
-                          {new Date(record.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                        <div className="text-[10px] font-medium text-gray-400 mt-0.5">
+                          {new Date(record.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </div>
                       </div>
                       <div className="font-black text-green-500 text-sm shrink-0">
@@ -125,19 +127,14 @@ export default function RewardHistory() {
               <button 
                 onClick={() => fetchNextPage()} 
                 disabled={isFetchingNextPage}
-                className="w-full bg-white border border-gray-200 text-gray-600 font-bold text-sm py-3 rounded-xl transition-all hover:bg-gray-50 active:scale-[0.98] flex items-center justify-center gap-2"
+                className="w-full bg-white border border-gray-200 text-gray-600 font-bold text-sm py-3.5 rounded-2xl transition-all hover:bg-gray-50 active:scale-[0.98] flex items-center justify-center gap-2 shadow-sm"
               >
-                {isFetchingNextPage ? (
-                  <>
-                    <div className="w-4 h-4 animate-spin rounded-full border-2 border-gray-400 border-t-gray-600"></div>
-                    Loading…
-                  </>
-                ) : "Load More"}
+                {isFetchingNextPage ? "Loading..." : "Load More"}
               </button>
             )}
 
             {!hasNextPage && records.length > 0 && (
-              <div className="text-center text-xs text-gray-400 py-2">
+              <div className="text-center text-xs font-bold text-gray-400 py-3">
                 All rewards loaded ✓
               </div>
             )}
