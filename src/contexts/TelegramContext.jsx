@@ -1,7 +1,10 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+
 export const TelegramContext = createContext({});
+
 export const TelegramProvider = ({ children }) => {
   const [initData, setInitData] = useState('');
+  
   useEffect(() => {
     if (window.Telegram?.WebApp) {
       window.Telegram.WebApp.ready();
@@ -9,5 +12,13 @@ export const TelegramProvider = ({ children }) => {
       setInitData(window.Telegram.WebApp.initData || 'dev_mode');
     }
   }, []);
-  return <TelegramContext.Provider value={{ initData }}>{children}</TelegramContext.Provider>;
+  
+  return (
+    <TelegramContext.Provider value={{ initData }}>
+      {children}
+    </TelegramContext.Provider>
+  );
 };
+
+// This was the missing line causing your build to fail!
+export const useTelegram = () => useContext(TelegramContext);
