@@ -1,9 +1,31 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useTelegram } from '../contexts/TelegramContext';
+import { motion, AnimatePresence } from 'framer-motion';
+import LeaderboardModal from '../components/LeaderboardModal';
 
 export default function Profile() {
+  const { initData } = useTelegram();
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+
+  const { data: stats } = useQuery({
+    queryKey: ['user-stats'],
+    queryFn: async () => {
+      const res = await fetch('/api/users/stats', { headers: { 'x-init-data': initData } });
+      return res.ok ? res.json() : null;
+    },
+    enabled: !!initData
+  });
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(stats?.referralUrl || '');
+    if (window.Telegram?.WebApp?.HapticFeedback) {
+      window.Telegram.WebApp.HapticFeedback.notificationOccurred("success");
+    }
+  };
+
   return (
-    <div className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24">
+    <div className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24 relative">
       
       {/* Header */}
       <div className="bg-white px-4 pt-4 pb-3 border-b border-gray-100 flex items-center justify-between shadow-sm z-10 relative">
@@ -26,12 +48,15 @@ export default function Profile() {
           </div>
           <div className="flex justify-center mb-5">
             <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 font-black px-6 py-2 rounded-full text-sm shadow-sm flex items-center gap-1.5">
-              ⭐ 0 Points
+              ⭐ {stats?.lifetimePoints ?? 0} Points
             </div>
           </div>
           
           <div className="flex gap-3">
-            <button className="flex-1 bg-[#f97316] hover:bg-[#ea580c] active:scale-95 transition-transform text-white font-bold py-3.5 rounded-xl shadow-md flex justify-center items-center gap-2 text-sm">
+            <button 
+              onClick={() => setShowLeaderboard(true)}
+              className="flex-1 bg-[#f97316] hover:bg-[#ea580c] active:scale-95 transition-transform text-white font-bold py-3.5 rounded-xl shadow-md flex justify-center items-center gap-2 text-sm"
+            >
               🏆 Leaderboard
             </button>
             <button className="flex-1 bg-[#06b6d4] hover:bg-[#0891b2] active:scale-95 transition-transform text-white font-bold py-3.5 rounded-xl shadow-md flex justify-center items-center gap-2 text-sm">
@@ -51,10 +76,10 @@ export default function Profile() {
           <div className="grid grid-cols-3 gap-2">
             <StatBox val="0" label="Today's Ads" icon="📺" />
             <StatBox val="0" label="Today's Spins" icon="🎯" />
-            <StatBox val="—" label="Streak" icon="🔥" />
-            <StatBox val="0" label="Invited" icon="👥" />
-            <StatBox val="0" label="Lifetime Pts" icon="⭐" />
-            <StatBox val="0" label="Canva Redeemed" icon="👑" />
+            <StatBox val={stats?.currentStreak > 0 ? `${stats.currentStreak}d` : "—"} label="Streak" icon="🔥" />
+            <StatBox val={stats?.invitedFriends ?? "0"} label="Invited" icon="👥" />
+            <StatBox val={stats?.lifetimePoints ?? "0"} label="Lifetime Pts" icon="⭐" />
+            <StatBox val={stats?.totalRedeemed ?? "0"} label="Canva Redeemed" icon="👑" />
           </div>
         </motion.div>
 
@@ -70,9 +95,9 @@ export default function Profile() {
           </div>
           <div className="flex gap-2 bg-gray-50 p-1.5 rounded-2xl border border-gray-100">
             <div className="flex-1 px-3 py-2.5 text-xs truncate text-gray-500 font-mono">
-              https://t.me/ShareCanvaProFree_Bot?startapp...
+              {stats?.referralUrl || "https://t.me/ShareCanvaProFree_Bot?startapp..."}
             </div>
-            <button className="bg-purple-100 text-purple-600 px-4 py-2.5 rounded-xl shrink-0 hover:bg-purple-200 transition-colors">
+            <button onClick={handleCopy} className="bg-purple-100 text-purple-600 px-4 py-2.5 rounded-xl shrink-0 hover:bg-purple-200 transition-colors">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
             </button>
           </div>
@@ -88,6 +113,12 @@ export default function Profile() {
           </div>
         </motion.div>
       </div>
+
+      {/* Render the Leaderboard Modal on top of everything if active */}
+      <AnimatePresence>
+        {showLeaderboard && <LeaderboardModal onClose={() => setShowLeaderboard(false)} />}
+      </AnimatePresence>
+
     </div>
   );
 }
