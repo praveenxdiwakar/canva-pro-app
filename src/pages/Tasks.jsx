@@ -1,127 +1,150 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { useTelegram } from '../contexts/TelegramContext';
-import SpinEarnCard from '../components/SpinEarnCard';
 
 export default function Tasks() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { initData } = useTelegram();
+  const queryClient = useQueryClient();
+
+  // Fetch Live Points from Database
+  const { data: userData } = useQuery({
+    queryKey: ['user-me'],
+    queryFn: async () => {
+      const res = await fetch('/api/users/me', { headers: { 'x-init-data': initData } });
+      return res.ok ? res.json() : { points: 0 };
+    },
+    enabled: !!initData
+  });
+
+  const livePoints = userData?.points ?? 0;
+
+  const handleCheckin = async () => {
+    try {
+      const res = await fetch('/api/checkin', {
+        method: 'POST',
+        headers: { 'x-init-data': initData, 'content-type': 'application/json' }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert("✅ " + data.message);
+        queryClient.invalidateQueries({ queryKey: ['user-me'] });
+      } else {
+        alert("❌ Error: " + (data.error || "Check-in failed on backend"));
+      }
+    } catch (e) {
+      alert("❌ Error: Could not connect to Database");
+    }
+  };
 
   return (
     <div className="flex flex-col min-h-[calc(100dvh-5rem)] bg-[#f5f5f5] pb-24">
-      {/* Banner Area */}
       <div className="relative w-full h-44 overflow-hidden bg-gray-900">
-        <img 
-          src="/earn-points-banner.png" 
-          alt="Earn Points" 
-          className="absolute inset-0 w-full h-full object-cover object-center z-10" 
-          onError={(e) => e.target.style.display = 'none'}
-        />
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-center" style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #3b0764 50%, #000000 100%)' }}>
-           <h1 className="text-3xl font-black text-white tracking-tight italic">EARN POINTS</h1>
-           <p className="text-xs text-purple-300 font-bold mt-1 uppercase tracking-widest">Complete Tasks • Get Canva Pro</p>
+        <img src="/earn-points-banner.png" alt="Earn Points" className="absolute inset-0 w-full h-full object-cover z-10" />
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-center bg-gradient-to-br from-[#1e1b4b] to-[#000000]">
+           <h1 className="text-3xl font-black text-white italic">EARN POINTS</h1>
         </div>
       </div>
 
-      {/* Header */}
-      <div className="bg-white px-4 pt-4 pb-3 flex items-center justify-between border-b border-gray-100 shadow-sm z-10">
-        <h1 className="text-xl font-black text-gray-900 flex items-center gap-2">
-          🎯 Earn Points
-        </h1>
+      <div className="bg-white px-4 pt-4 pb-3 flex items-center justify-between shadow-sm z-10">
+        <h1 className="text-xl font-black text-gray-900 flex items-center gap-2">🎯 Earn Points</h1>
         <div className="flex items-center gap-2">
           <div className="bg-yellow-50 border border-yellow-200 rounded-full px-3 py-1 text-xs font-bold text-yellow-700 shadow-sm">
-            ⭐ 0 pts
+            ⭐ {livePoints} pts
           </div>
-          <button 
-            onClick={() => navigate('/reward-history')}
-            className="bg-purple-50 hover:bg-purple-100 text-purple-600 text-xs font-bold px-3 py-1.5 rounded-full transition-colors"
-          >
-            History
-          </button>
+          <button onClick={() => navigate('/reward-history')} className="bg-purple-50 text-purple-600 text-xs font-bold px-3 py-1.5 rounded-full">History</button>
         </div>
       </div>
 
-      {/* Main Content / Cards */}
       <div className="px-4 pt-4 space-y-3">
-        
-        {/* Next Canva Reward */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-          <div className="flex justify-between items-start mb-2.5">
-            <div>
-              <div className="font-black text-gray-900 text-sm flex items-center gap-1.5">
-                🏆 Next Canva Reward
-              </div>
-              <div className="text-xs text-gray-500 mt-0.5">Canva Pro · 7 Days</div>
-            </div>
-            <div className="text-[11px] font-bold bg-purple-50 text-purple-700 px-2.5 py-1 rounded-full">
-              0 / 20 pts
-            </div>
-          </div>
-          <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-1.5">
-            <div className="h-full bg-purple-500 rounded-full" style={{ width: '0%' }}></div>
-          </div>
-          <div className="text-[11px] text-gray-400 font-medium">20 more points needed</div>
-        </motion.div>
+        <SpinEarnCard initData={initData} onWin={() => queryClient.invalidateQueries({ queryKey: ['user-me'] })} />
 
-        {/* Spin & Earn Accordion Component */}
-        <SpinEarnCard onWin={() => queryClient.invalidateQueries({ queryKey: ['user'] })} />
-
-        {/* Daily Check-in */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-          <div className="font-bold text-gray-900 text-sm mb-3 flex items-center gap-2">
-            <span>🗓️</span> Daily Check-in
-          </div>
-          <div className="flex justify-between mb-4">
-            {['D1|+1', 'D2|+1', 'D3|+1', 'D4|+2', 'D5|+2', 'D6|+2', 'D7|+3'].map((day, i) => {
-              const [d, pts] = day.split('|');
-              const isFirst = i === 0;
-              const isLast = i === 6;
-              return (
-                <div key={i} className={`flex flex-col items-center justify-center w-10 h-10 rounded-full border ${isFirst ? 'border-purple-300 bg-purple-50 text-purple-700 shadow-sm' : 'border-gray-100 text-gray-400'} text-[10px] font-bold leading-tight`}>
-                  {d}<br/><span className={isFirst ? 'text-purple-600' : isLast ? 'text-yellow-500' : 'text-gray-400'}>{pts}</span>
-                </div>
-              )
-            })}
-          </div>
-          <button className="w-full bg-[#10b981] hover:bg-[#059669] active:scale-[0.98] transition-transform text-white font-black py-3.5 rounded-xl text-sm shadow-md shadow-green-100">
-            CHECK-IN — Today's Reward: +1 pt
+        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+          <div className="font-bold text-gray-900 text-sm mb-3 flex items-center gap-2"><span>🗓️</span> Daily Check-in</div>
+          <button onClick={handleCheckin} className="w-full bg-[#10b981] active:scale-[0.98] text-white font-black py-3.5 rounded-xl text-sm shadow-md">
+            CHECK-IN — +1 pt
           </button>
-        </motion.div>
-
-        {/* Task Cards */}
-        <TaskCard icon="📺" iconBg="bg-red-500" title="Watch Ads 01" subtitle="+1 Point / Ad" limit="0/5" btnText="WATCH ADS" btnColor="bg-[#ef4444]" />
-        <TaskCard icon="📺" iconBg="bg-orange-500" title="Watch Ads 02" subtitle="+1 Point / Ad" limit="0/5" btnText="WATCH ADS" btnColor="bg-[#ef4444]" />
-        <TaskCard icon="📢" iconBg="bg-blue-500" title="Join Channel 01" subtitle="+2 pts · One time" limit="91/1000" btnText="JOIN" btnColor="bg-[#3b82f6]" />
-        <TaskCard icon="📢" iconBg="bg-cyan-500" title="Join Channel 02" subtitle="+2 pts · One time" limit="86/1000" btnText="JOIN" btnColor="bg-[#3b82f6]" />
-        <TaskCard icon="👥" iconBg="bg-yellow-400" title="Invite Friends" subtitle="+5 pts / referral · Unlimited" btnText="COPY" btnColor="bg-[#06b6d4]" />
+        </div>
       </div>
     </div>
   );
 }
 
-function TaskCard({ icon, iconBg, title, subtitle, limit, btnText, btnColor }) {
+function SpinEarnCard({ initData, onWin }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isSpinning, setIsSpinning] = useState(false);
+  const [rotation, setRotation] = useState(0);
+
+  const handleSpin = async () => {
+    if (isSpinning) return;
+    setIsSpinning(true);
+    
+    try {
+      // Connects to Database for true spin logic
+      const res = await fetch('/api/tasks/spin', {
+        method: 'POST',
+        headers: { 'x-init-data': initData, 'content-type': 'application/json' }
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(`❌ Error: ${data.message || 'Spin failed in database'}`);
+        setIsSpinning(false);
+        return;
+      }
+
+      setRotation(prev => prev + 1800 + Math.floor(Math.random() * 360));
+
+      setTimeout(() => {
+        setIsSpinning(false);
+        onWin();
+        alert(`🎉 You won +${data.pointsWon || 1} points permanently!`);
+      }, 4000);
+
+    } catch (e) {
+      alert("❌ Error: Could not connect to Database");
+      setIsSpinning(false);
+    }
+  };
+
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center gap-3">
-      <div className={`w-11 h-11 rounded-full ${iconBg} flex items-center justify-center shrink-0 text-white text-xl shadow-inner`}>
-        {icon}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="font-bold text-gray-900 text-sm">{title}</div>
-        <div className="text-[11px] text-gray-500 mt-0.5">{subtitle} <span className="text-gray-300 mx-1">{limit ? '·' : ''}</span> {limit}</div>
-        {limit && (
-          <div className="flex items-center gap-1 mt-1.5">
-            <div className="flex gap-1">
-              {[1, 2, 3, 4, 5].map(i => <div key={i} className="w-1.5 h-1.5 rounded-full bg-gray-200"></div>)}
-            </div>
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl border border-pink-100 shadow-sm overflow-hidden">
+      <button onClick={() => setIsOpen(!isOpen)} className="w-full p-4 flex justify-between items-center text-left hover:bg-gray-50 transition-colors">
+        <div className="flex items-start gap-3">
+          <span className="text-2xl drop-shadow-sm mt-0.5">🎡</span>
+          <div>
+            <div className="font-bold text-gray-900 text-sm">Spin & Earn</div>
           </div>
-        )}
-      </div>
-      <button className={`${btnColor} hover:opacity-90 active:scale-95 text-white font-bold text-xs px-4 py-2.5 rounded-xl shrink-0 transition-all shadow-sm`}>
-        {btnText}
+        </div>
+        <div className="text-sm font-bold text-blue-500 flex items-center gap-1">{isOpen ? "Close ▲" : "Tap to Spin →"}</div>
       </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden border-t border-gray-100">
+            <div className="p-4 flex flex-col items-center">
+              <div className="relative w-44 h-44 mb-4">
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1 z-10 w-0 h-0 border-l-[8px] border-r-[8px] border-b-[16px] border-l-transparent border-r-transparent border-b-gray-900" />
+                <div 
+                  className="w-full h-full rounded-full border-4 border-purple-200 shadow-inner flex items-center justify-center relative overflow-hidden bg-gradient-to-tr from-pink-200 via-purple-200 to-yellow-100"
+                  style={{ transform: `rotate(${rotation}deg)`, transition: isSpinning ? 'transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99)' : 'none' }}
+                >
+                  <div className="absolute text-xs font-black text-purple-900 top-2">+20</div>
+                  <div className="absolute text-xs font-black text-pink-900 right-2">+5</div>
+                  <div className="absolute text-xs font-black text-blue-900 bottom-2">+2</div>
+                  <div className="absolute text-xs font-black text-green-900 left-2">+1</div>
+                  <div className="w-6 h-6 bg-white rounded-full shadow-md z-10" />
+                </div>
+              </div>
+              <button onClick={handleSpin} disabled={isSpinning} className="w-full bg-gray-900 text-white font-black text-sm py-3.5 rounded-xl shadow-md active:scale-95 transition-all">
+                {isSpinning ? "Connecting to Database..." : "SPIN"}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
