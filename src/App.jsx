@@ -12,7 +12,15 @@ import RewardHistory from './pages/RewardHistory';
 import Profile from './pages/Profile';
 import Admin from './pages/Admin';
 
-const queryClient = new QueryClient();
+// Initialize React Query client
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 export default function App() {
   return (
