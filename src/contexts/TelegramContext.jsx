@@ -10,9 +10,12 @@ export function TelegramProvider({ children }) {
   
   const startParam = tg?.initDataUnsafe?.start_param || null; 
 
+  // Grab the EXACT Telegram data (including last_name and username)
   const initialUser = {
     telegramId: tgUser?.id ? String(tgUser.id) : (import.meta.env.VITE_ADMIN_TELEGRAM_ID || "5589713552"),
     firstName: tgUser?.first_name || "User",
+    lastName: tgUser?.last_name || "",
+    username: tgUser?.username || "", // <-- Grabs real @username
     photoUrl: tgUser?.photo_url || "https://cdn-icons-png.flaticon.com/512/149/149071.png",
     points: 0, 
     streak: 0,
@@ -49,12 +52,11 @@ export function TelegramProvider({ children }) {
           last_checkin: finalDate
         }));
 
-        // If Local Backup was higher, the cloud dropped a save. Force re-upload!
+        // If Local Backup was higher, force re-upload
         if (localPts > (dbUser.points || 0)) {
           supabase.from('users').update({ points: finalPoints }).eq('telegram_id', tgIdStr).then();
         }
       } else {
-        // Fallback to local if completely offline
         setUser(prev => ({ ...prev, points: localPts, streak: localStreak, last_checkin: localDate }));
       }
       setIsReady(true); 
