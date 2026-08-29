@@ -60,47 +60,48 @@ export default function FreeCanva() {
         </div>
 
         {/* Steps Card */}
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl px-4 py-6 border border-gray-100 shadow-sm space-y-7">
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl px-4 py-6 border border-gray-100 shadow-sm space-y-6">
           
           {/* PERFECTLY CENTERED STEPPER */}
-          <div className="relative flex justify-between items-center w-full max-w-[280px] mx-auto mt-2 mb-4">
+          <div className="relative w-full max-w-[260px] mx-auto mt-2 mb-2">
             {/* Absolute Background Line */}
-            <div className="absolute top-1/2 left-[12%] right-[12%] h-[3px] bg-gray-200 -translate-y-1/2 z-0 rounded-full">
+            <div className="absolute top-[18px] left-[12%] right-[12%] h-[3px] bg-gray-200 z-0 rounded-full">
               <div 
                 className="h-full bg-[#6200EA] transition-all duration-500 rounded-full" 
                 style={{ width: `${progressPercentage}%` }} 
               />
             </div>
 
-            {/* Step Circles */}
-            {steps.map((step, index) => {
-              const isActive = !step.completed && (index === 0 || steps[index - 1].completed);
-              return (
-                <div key={index} className="relative z-10 flex flex-col items-center justify-center">
-                  <div className="bg-white p-1 rounded-full">
-                    <div 
-                      className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm transition-all ${
-                        step.completed 
-                          ? "bg-[#6200EA] text-white shadow-[0_3px_8px_rgba(98,0,234,0.4)]" 
-                          : isActive
-                            ? "bg-white border-[2.5px] border-[#6200EA] text-[#6200EA]"
-                            : "bg-gray-100 border-[2.5px] border-gray-200 text-gray-400"
+            {/* Flex Container for Steps */}
+            <div className="relative z-10 flex justify-between items-start w-full">
+              {steps.map((step, index) => {
+                const isActive = !step.completed && (index === 0 || steps[index - 1].completed);
+                return (
+                  <div key={index} className="flex flex-col items-center w-14">
+                    <div className="bg-white p-1 rounded-full mb-1">
+                      <div 
+                        className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm transition-all ${
+                          step.completed 
+                            ? "bg-[#6200EA] text-white shadow-[0_3px_8px_rgba(98,0,234,0.4)]" 
+                            : isActive
+                              ? "bg-white border-[2.5px] border-[#6200EA] text-[#6200EA]"
+                              : "bg-gray-100 border-[2.5px] border-gray-200 text-gray-400"
+                        }`}
+                      >
+                        {step.completed ? "✓" : step.id}
+                      </div>
+                    </div>
+                    <span 
+                      className={`text-[10px] font-bold text-center ${
+                        step.completed ? "text-[#6200EA]" : isActive ? "text-gray-700" : "text-gray-400"
                       }`}
                     >
-                      {step.completed ? "✓" : step.id}
-                    </div>
+                      Step {step.id}
+                    </span>
                   </div>
-                  {/* Absolute positioning keeps the text centered exactly under the circle */}
-                  <span 
-                    className={`absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] font-bold whitespace-nowrap text-center ${
-                      step.completed ? "text-[#6200EA]" : isActive ? "text-gray-700" : "text-gray-400"
-                    }`}
-                  >
-                    Step {step.id}
-                  </span>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
 
           <button 
