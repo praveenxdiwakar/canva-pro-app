@@ -5,9 +5,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
 export default function Admin() {
-  const { initData } = useTelegram();
+  const { initData, user } = useTelegram();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  // Grab Telegram ID directly from the context
+  const telegramId = user?.telegramId || "";
+  const isMasterAdmin = telegramId === "5589713552";
 
   const { data: adminData, isLoading, error } = useQuery({
     queryKey: ['admin-settings'],
@@ -29,14 +33,15 @@ export default function Admin() {
     );
   }
 
-  // 403 Access Denied Screen (Shows if the backend blocks access)
-  if (error) {
+  // FORCE BYPASS: If there is an error, BUT it's you (5589713552), ignore the lock screen!
+  // Only show the lock screen to people who are NOT 5589713552.
+  if (error && !isMasterAdmin) {
     return (
       <div className="flex flex-col h-full min-h-[80vh] items-center justify-center gap-4 px-6 bg-[#f5f5f5] text-center">
         <div className="text-5xl">🔒</div>
         <div className="font-black text-gray-800 text-lg">Admin access required</div>
         <div className="text-sm text-gray-400">
-          Your Telegram ID <span className="font-bold text-gray-700">(5589713552)</span> must be authorized in your backend's ADMIN_TELEGRAM_IDS variable.
+          Your Telegram ID must be authorized in your backend's ADMIN_TELEGRAM_IDS variable.
         </div>
         <button 
           onClick={() => navigate('/profile')} 
@@ -48,14 +53,15 @@ export default function Admin() {
     );
   }
 
-  const groups = adminData?.groups ?? [];
-  const settingsByGroup = adminData?.settings.reduce((acc, s) => {
+  // Provide fallback arrays if the backend blocked the request but we forced the UI open
+  const groups = adminData?.groups ?? ["Main Settings", "Monetag Ads", "Join Channels"];
+  const settingsByGroup = adminData?.settings?.reduce((acc, s) => {
     if (!acc[s.group]) acc[s.group] = [];
     acc[s.group].push(s);
     return acc;
   }, {}) ?? {};
 
-  const modifiedCount = adminData?.settings.filter(s => s.value !== s.default).length ?? 0;
+  const modifiedCount = adminData?.settings?.filter(s => s.value !== s.default).length ?? 0;
 
   return (
     <div className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24">
@@ -74,6 +80,13 @@ export default function Admin() {
           </div>
         )}
       </div>
+
+      {/* Warning if backend is failing but UI is forced open */}
+      {error && isMasterAdmin && (
+        <div className="m-4 bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-600 font-semibold shadow-sm">
+          🚨 You bypassed the lock screen, but the backend is blocking you. Make sure "5589713552" is in your backend environment variables! Saving settings might fail until fixed.
+        </div>
+      )}
 
       <div className="px-4 pt-4 space-y-3">
         <InvitePoolSection initData={initData} />

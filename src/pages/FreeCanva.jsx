@@ -25,6 +25,10 @@ export default function FreeCanva() {
     { id: 4, completed: false }
   ];
 
+  // Calculate completed steps for the connecting line width
+  const completedCount = steps.filter(s => s.completed).length;
+  const progressPercentage = Math.min(100, Math.max(0, (completedCount / (steps.length - 1)) * 100));
+
   const handleLink = (url) => {
     if (window.Telegram?.WebApp?.openTelegramLink) {
       window.Telegram.WebApp.openTelegramLink(url);
@@ -58,41 +62,43 @@ export default function FreeCanva() {
         </div>
 
         {/* Steps Card */}
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl px-4 py-5 border border-gray-100 shadow-sm space-y-5">
-          <div className="flex items-center justify-between px-2">
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl px-4 py-6 border border-gray-100 shadow-sm space-y-6">
+          
+          {/* PERFECTLY CENTERED STEPPER */}
+          <div className="relative flex justify-between items-start w-full max-w-[260px] mx-auto">
+            {/* Background Line */}
+            <div className="absolute top-[18px] left-[10%] right-[10%] h-[2px] bg-gray-200 z-0">
+              <div 
+                className="h-full bg-[#6200EA] transition-all duration-500" 
+                style={{ width: `${progressPercentage}%` }} 
+              />
+            </div>
+
+            {/* Step Circles */}
             {steps.map((step, index) => {
               const isActive = !step.completed && (index === 0 || steps[index - 1].completed);
               return (
-                <div key={index} className="flex items-center flex-1">
-                  <div className="flex flex-col items-center gap-1 flex-shrink-0 transition-all">
+                <div key={index} className="flex flex-col items-center z-10 w-12">
+                  <div className="bg-white p-1 rounded-full">
                     <div 
-                      className="w-9 h-9 rounded-full flex items-center justify-center font-black text-sm transition-all"
+                      className="w-8 h-8 rounded-full flex items-center justify-center font-black text-sm transition-all"
                       style={
                         step.completed 
-                          ? { backgroundColor: "#6200EA", color: "#fff", boxShadow: "0 3px 10px #6200EA66" }
+                          ? { backgroundColor: "#6200EA", color: "#fff", boxShadow: "0 3px 8px #6200EA66" }
                           : isActive
-                            ? { backgroundColor: "#fff", border: "2.5px solid #6200EA", color: "#6200EA" }
+                            ? { backgroundColor: "#fff", border: "2px solid #6200EA", color: "#6200EA" }
                             : { backgroundColor: "#f3f4f6", border: "2px solid #e5e7eb", color: "#9ca3af" }
                       }
                     >
-                      {step.completed ? (
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                          <path d="M3 8l3.5 3.5L13 5" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      ) : step.id}
+                      {step.completed ? "✓" : step.id}
                     </div>
-                    <span 
-                      className="text-[10px] font-bold leading-none whitespace-nowrap mt-1"
-                      style={{ color: step.completed ? "#6200EA" : isActive ? "#374151" : "#9ca3af" }}
-                    >
-                      Step {step.id}
-                    </span>
                   </div>
-                  {index !== steps.length - 1 && (
-                    <div className="flex-1 h-[2px] mx-2 rounded-full overflow-hidden bg-gray-200 -mt-4">
-                      <div className="h-full rounded-full transition-all duration-500" style={{ width: step.completed ? '100%' : '0%', backgroundColor: "#6200EA" }} />
-                    </div>
-                  )}
+                  <span 
+                    className="text-[10px] font-bold mt-1"
+                    style={{ color: step.completed ? "#6200EA" : isActive ? "#374151" : "#9ca3af" }}
+                  >
+                    Step {step.id}
+                  </span>
                 </div>
               );
             })}
@@ -100,7 +106,7 @@ export default function FreeCanva() {
 
           <button 
             disabled={isWatchingAd || countdown > 0}
-            className="w-full bg-[#6200EA] hover:bg-[#4A00B4] active:scale-[0.98] disabled:opacity-60 text-white font-black text-xl py-6 rounded-xl shadow-md shadow-purple-100 transition-all flex items-center justify-center gap-2"
+            className="w-full bg-[#6200EA] hover:bg-[#4A00B4] active:scale-[0.98] disabled:opacity-60 text-white font-black text-[17px] py-4 rounded-xl shadow-md shadow-purple-100 transition-all flex items-center justify-center gap-2"
           >
             {isWatchingAd ? "Loading Ad…" : countdown > 0 ? `⏳ Wait ${countdown}s…` : "Watch Ads to Unlock Canva Pro"}
           </button>
