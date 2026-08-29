@@ -17,16 +17,30 @@ export default function Tasks() {
 
   // Task Completion Tracker (Saves to device)
   const [taskState, setTaskState] = useState({
-    ads1: 0, ads2: 0,
+    ads1: 0, ads2: 0, spins: 0,
     channel1: false, channel2: false,
     lastDate: new Date().toDateString()
   });
   const [verifying, setVerifying] = useState(null);
 
-  // Load Task State & Ad Zone
+  // Load Task State & Dynamically Inject Monetag SDK
   useEffect(() => {
     supabase.from('app_settings').select('value').eq('key', 'MONETAG_ZONE_ID').maybeSingle().then(({data}) => {
-      if (data) setAdZone(data.value);
+      if (data && data.value) {
+        const zoneId = data.value;
+        setAdZone(zoneId);
+
+        // Dynamically inject the script into the document head
+        if (!document.getElementById(`monetag-sdk-${zoneId}`)) {
+          const script = document.createElement('script');
+          script.id = `monetag-sdk-${zoneId}`;
+          script.src = '//libtl.com/sdk.js';
+          script.setAttribute('data-zone', zoneId);
+          script.setAttribute('data-sdk', `show_${zoneId}`);
+          script.defer = true;
+          document.head.appendChild(script);
+        }
+      }
     });
 
     if (user?.telegramId) {
@@ -35,7 +49,7 @@ export default function Tasks() {
         const parsed = JSON.parse(savedTasks);
         if (parsed.lastDate !== new Date().toDateString()) {
           // Reset daily limits
-          parsed.ads1 = 0; parsed.ads2 = 0; parsed.lastDate = new Date().toDateString();
+          parsed.ads1 = 0; parsed.ads2 = 0; parsed.spins = 0; parsed.lastDate = new Date().toDateString();
         }
         setTaskState(parsed);
       }
@@ -54,13 +68,12 @@ export default function Tasks() {
   const hasCheckedInToday = user?.last_checkin === todayStr;
   const currentStreak = user?.streak || 0;
 
-  // Bulletproof Link Opener (Bypasses Telegram & Browser Popup Blockers)
+  // Bulletproof Link Opener
   const openExternalLink = (url) => {
     const tg = window.Telegram?.WebApp;
     if (tg && tg.openLink) {
-      tg.openLink(url); // Native Telegram opener
+      tg.openLink(url);
     } else {
-      // Invisible anchor tag click for standard web browsers
       const a = document.createElement('a');
       a.href = url;
       a.target = '_blank';
@@ -71,70 +84,101 @@ export default function Tasks() {
     }
   };
 
-  const handleCheckIn = async () => {
-    if (hasCheckedInToday) return alert("✅ You already checked in today! Come back tomorrow.");
-    let newStreak = 1;
-    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
-    
-    if (user?.last_checkin === yesterday.toDateString()) {
-      newStreak = Math.min(currentStreak + 1, 7);
-    } else if (user?.last_checkin) {
-      alert("⚠️ You missed a day! Your streak has reset to Day 1.");
+  // --- UNIVERSAL AD TRIGGER ---
+  // Wraps any action with the Monetag SDK ad requirement
+  const triggerAd = (onSuccess, onFail) => {
+    const adFunctionName = `show_${adZone}`;
+
+    if (adZone && typeof window[adFunctionName] === "function") {
+      window[adFunctionName]()
+        .then(() => {
+          onSuccess(); // Ad successfully watched
+        })
+        .catch(() => {
+          alert("⚠️ Ad failed to load. Please disable ad-blockers and try again.");
+          if (onFail) onFail();
+        });
+    } else {
+      // Fallback: Direct Link + Timer
+      const adUrl = adZone ? `https://go.oclasrv.com/afu.php?zoneid=${adZone}` : "https://monetag.com";
+      openExternalLink(adUrl);
+      setTimeout(() => {
+        onSuccess();
+      }, 6000); 
     }
+  };
+
+  // --- ACTION HANDLERS ---
+
+  const handleCheckIn = () => {
+    if (hasCheckedInToday) return alert("✅ You already checked in today! Come back tomorrow.");
     
-    const pointsEarned = [1, 1, 1, 2, 2, 2, 3][newStreak - 1];
-    const newTotal = await processCheckIn({ newStreak, dateStr: todayStr, pointsEarned });
-    setUser({ ...user, streak: newStreak, last_checkin: todayStr, points: newTotal });
-    alert(`✅ Checked in for Day ${newStreak}! +${pointsEarned} Points`);
+    // Require ad before checking in
+    triggerAd(async () => {
+      let newStreak = 1;
+      const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+      
+      if (user?.last_checkin === yesterday.toDateString()) {
+        newStreak = Math.min(currentStreak + 1, 7);
+      } else if (user?.last_checkin) {
+        alert("⚠️ You missed a day! Your streak has reset to Day 1.");
+      }
+      
+      const pointsEarned = [1, 1, 1, 2, 2, 2, 3][newStreak - 1];
+      const newTotal = await processCheckIn({ newStreak, dateStr: todayStr, pointsEarned });
+      setUser({ ...user, streak: newStreak, last_checkin: todayStr, points: newTotal });
+      alert(`✅ Checked in for Day ${newStreak}! +${pointsEarned} Points`);
+    });
   };
 
-  const handleSpin = async () => {
+  const handleSpin = () => {
     if (isSpinning) return;
-    setIsSpinning(true);
-    const prizeIndex = Math.floor(Math.random() * prizes.length);
-    const won = prizes[prizeIndex];
-    setRotation(rotation + (360 * 5) + (360 - (prizeIndex * 45)) - (rotation % 360));
+    if (taskState.spins >= 3) return alert("✅ Daily spin limit reached! Come back tomorrow.");
 
-    setTimeout(async () => {
-      setIsSpinning(false);
-      const newTotal = (user?.points || 0) + won;
-      await updatePoints(newTotal);
-      setUser({ ...user, points: newTotal });
-      alert(won > 0 ? `🎉 Congratulations! You won +${won} points!` : `😢 Oh no! You got 0 points. Try again next time.`);
-    }, 4000);
+    // Require ad before spinning
+    triggerAd(() => {
+      setIsSpinning(true);
+      const prizeIndex = Math.floor(Math.random() * prizes.length);
+      const won = prizes[prizeIndex];
+      setRotation(rotation + (360 * 5) + (360 - (prizeIndex * 45)) - (rotation % 360));
+
+      setTimeout(async () => {
+        setIsSpinning(false);
+        const newTotal = (user?.points || 0) + won;
+        await updatePoints(newTotal);
+        setUser({ ...user, points: newTotal });
+        setTaskState(prev => ({ ...prev, spins: (prev.spins || 0) + 1 }));
+        alert(won > 0 ? `🎉 Congratulations! You won +${won} points!` : `😢 Oh no! You got 0 points. Try again next time.`);
+      }, 4000);
+    });
   };
 
-  // Watch Ad Task Logic
   const handleWatchAd = (taskKey, maxCount) => {
     if (taskState[taskKey] >= maxCount) return alert("✅ Daily limit reached for this task!");
     
-    const adUrl = adZone ? `https://go.oclasrv.com/afu.php?zoneid=${adZone}` : "https://monetag.com";
-    openExternalLink(adUrl); // <-- FIXED: Uses Telegram native opener
-    
-    setTimeout(async () => {
+    // Require ad for points
+    triggerAd(async () => {
       const newTotal = (user?.points || 0) + 1;
       await updatePoints(newTotal);
       setUser({ ...user, points: newTotal });
       setTaskState(prev => ({ ...prev, [taskKey]: prev[taskKey] + 1 }));
-    }, 5000);
+      alert("✅ Ad completed! +1 Point added.");
+    });
   };
 
-  // Verify Channel Logic (Forces an Ad view!)
   const handleVerifyChannel = (channelKey, points) => {
     if (taskState[channelKey]) return alert("✅ You have already verified this channel!");
     
     setVerifying(channelKey);
-    const adUrl = adZone ? `https://go.oclasrv.com/afu.php?zoneid=${adZone}` : "https://monetag.com";
-    openExternalLink(adUrl); // <-- FIXED: Uses Telegram native opener
-
-    setTimeout(async () => {
+    // Require ad to verify
+    triggerAd(async () => {
       const newTotal = (user?.points || 0) + points;
       await updatePoints(newTotal);
       setUser({ ...user, points: newTotal });
       setTaskState(prev => ({ ...prev, [channelKey]: true }));
       setVerifying(null);
       alert(`✅ Channel Verified! +${points} Points added.`);
-    }, 6000);
+    }, () => setVerifying(null));
   };
 
   return (
@@ -182,7 +226,7 @@ export default function Tasks() {
             <div>
               <h2 className="font-black text-[15px] text-gray-900 flex items-center gap-2">🎡 Spin & Earn</h2>
               <div className="flex gap-1 text-yellow-400 text-[10px] my-1.5">⭐⭐⭐</div>
-              <p className="text-[11px] text-gray-500 font-medium">3/3 Spins</p>
+              <p className="text-[11px] text-gray-500 font-medium">{Math.max(0, 3 - (taskState.spins || 0))}/3 Spins Left</p>
             </div>
             {!isSpinOpen ? (
               <span className="text-[#3B82F6] font-black text-[12px] mt-1">Tap to Spin ➔</span>
@@ -207,8 +251,8 @@ export default function Tasks() {
                 </div>
               </div>
 
-              <button onClick={handleSpin} disabled={isSpinning} className="w-full bg-[#111827] disabled:bg-gray-400 text-white font-black py-4 rounded-2xl shadow-xl text-[14px] tracking-[0.2em] active:scale-95 transition-transform">
-                {isSpinning ? "SPINNING..." : "SPIN"}
+              <button onClick={handleSpin} disabled={isSpinning || taskState.spins >= 3} className="w-full bg-[#111827] disabled:bg-gray-400 text-white font-black py-4 rounded-2xl shadow-xl text-[14px] tracking-[0.2em] active:scale-95 transition-transform">
+                {taskState.spins >= 3 ? "COME BACK TOMORROW" : isSpinning ? "SPINNING..." : "WATCH AD TO SPIN"}
               </button>
             </div>
           )}
@@ -230,7 +274,7 @@ export default function Tasks() {
             })}
           </div>
           <button onClick={handleCheckIn} disabled={hasCheckedInToday} className={`w-full font-bold py-4 rounded-xl shadow-md text-[13px] transition-colors ${hasCheckedInToday ? 'bg-gray-100 text-gray-400' : 'bg-[#10B981] text-white active:scale-95'}`}>
-            {hasCheckedInToday ? "✅ Checked-in for today" : "CHECK-IN — Today's Reward: +1 pt"}
+            {hasCheckedInToday ? "✅ Checked-in for today" : "WATCH AD TO CHECK-IN"}
           </button>
         </div>
 
