@@ -32,10 +32,10 @@ export default function Tasks() {
         alert("✅ " + data.message);
         queryClient.invalidateQueries({ queryKey: ['user-me'] });
       } else {
-        alert("❌ Error: " + (data.error || "Check-in failed on backend"));
+        alert("❌ Backend Error: " + (data.error || "Check-in failed"));
       }
     } catch (e) {
-      alert("❌ Error: Could not connect to Database");
+      alert("❌ Critical Error: Could not connect to your backend.");
     }
   };
 
@@ -82,7 +82,6 @@ function SpinEarnCard({ initData, onWin }) {
     setIsSpinning(true);
     
     try {
-      // Connects to Database for true spin logic
       const res = await fetch('/api/tasks/spin', {
         method: 'POST',
         headers: { 'x-init-data': initData, 'content-type': 'application/json' }
@@ -90,7 +89,7 @@ function SpinEarnCard({ initData, onWin }) {
       const data = await res.json();
 
       if (!res.ok) {
-        alert(`❌ Error: ${data.message || 'Spin failed in database'}`);
+        alert(`❌ Backend Error: ${data.message || 'Failed in database'}`);
         setIsSpinning(false);
         return;
       }
@@ -100,11 +99,11 @@ function SpinEarnCard({ initData, onWin }) {
       setTimeout(() => {
         setIsSpinning(false);
         onWin();
-        alert(`🎉 You won +${data.pointsWon || 1} points permanently!`);
+        alert(`🎉 Saved to DB! You won +${data.pointsWon || 1} points!`);
       }, 4000);
 
     } catch (e) {
-      alert("❌ Error: Could not connect to Database");
+      alert("❌ Critical Error: Could not connect to Database");
       setIsSpinning(false);
     }
   };
@@ -114,9 +113,7 @@ function SpinEarnCard({ initData, onWin }) {
       <button onClick={() => setIsOpen(!isOpen)} className="w-full p-4 flex justify-between items-center text-left hover:bg-gray-50 transition-colors">
         <div className="flex items-start gap-3">
           <span className="text-2xl drop-shadow-sm mt-0.5">🎡</span>
-          <div>
-            <div className="font-bold text-gray-900 text-sm">Spin & Earn</div>
-          </div>
+          <div><div className="font-bold text-gray-900 text-sm">Spin & Earn</div></div>
         </div>
         <div className="text-sm font-bold text-blue-500 flex items-center gap-1">{isOpen ? "Close ▲" : "Tap to Spin →"}</div>
       </button>

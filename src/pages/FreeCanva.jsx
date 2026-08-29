@@ -8,13 +8,12 @@ export default function FreeCanva() {
   const queryClient = useQueryClient();
   const [isWatchingAd, setIsWatchingAd] = useState(false);
 
-  // Fetch real step progress from the Database
+  // Fetch real step progress from Database
   const { data: stepData } = useQuery({
     queryKey: ['steps'],
     queryFn: async () => {
       const res = await fetch('/api/tasks/home-ad-step', { headers: { 'x-init-data': initData } });
-      if (!res.ok) throw new Error("Failed to load steps");
-      return res.json();
+      return res.ok ? res.json() : null;
     },
     enabled: !!initData
   });
@@ -32,7 +31,6 @@ export default function FreeCanva() {
   const handleWatchAd = async () => {
     setIsWatchingAd(true);
     try {
-      // Connects to your real database to save the completed step permanently
       const res = await fetch('/api/tasks/complete', {
         method: 'POST',
         headers: { 'x-init-data': initData, 'content-type': 'application/json' },
@@ -42,12 +40,11 @@ export default function FreeCanva() {
       
       if (res.ok) {
         queryClient.invalidateQueries({ queryKey: ['steps'] });
-        alert("✅ Step completed successfully!");
       } else {
-        alert("❌ Error: " + (data.message || "Failed to save step to database."));
+        alert("❌ Database Error: " + (data.message || "Failed to save."));
       }
     } catch (e) {
-      alert("❌ Error: Could not connect to the backend server.");
+      alert("❌ Critical Error: Could not connect to your backend server.");
     } finally {
       setIsWatchingAd(false);
     }
@@ -72,6 +69,7 @@ export default function FreeCanva() {
       </div>
 
       <div className="px-4 pt-4 pb-4 space-y-3">
+        {/* Info Text */}
         <div className="bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-start gap-2 shadow-sm">
           <span className="text-lg mt-0.5">📢</span>
           <p className="text-[13px] text-gray-600 leading-snug font-medium">
@@ -82,9 +80,12 @@ export default function FreeCanva() {
         {/* PERFECTLY CENTERED STEPPER */}
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl px-4 py-6 border border-gray-100 shadow-sm space-y-7">
           <div className="relative flex justify-between items-center w-full max-w-[280px] mx-auto mt-2 mb-4">
+            {/* Absolute Background Line */}
             <div className="absolute top-1/2 left-[12%] right-[12%] h-[3px] bg-gray-200 -translate-y-1/2 z-0 rounded-full">
               <div className="h-full bg-[#6200EA] transition-all duration-500 rounded-full" style={{ width: `${progressPercentage}%` }} />
             </div>
+
+            {/* Step Circles */}
             {steps.map((step, index) => {
               const isActive = !step.completed && (index === 0 || steps[index - 1].completed);
               return (
@@ -107,7 +108,7 @@ export default function FreeCanva() {
           </button>
         </motion.div>
 
-        {/* Action Buttons */}
+        {/* Action Buttons & What You Get */}
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.07 }} className="bg-white rounded-2xl px-4 py-4 border border-gray-100 shadow-sm space-y-3">
           <button onClick={() => handleLink('https://t.me/ShareCanvaProFree')} className="w-full hover:opacity-90 active:scale-[0.98] text-white font-bold text-base py-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2.5" style={{ background: "linear-gradient(90deg, #6704E3, #8B22AF)" }}>Join Channel</button>
           <button onClick={() => handleLink('https://t.me/sharecanvaprofree_group')} className="w-full hover:opacity-90 active:scale-[0.98] text-white font-bold text-base py-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2.5" style={{ background: "linear-gradient(90deg, #6704E3, #8B22AF)" }}>Join Group</button>

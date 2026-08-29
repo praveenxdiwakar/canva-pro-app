@@ -9,8 +9,7 @@ export default function Admin() {
   const navigate = useNavigate();
 
   // EXTREME BYPASS: Ensures your UI always loads
-  const tgId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id?.toString() || "";
-  const isMasterAdmin = tgId === "5589713552" || true;
+  const isMasterAdmin = true;
 
   const { data: adminData, isLoading, error } = useQuery({
     queryKey: ['admin-settings'],
@@ -43,7 +42,7 @@ export default function Admin() {
 
       {error && (
         <div className="m-4 bg-red-50 border border-red-200 rounded-xl p-3 text-[11px] text-red-600 font-semibold shadow-sm">
-          🚨 <b>Database Error:</b> The UI is unlocked, but your Backend API is offline or rejecting your ID. Saving links below will fail until your backend is running properly.
+          🚨 <b>Backend Failed:</b> The UI is unlocked for you, but your Backend API is offline or rejecting your ID. Saving links below will fail until your backend is running properly.
         </div>
       )}
 
@@ -168,6 +167,62 @@ function InviteModal({ initData, editing, onClose, onSaved }) {
 }
 
 function MonetagAdsManager({ initData, settings }) {
-  // Same logic as before, just omitting for brevity. It behaves identically.
-  return <div className="p-4 bg-white rounded-2xl shadow-sm text-center text-gray-500 font-bold">Monetag Ads Management Loaded</div>;
+  const [isOpen, setIsOpen] = useState(true);
+  const adFormats = [
+    { key: "ri", label: "Rewarded Interstitial", icon: "🎬", enabledKey: "MONETAG_RI_ENABLED", zoneKey: "MONETAG_RI_ZONE_ID" },
+    { key: "rp", label: "Rewarded Popup", icon: "🎪", enabledKey: "MONETAG_RP_ENABLED", zoneKey: "MONETAG_RP_ZONE_ID" }
+  ];
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <button className="w-full px-4 py-4 flex items-center gap-3 text-left bg-gray-50/50" onClick={() => setIsOpen(!isOpen)}>
+        <div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center text-lg shrink-0">📡</div>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-black text-orange-600">Monetag Ads Code</div>
+          <div className="text-[10px] text-gray-500 mt-0.5">Edit Zone IDs and enable formats</div>
+        </div>
+      </button>
+
+      {isOpen && (
+        <div className="p-4 space-y-4 bg-white border-t border-gray-100">
+          {adFormats.map(format => <AdFormatEditor key={format.key} format={format} settings={settings} initData={initData} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AdFormatEditor({ format, settings, initData }) {
+  const getSetting = (key) => settings.find(s => s.key === key)?.value || "";
+  const [enabled, setEnabled] = useState(getSetting(format.enabledKey) === "true");
+  const [zoneId, setZoneId] = useState(getSetting(format.zoneKey));
+  const queryClient = useQueryClient();
+
+  const handleSave = async () => {
+    try {
+      await fetch(`/api/admin/settings/${format.zoneKey}`, { method: "PATCH", headers: { "x-init-data": initData, "content-type": "application/json" }, body: JSON.stringify({ value: zoneId }) });
+      await fetch(`/api/admin/settings/${format.enabledKey}`, { method: "PATCH", headers: { "x-init-data": initData, "content-type": "application/json" }, body: JSON.stringify({ value: String(enabled) }) });
+      queryClient.invalidateQueries({ queryKey: ['admin-settings'] });
+      alert("✅ Ad Code Saved to Database!");
+    } catch (e) {
+      alert("❌ ERROR: Failed to save to database.");
+    }
+  };
+
+  return (
+    <div className={`rounded-xl border p-4 ${enabled ? "border-orange-300 bg-orange-50/80" : "border-gray-200"}`}>
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-lg">{format.icon}</span>
+        <span className="font-black text-[13px]">{format.label}</span>
+      </div>
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-xs text-gray-500 font-bold">Enable Ad Block</span>
+        <button onClick={() => setEnabled(!enabled)} className={`relative w-12 h-6 rounded-full ${enabled ? "bg-green-500" : "bg-gray-200"}`}>
+          <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${enabled ? "translate-x-6" : "translate-x-0"}`} />
+        </button>
+      </div>
+      <input type="text" value={zoneId} onChange={(e) => setZoneId(e.target.value)} placeholder="Zone ID (e.g. 11525410)" className="w-full mb-3 border border-gray-200 rounded-lg px-3 py-2.5 text-sm bg-white" />
+      <button onClick={handleSave} className="w-full bg-orange-500 text-white font-bold py-2.5 rounded-lg text-sm">Save to Database</button>
+    </div>
+  );
 }
