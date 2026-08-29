@@ -1,16 +1,14 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTelegram } from '../contexts/TelegramContext';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
 export default function Admin() {
   const { initData } = useTelegram();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
 
-  // Aggressively extract Telegram ID natively to prevent lockouts
-  const tgId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id?.toString() || "";
+  // EXTREME BYPASS: Directly checks your Telegram ID natively
+  const tgId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id?.toString() || "5589713552";
   const isMasterAdmin = tgId === "5589713552";
 
   const { data: adminData, isLoading, error } = useQuery({
@@ -32,21 +30,22 @@ export default function Admin() {
     );
   }
 
-  // FORCE BYPASS: If there is an error, BUT it's you (5589713552), IGNORE the lock screen!
+  // If it's NOT you (5589713552) and the backend blocked it, show the lock screen
   if (error && !isMasterAdmin) {
     return (
       <div className="flex flex-col h-full min-h-[80vh] items-center justify-center gap-4 px-6 bg-[#f5f5f5] text-center">
         <div className="text-5xl">🔒</div>
         <div className="font-black text-gray-800 text-lg">Admin access required</div>
-        <div className="text-sm text-gray-400">
-          Your Telegram ID must be authorized in your backend's ADMIN_TELEGRAM_IDS variable.
-        </div>
         <button onClick={() => navigate('/profile')} className="mt-2 bg-gray-900 text-white font-bold px-6 py-3 rounded-xl shadow-md active:scale-95 transition-all">
           Go Back
         </button>
       </div>
     );
   }
+
+  // Fallback data structure if the backend API blocked us, but we forced the UI open
+  const settings = adminData?.settings ?? [];
+  const groups = adminData?.groups ?? ["Main Settings", "Monetag Ads", "Join Channels"];
 
   return (
     <div className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24">
@@ -56,36 +55,37 @@ export default function Admin() {
           <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 12H5M12 19l-7-7 7-7"/></svg>
         </button>
         <div className="flex-1 min-w-0">
-          <h1 className="text-lg font-black text-gray-900">⚙️ Admin Settings</h1>
-          <div className="text-[10px] text-gray-400 font-medium">Changes apply within 60 seconds</div>
+          <h1 className="text-lg font-black text-gray-900">⚙️ Admin Dashboard</h1>
+          <div className="text-[10px] text-green-500 font-bold">Authenticated as Master Admin</div>
         </div>
       </div>
 
-      {/* Warning Notice if backend blocked us but we forced the UI open */}
       {error && isMasterAdmin && (
         <div className="m-4 bg-red-50 border border-red-200 rounded-xl p-3 text-[11px] text-red-600 font-semibold shadow-sm">
-          🚨 You bypassed the lock screen, but your backend API threw an error. Make sure <b>5589713552</b> is set in your backend's ADMIN_TELEGRAM_IDS variable, otherwise saving edits will fail.
+          🚨 <b>Lock Bypassed!</b> The UI loaded successfully, but your backend API threw an error. <b>Make sure 5589713552 is added to ADMIN_TELEGRAM_IDS in your backend .env</b> otherwise saving edits will fail.
         </div>
       )}
 
-      <div className="px-4 pt-4 space-y-3">
-        {/* Features you requested: Links Manager and Ads Code */}
-        <InvitePoolSection initData={initData} />
-        <MonetagSection initData={initData} settings={adminData?.settings ?? []} />
+      <div className="px-4 pt-4 space-y-4">
+        {/* Advanced Feature 1: Canva Invite Link Pool Manager */}
+        <InvitePoolManager initData={initData} />
         
+        {/* Advanced Feature 2: Monetag Ads Setup Manager */}
+        <MonetagAdsManager initData={initData} settings={settings} />
+
         <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 text-xs text-amber-700 shadow-sm">
           <span className="shrink-0 mt-0.5">⚠️</span>
-          <span>Only Master Admins can modify these values. Make sure you verify settings before saving.</span>
+          <span>Ensure you test ad integrations and verify the Canva links before going live.</span>
         </div>
       </div>
     </div>
   );
 }
 
-// ----------------------------------------------------------------------
-// 1. ADD, EDIT, AND UPDATE LINKS (INVITE POOL MANAGER)
-// ----------------------------------------------------------------------
-function InvitePoolSection({ initData }) {
+// -------------------------------------------------------------------------
+// 1. ADD, EDIT, AND DELETE CANVA INVITE LINKS
+// -------------------------------------------------------------------------
+function InvitePoolManager({ initData }) {
   const [isOpen, setIsOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
   const queryClient = useQueryClient();
@@ -98,50 +98,60 @@ function InvitePoolSection({ initData }) {
       return res.json();
     },
     enabled: isOpen,
-    staleTime: 15000
+    staleTime: 5000
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id) => {
+      await fetch(`/api/admin/pool/${id}`, { method: 'DELETE', headers: { 'x-init-data': initData } });
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-pool'] })
   });
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
       <div className="flex items-center">
-        <button className="flex-1 px-4 py-3.5 flex items-center gap-3 text-left hover:bg-gray-50 transition-colors" onClick={() => setIsOpen(!isOpen)}>
-          <div className="w-8 h-8 rounded-xl bg-purple-50 flex items-center justify-center text-base shrink-0">🔗</div>
+        <button className="flex-1 px-4 py-4 flex items-center gap-3 text-left hover:bg-gray-50 transition-colors" onClick={() => setIsOpen(!isOpen)}>
+          <div className="w-9 h-9 rounded-xl bg-purple-50 flex items-center justify-center text-lg shrink-0">🔗</div>
           <div className="flex-1 min-w-0">
             <div className="text-sm font-black text-purple-600">Canva Invite Links</div>
-            <div className="text-[10px] text-gray-400 mt-0.5">{poolList.length} links configured</div>
+            <div className="text-[10px] text-gray-400 mt-0.5">{poolList.length} links active</div>
           </div>
-          <span className="text-gray-300 transition-transform duration-200" style={{ transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
+          <span className="text-gray-300 font-bold" style={{ transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', transition: '0.2s' }}>▶</span>
         </button>
-        <button onClick={() => setEditingEntry('new')} className="mr-3 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors">
+        <button onClick={() => setEditingEntry('new')} className="mr-3 bg-purple-600 hover:bg-purple-700 text-white text-[11px] font-bold px-3.5 py-2 rounded-xl transition-colors shadow-sm">
           + Add Link
         </button>
       </div>
 
       {isOpen && (
-        <div className="border-t border-gray-100 p-4 space-y-2">
+        <div className="border-t border-gray-100 p-4 space-y-2 bg-gray-50/50">
           {isLoading ? (
-            <div className="text-center py-4 text-xs text-gray-400">Loading pool links...</div>
+            <div className="text-center py-4 text-xs text-gray-400 animate-pulse">Loading links...</div>
           ) : poolList.length === 0 ? (
-            <div className="text-center py-4 text-xs text-gray-400">No invite links added yet.</div>
+            <div className="text-center py-5 text-xs text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">No active invite links. Add one above!</div>
           ) : (
             poolList.map(entry => (
-              <div key={entry.id} className="bg-gray-50 border border-gray-100 rounded-2xl p-3 flex items-center justify-between">
+              <div key={entry.id} className="bg-white border border-gray-200 rounded-xl p-3 flex items-center justify-between shadow-sm">
                 <div>
-                  <div className="font-bold text-gray-800 text-xs">{entry.name}</div>
+                  <div className="font-bold text-gray-900 text-[13px]">{entry.name}</div>
                   <div className="text-[10px] text-gray-400 mt-0.5">
-                    {entry.usedSlots}/{entry.totalSlots} slots used
+                    <span className={entry.usedSlots >= entry.totalSlots ? "text-red-500 font-bold" : "text-green-500 font-bold"}>
+                      {entry.totalSlots - entry.usedSlots} left
+                    </span> · {entry.usedSlots}/{entry.totalSlots} used
                   </div>
                 </div>
-                <button onClick={() => setEditingEntry(entry)} className="p-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600">
-                  Edit
-                </button>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setEditingEntry(entry)} className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-bold text-gray-600">Edit</button>
+                  <button onClick={() => { if(window.confirm("Delete this link?")) deleteMutation.mutate(entry.id); }} className="px-2 py-1.5 bg-red-50 text-red-500 rounded-lg text-xs font-bold">🗑️</button>
+                </div>
               </div>
             ))
           )}
         </div>
       )}
 
-      {/* Editor Modal */}
+      {/* Pop-up Add/Edit Form Modal */}
       {editingEntry && (
         <InviteModal 
           initData={initData} 
@@ -154,6 +164,7 @@ function InvitePoolSection({ initData }) {
   );
 }
 
+// Reusable Modal Component for Adding/Editing Links
 function InviteModal({ initData, editing, onClose, onSaved }) {
   const [name, setName] = useState(editing?.name || "");
   const [inviteLink, setInviteLink] = useState(editing?.inviteLink || "");
@@ -176,35 +187,37 @@ function InviteModal({ initData, editing, onClose, onSaved }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-      <div className="w-full max-w-sm bg-white rounded-2xl p-5 shadow-2xl">
-        <h3 className="font-black text-gray-900 mb-4">{editing ? "Edit Link" : "Add New Link"}</h3>
-        <div className="space-y-3">
+      <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl">
+        <h3 className="font-black text-gray-900 text-lg mb-4">{editing ? "Edit Canva Link" : "Add New Canva Link"}</h3>
+        <div className="space-y-4">
           <div>
-            <label className="text-[10px] font-black text-gray-400 uppercase">Link Name</label>
-            <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Canva Team #1" className="w-full mt-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-400" />
+            <label className="text-[11px] font-black text-gray-500 uppercase">Link Name (e.g. Team 1)</label>
+            <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Canva Pro Team #1" className="w-full mt-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-400 bg-gray-50" />
           </div>
           <div>
-            <label className="text-[10px] font-black text-gray-400 uppercase">Canva URL</label>
-            <input type="text" value={inviteLink} onChange={e => setInviteLink(e.target.value)} placeholder="https://www.canva.com/..." className="w-full mt-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-400" />
+            <label className="text-[11px] font-black text-gray-500 uppercase">Full URL / Invite Link</label>
+            <input type="text" value={inviteLink} onChange={e => setInviteLink(e.target.value)} placeholder="https://www.canva.com/..." className="w-full mt-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-400 bg-gray-50" />
           </div>
           <div>
-            <label className="text-[10px] font-black text-gray-400 uppercase">Total Slots Available</label>
-            <input type="number" value={totalSlots} onChange={e => setTotalSlots(e.target.value)} className="w-full mt-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-400" />
+            <label className="text-[11px] font-black text-gray-500 uppercase">Maximum Capacity (Slots)</label>
+            <input type="number" value={totalSlots} onChange={e => setTotalSlots(e.target.value)} className="w-full mt-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-400 bg-gray-50" />
           </div>
         </div>
-        <div className="mt-5 flex gap-2">
-          <button onClick={onClose} className="flex-1 bg-gray-100 font-bold py-3 rounded-xl text-gray-600">Cancel</button>
-          <button onClick={() => saveMutation.mutate()} className="flex-1 bg-purple-600 font-bold py-3 rounded-xl text-white">Save Link</button>
+        <div className="mt-6 flex gap-3">
+          <button onClick={onClose} className="flex-1 bg-gray-100 hover:bg-gray-200 font-bold py-3.5 rounded-xl text-gray-600 text-sm transition-colors">Cancel</button>
+          <button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="flex-1 bg-purple-600 hover:bg-purple-700 font-bold py-3.5 rounded-xl text-white text-sm transition-colors shadow-md disabled:opacity-50">
+            {saveMutation.isPending ? "Saving..." : "Save Link"}
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-// ----------------------------------------------------------------------
-// 2. MONETAG ADS CODE MANAGER
-// ----------------------------------------------------------------------
-function MonetagSection({ initData, settings }) {
+// -------------------------------------------------------------------------
+// 2. MONETAG ADS EDITOR (ENABLE/DISABLE & ZONE ID CHANGER)
+// -------------------------------------------------------------------------
+function MonetagAdsManager({ initData, settings }) {
   const [isOpen, setIsOpen] = useState(false);
 
   const adFormats = [
@@ -215,23 +228,19 @@ function MonetagSection({ initData, settings }) {
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-      <button className="w-full px-4 py-3.5 flex items-center gap-3 text-left hover:bg-gray-50 transition-colors" onClick={() => setIsOpen(!isOpen)}>
-        <div className="w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center text-base shrink-0">📡</div>
+      <button className="w-full px-4 py-4 flex items-center gap-3 text-left hover:bg-gray-50 transition-colors" onClick={() => setIsOpen(!isOpen)}>
+        <div className="w-9 h-9 rounded-xl bg-orange-50 flex items-center justify-center text-lg shrink-0">📡</div>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-black text-orange-600">Monetag Ads Code</div>
-          <div className="text-[10px] text-gray-400 mt-0.5">Configure Ad Zone IDs</div>
+          <div className="text-sm font-black text-orange-600">Monetag Ad Settings</div>
+          <div className="text-[10px] text-gray-400 mt-0.5">Edit Zone IDs and enable formats</div>
         </div>
-        <span className="text-gray-300 transition-transform duration-200" style={{ transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
+        <span className="text-gray-300 font-bold" style={{ transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', transition: '0.2s' }}>▶</span>
       </button>
 
       {isOpen && (
-        <div className="border-t border-gray-100 p-4 space-y-3">
-          <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 text-xs text-blue-700 mb-1">
-            <span className="shrink-0 mt-0.5">ℹ️</span>
-            <span>Paste your Monetag Zone IDs here to activate ads.</span>
-          </div>
+        <div className="border-t border-gray-100 p-4 space-y-4 bg-gray-50/50">
           {adFormats.map(format => (
-            <AdFormatRow key={format.key} format={format} settings={settings} initData={initData} />
+            <AdFormatEditor key={format.key} format={format} settings={settings} initData={initData} />
           ))}
         </div>
       )}
@@ -239,49 +248,57 @@ function MonetagSection({ initData, settings }) {
   );
 }
 
-function AdFormatRow({ format, settings, initData }) {
+// Subcomponent: Individual Ad Format Block
+function AdFormatEditor({ format, settings, initData }) {
   const getSetting = (key) => settings.find(s => s.key === key)?.value || "";
   
   const [enabled, setEnabled] = useState(getSetting(format.enabledKey) === "true");
   const [zoneId, setZoneId] = useState(getSetting(format.zoneKey));
+  const [isSaving, setIsSaving] = useState(false);
   const queryClient = useQueryClient();
 
   const handleSave = async () => {
+    setIsSaving(true);
     try {
+      // Save Zone ID
       await fetch(`/api/admin/settings/${format.zoneKey}`, {
         method: "PATCH", headers: { "x-init-data": initData, "content-type": "application/json" }, body: JSON.stringify({ value: zoneId })
       });
+      // Save Enabled state
       await fetch(`/api/admin/settings/${format.enabledKey}`, {
         method: "PATCH", headers: { "x-init-data": initData, "content-type": "application/json" }, body: JSON.stringify({ value: String(enabled) })
       });
+      
       queryClient.invalidateQueries({ queryKey: ['admin-settings'] });
       alert(`${format.label} saved successfully!`);
     } catch (e) {
       alert("Failed to save settings. Is your backend updated?");
+    } finally {
+      setIsSaving(false);
     }
   };
 
   return (
-    <div className={`rounded-2xl border p-4 transition-colors ${enabled ? "border-orange-200 bg-orange-50/50" : "border-gray-100 bg-white"}`}>
+    <div className={`rounded-xl border p-4 transition-colors ${enabled ? "border-orange-300 bg-orange-50/80 shadow-sm" : "border-gray-200 bg-white"}`}>
       <div className="flex items-center gap-2 mb-3">
-        <span className="text-base">{format.icon}</span>
-        <span className="font-black text-sm text-gray-800 flex-1">{format.label}</span>
+        <span className="text-lg">{format.icon}</span>
+        <span className="font-black text-[13px] text-gray-900 flex-1">{format.label}</span>
       </div>
       
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-xs text-gray-500 font-semibold">Enable Ads</span>
-        <button onClick={() => setEnabled(!enabled)} className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${enabled ? "bg-green-500" : "bg-gray-200"}`}>
-          <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${enabled ? "translate-x-5" : "translate-x-0"}`} />
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-xs text-gray-500 font-bold">Enable Ad Block</span>
+        <button onClick={() => setEnabled(!enabled)} className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${enabled ? "bg-green-500" : "bg-gray-200"}`}>
+          <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${enabled ? "translate-x-6" : "translate-x-0"}`} />
         </button>
       </div>
 
-      <div className="mb-3">
-        <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider block mb-1">Zone ID</label>
-        <input type="text" value={zoneId} onChange={(e) => setZoneId(e.target.value)} placeholder="e.g. 11525410" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-mono bg-white focus:ring-2 focus:ring-orange-300" />
+      <div className="mb-4">
+        <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider block mb-1">Monetag Zone ID</label>
+        <input type="text" value={zoneId} onChange={(e) => setZoneId(e.target.value)} placeholder="e.g. 11525410" className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm font-mono bg-white focus:outline-none focus:ring-2 focus:ring-orange-400" />
       </div>
 
-      <button onClick={handleSave} className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2.5 rounded-xl text-sm transition-all">
-        Save Ad Code
+      <button onClick={handleSave} disabled={isSaving} className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2.5 rounded-lg text-sm transition-colors shadow-sm disabled:opacity-60">
+        {isSaving ? "Saving..." : "Update Ad Settings"}
       </button>
     </div>
   );
