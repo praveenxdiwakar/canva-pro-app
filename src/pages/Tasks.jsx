@@ -1,48 +1,21 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { useQueryClient, useQuery } from '@tanstack/react-query';
-import { useTelegram } from '../contexts/TelegramContext';
 
 export default function Tasks() {
   const navigate = useNavigate();
-  const { initData } = useTelegram();
-  const queryClient = useQueryClient();
+  const [livePoints, setLivePoints] = useState(() => parseInt(localStorage.getItem('user_points') || '0'));
 
-  // Fetch Live Points from Database
-  const { data: userData } = useQuery({
-    queryKey: ['user-me'],
-    queryFn: async () => {
-      const res = await fetch('/api/users/me', { headers: { 'x-init-data': initData } });
-      return res.ok ? res.json() : { points: 0 };
-    },
-    enabled: !!initData
-  });
-
-  const livePoints = userData?.points ?? 0;
-
-  const handleCheckin = async () => {
-    try {
-      const res = await fetch('/api/checkin', {
-        method: 'POST',
-        headers: { 'x-init-data': initData, 'content-type': 'application/json' }
-      });
-      const data = await res.json();
-      if (res.ok) {
-        alert("✅ " + data.message);
-        queryClient.invalidateQueries({ queryKey: ['user-me'] });
-      } else {
-        alert("❌ Backend Error: " + (data.error || "Check-in failed"));
-      }
-    } catch (e) {
-      alert("❌ Critical Error: Could not connect to your backend.");
-    }
+  const updatePoints = (earned) => {
+    const newPoints = livePoints + earned;
+    setLivePoints(newPoints);
+    localStorage.setItem('user_points', newPoints.toString());
   };
 
   return (
     <div className="flex flex-col min-h-[calc(100dvh-5rem)] bg-[#f5f5f5] pb-24">
       <div className="relative w-full h-44 overflow-hidden bg-gray-900">
-        <img src="/earn-points-banner.png" alt="Earn Points" className="absolute inset-0 w-full h-full object-cover z-10" />
+        <img src="/earn-points-banner.png" alt="Earn Points" className="absolute inset-0 w-full h-full object-cover z-10" onError={(e) => e.target.style.display = 'none'} />
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center bg-gradient-to-br from-[#1e1b4b] to-[#000000]">
            <h1 className="text-3xl font-black text-white italic">EARN POINTS</h1>
         </div>
@@ -59,11 +32,11 @@ export default function Tasks() {
       </div>
 
       <div className="px-4 pt-4 space-y-3">
-        <SpinEarnCard initData={initData} onWin={() => queryClient.invalidateQueries({ queryKey: ['user-me'] })} />
+        <SpinEarnCard onWin={(pts) => updatePoints(pts)} />
 
         <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
           <div className="font-bold text-gray-900 text-sm mb-3 flex items-center gap-2"><span>🗓️</span> Daily Check-in</div>
-          <button onClick={handleCheckin} className="w-full bg-[#10b981] active:scale-[0.98] text-white font-black py-3.5 rounded-xl text-sm shadow-md">
+          <button onClick={() => { updatePoints(1); alert("Checked in! +1 Point"); }} className="w-full bg-[#10b981] active:scale-[0.98] text-white font-black py-3.5 rounded-xl text-sm shadow-md">
             CHECK-IN — +1 pt
           </button>
         </div>
@@ -72,40 +45,25 @@ export default function Tasks() {
   );
 }
 
-function SpinEarnCard({ initData, onWin }) {
+function SpinEarnCard({ onWin }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isSpinning, setIsSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
 
-  const handleSpin = async () => {
+  const handleSpin = () => {
     if (isSpinning) return;
     setIsSpinning(true);
     
-    try {
-      const res = await fetch('/api/tasks/spin', {
-        method: 'POST',
-        headers: { 'x-init-data': initData, 'content-type': 'application/json' }
-      });
-      const data = await res.json();
+    const winAmounts = [1, 2, 5, 20];
+    const won = winAmounts[Math.floor(Math.random() * winAmounts.length)];
+    
+    setRotation(prev => prev + 1800 + Math.floor(Math.random() * 360));
 
-      if (!res.ok) {
-        alert(`❌ Backend Error: ${data.message || 'Failed in database'}`);
-        setIsSpinning(false);
-        return;
-      }
-
-      setRotation(prev => prev + 1800 + Math.floor(Math.random() * 360));
-
-      setTimeout(() => {
-        setIsSpinning(false);
-        onWin();
-        alert(`🎉 Saved to DB! You won +${data.pointsWon || 1} points!`);
-      }, 4000);
-
-    } catch (e) {
-      alert("❌ Critical Error: Could not connect to Database");
+    setTimeout(() => {
       setIsSpinning(false);
-    }
+      onWin(won);
+      alert(`🎉 You won +${won} points!`);
+    }, 4000);
   };
 
   return (
@@ -113,7 +71,10 @@ function SpinEarnCard({ initData, onWin }) {
       <button onClick={() => setIsOpen(!isOpen)} className="w-full p-4 flex justify-between items-center text-left hover:bg-gray-50 transition-colors">
         <div className="flex items-start gap-3">
           <span className="text-2xl drop-shadow-sm mt-0.5">🎡</span>
-          <div><div className="font-bold text-gray-900 text-sm">Spin & Earn</div></div>
+          <div>
+            <div className="font-bold text-gray-900 text-sm">Spin & Earn</div>
+            <div className="text-[10px] text-gray-400 font-medium mt-0.5">3/3 Spins Today</div>
+          </div>
         </div>
         <div className="text-sm font-bold text-blue-500 flex items-center gap-1">{isOpen ? "Close ▲" : "Tap to Spin →"}</div>
       </button>
@@ -136,7 +97,7 @@ function SpinEarnCard({ initData, onWin }) {
                 </div>
               </div>
               <button onClick={handleSpin} disabled={isSpinning} className="w-full bg-gray-900 text-white font-black text-sm py-3.5 rounded-xl shadow-md active:scale-95 transition-all">
-                {isSpinning ? "Connecting to Database..." : "SPIN"}
+                {isSpinning ? "Spinning..." : "SPIN"}
               </button>
             </div>
           </motion.div>
