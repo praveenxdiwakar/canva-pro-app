@@ -52,9 +52,24 @@ export default function Tasks() {
   
   const todayStr = new Date().toDateString();
   const hasCheckedInToday = user?.last_checkin === todayStr;
-  
-  // THIS IS THE MISSING VARIABLE THAT CAUSED THE CRASH:
   const currentStreak = user?.streak || 0;
+
+  // Bulletproof Link Opener (Bypasses Telegram & Browser Popup Blockers)
+  const openExternalLink = (url) => {
+    const tg = window.Telegram?.WebApp;
+    if (tg && tg.openLink) {
+      tg.openLink(url); // Native Telegram opener
+    } else {
+      // Invisible anchor tag click for standard web browsers
+      const a = document.createElement('a');
+      a.href = url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+  };
 
   const handleCheckIn = async () => {
     if (hasCheckedInToday) return alert("✅ You already checked in today! Come back tomorrow.");
@@ -94,7 +109,7 @@ export default function Tasks() {
     if (taskState[taskKey] >= maxCount) return alert("✅ Daily limit reached for this task!");
     
     const adUrl = adZone ? `https://go.oclasrv.com/afu.php?zoneid=${adZone}` : "https://monetag.com";
-    window.open(adUrl, '_blank');
+    openExternalLink(adUrl); // <-- FIXED: Uses Telegram native opener
     
     setTimeout(async () => {
       const newTotal = (user?.points || 0) + 1;
@@ -110,7 +125,7 @@ export default function Tasks() {
     
     setVerifying(channelKey);
     const adUrl = adZone ? `https://go.oclasrv.com/afu.php?zoneid=${adZone}` : "https://monetag.com";
-    window.open(adUrl, '_blank'); // Run Ad
+    openExternalLink(adUrl); // <-- FIXED: Uses Telegram native opener
 
     setTimeout(async () => {
       const newTotal = (user?.points || 0) + points;
@@ -261,7 +276,7 @@ export default function Tasks() {
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => window.open('https://t.me/yourchannel', '_blank')} className="bg-[#3B82F6] text-white font-black px-4 py-2.5 rounded-xl text-[11px] shadow-sm active:scale-95">JOIN</button>
+            <button onClick={() => openExternalLink('https://t.me/yourchannel')} className="bg-[#3B82F6] text-white font-black px-4 py-2.5 rounded-xl text-[11px] shadow-sm active:scale-95">JOIN</button>
             <button 
               onClick={() => handleVerifyChannel('channel1', 2)} 
               disabled={taskState.channel1 || verifying === 'channel1'}
