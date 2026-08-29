@@ -1,57 +1,66 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { syncUser } from '../api/tasks';
 
 const TelegramContext = createContext({});
 
 export function TelegramProvider({ children }) {
-  const [initData, setInitData] = useState("");
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [initData, setInitData] = useState('');
 
   useEffect(() => {
-    // Safely load Telegram WebApp
+    // Safely initialize Telegram WebApp SDK
     const tg = window.Telegram?.WebApp;
     if (tg) {
       tg.ready();
       tg.expand();
     }
 
-    const rawInitData = tg?.initData || "dev_mode";
+    const rawInitData = tg?.initData || '';
     setInitData(rawInitData);
 
-    // Extract user natively to prevent crashes
+    // Extract user natively from Telegram environment
     let tgUser = tg?.initDataUnsafe?.user;
 
-    // Developer Fallback: Uses your Admin ID if you test outside of Telegram
+    // Developer Fallback (Strictly utilizes Vercel Environment Variables - NO hardcoded IDs)
     if (!tgUser) {
       tgUser = {
-        id: "5589713552", 
-        first_name: "Master",
-        last_name: "Admin"
+        id: import.meta.env.VITE_ADMIN_TELEGRAM_ID,
+        first_name: import.meta.env.VITE_ADMIN_FIRST_NAME || "Master Admin",
+        photo_url: import.meta.env.VITE_ADMIN_PHOTO_URL || "https://cdn-icons-png.flaticon.com/512/149/149071.png"
       };
     }
 
-    setUser({
-      telegramId: tgUser.id.toString(),
-      firstName: tgUser.first_name,
-      lastName: tgUser.last_name,
-    });
+    const userData = {
+      telegramId: tgUser.id ? tgUser.id.toString() : "",
+      firstName: tgUser.first_name || "User",
+      photoUrl: tgUser.photo_url || "https://cdn-icons-png.flaticon.com/512/149/149071.png"
+    };
 
-    setIsLoading(false);
+    if (userData.telegramId) {
+      syncUser(userData).then(dbUser => {
+        setUser({ ...userData, ...dbUser });
+        setIsLoading(false);
+      }).catch(err => {
+        console.error("Failed to sync user with Supabase:", err);
+        setUser({ ...userData, points: 0, streak: 0 });
+        setIsLoading(false);
+      });
+    } else {
+      console.error("🚨 Authentication Error: No Telegram user detected and VITE_ADMIN_TELEGRAM_ID is missing.");
+      setIsLoading(false);
+    }
   }, []);
 
   return (
-    <TelegramContext.Provider value={{ initData, user, isLoading }}>
+    <TelegramContext.Provider value={{ user, setUser, isLoading, initData }}>
       {!isLoading ? children : (
         <div className="flex h-screen items-center justify-center bg-[#f5f5f5]">
-          <div className="w-8 h-8 animate-spin rounded-full border-4 border-purple-200 border-t-purple-600"></div>
+          <div className="w-8 h-8 animate-spin rounded-full border-4 border-purple-600 border-t-transparent"></div>
         </div>
       )}
     </TelegramContext.Provider>
   );
 }
 
-export function useTelegram() {
-  const context = useContext(TelegramContext);
-  if (context === undefined) throw new Error("useTelegram must be used within a TelegramProvider");
-  return context;
-}
+export { TelegramContext };

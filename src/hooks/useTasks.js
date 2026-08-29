@@ -1,22 +1,29 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchTasks, completeTask } from '../api/tasks';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTelegram } from './useTelegram';
+import { updatePointsInDb, processDailyCheckInDb } from '../api/tasks';
 
-export const useTasks = (initData) => {
-  return useQuery({
-    queryKey: ['tasks'],
-    queryFn: () => fetchTasks(initData),
-    enabled: !!initData,
-    staleTime: 5000,
-  });
-};
-
-export const useCompleteTask = () => {
+export function useTasks() {
+  const { user } = useTelegram();
   const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ initData, taskType }) => completeTask(initData, taskType),
+
+  const updatePointsMutation = useMutation({
+    mutationFn: (newPoints) => updatePointsInDb(user.telegramId, newPoints),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['user'] });
-    },
+      queryClient.invalidateQueries(['user', user?.telegramId]);
+    }
   });
-};
+
+  const checkInMutation = useMutation({
+    mutationFn: ({ newStreak, dateStr, pointsEarned }) => 
+      processDailyCheckInDb(user.telegramId, newStreak, dateStr, pointsEarned),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['user', user?.telegramId]);
+    }
+  });
+
+  return {
+    updatePoints: updatePointsMutation.mutateAsync,
+    processCheckIn: checkInMutation.mutateAsync,
+    isUpdating: updatePointsMutation.isPending || checkInMutation.isPending
+  };
+}

@@ -1,19 +1,22 @@
-export const apiClient = async (endpoint, options = {}) => {
-  const { initData, ...customConfig } = options;
+export async function apiClient(endpoint, options = {}) {
+  const tg = window.Telegram?.WebApp;
+  const initData = tg?.initData || "";
+
   const headers = {
     'Content-Type': 'application/json',
-    ...(initData ? { 'x-init-data': initData } : {}),
-    ...customConfig.headers,
+    'X-Telegram-Init-Data': initData,
+    ...options.headers,
   };
 
   const response = await fetch(endpoint, {
-    ...customConfig,
+    ...options,
     headers,
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.message || 'API request failed');
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'API request failed');
   }
+
   return response.json();
-};
+}

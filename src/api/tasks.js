@@ -1,64 +1,67 @@
 import { supabase } from './supabase';
 
-// Helper to securely extract the Telegram ID from the app environment
-const getTelegramId = (initData) => {
-  try {
-    const params = new URLSearchParams(initData);
-    const user = JSON.parse(params.get('user'));
-    return user.id.toString();
-  } catch (e) {
-    // Fallback to your Master Admin ID if testing outside Telegram
-    return "5589713552"; 
-  }
-};
-
-// 1. Sync User (Creates them in the database if they don't exist yet)
-export const syncUser = async (initData) => {
-  const telegramId = getTelegramId(initData);
-  let { data, error } = await supabase.from('users').select('*').eq('telegramId', telegramId).single();
+// Sync or create user profile in Supabase cloud database
+export async function syncUser(tgUser) {
+  if (!tgUser || !tgUser.telegramId) return null;
   
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('telegram_id', tgUser.telegramId)
+    .single();
+
   if (!data) {
-    const { data: newUser } = await supabase.from('users')
-      .insert([{ telegramId, points: 0, steps_completed: 0 }])
-      .select().single();
+    const { data: newUser, error: insertError } = await supabase
+      .from('users')
+      .insert([{
+        telegram_id: tgUser.telegramId,
+        first_name: tgUser.firstName,
+        photo_url: tgUser.photoUrl,
+        points: 0,
+        streak: 0,
+        last_checkin: null
+      }])
+      .select()
+      .single();
+      
+    if (insertError) console.error("Error creating user in Supabase:", insertError);
     return newUser;
   }
+
+  // Update user avatar or name if updated on Telegram
+  if (data.photo_url !== tgUser.photoUrl || data.first_name !== tgUser.firstName) {
+    await supabase
+      .from('users')
+      .update({ photo_url: tgUser.photoUrl, first_name: tgUser.firstName })
+      .eq('telegram_id', tgUser.telegramId);
+  }
+
   return data;
-};
+}
 
-// 2. Add Points
-export const addPoints = async (initData, pointsToAdd) => {
-  const user = await syncUser(initData);
-  const newPoints = user.points + pointsToAdd;
-  
-  await supabase.from('users')
+export async function updatePointsInDb(telegramId, newPoints) {
+  const { error } = await supabase
+    .from('users')
     .update({ points: newPoints })
-    .eq('telegramId', user.telegramId);
+    .eq('telegram_id', telegramId);
     
+  if (error) console.error("Error updating points:", error);
   return newPoints;
-};
+}
 
-// 3. Get Canva Steps Progress
-export const getStepsProgress = async (initData) => {
-  const user = await syncUser(initData);
-  const completed = user.steps_completed || 0;
-  
-  return [
-    { id: 1, completed: completed >= 1 },
-    { id: 2, completed: completed >= 2 },
-    { id: 3, completed: completed >= 3 },
-    { id: 4, completed: completed >= 4 }
-  ];
-};
+export async function processDailyCheckInDb(telegramId, newStreak, dateStr, pointsEarned) {
+  const { data: user } = await supabase.from('users').select('points').eq('telegram_id', telegramId).single();
+  const currentPoints = user ? user.points : 0;
+  const newPoints = currentPoints + pointsEarned;
 
-// 4. Complete Next Canva Step
-export const completeNextStep = async (initData) => {
-  const user = await syncUser(initData);
-  const nextStep = Math.min(4, (user.steps_completed || 0) + 1); // Max 4 steps
-  
-  await supabase.from('users')
-    .update({ steps_completed: nextStep })
-    .eq('telegramId', user.telegramId);
-    
-  return nextStep;
-};
+  await supabase
+    .from('users')
+    .update({
+      streak: newStreak,
+      last_checkin: dateStr,
+      points: newPoints
+    })
+    .eq('telegram_id', telegramId);
+
+  return newPoints;
+}
