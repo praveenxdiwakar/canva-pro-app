@@ -1,29 +1,40 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useTelegram } from './useTelegram';
-import { updatePointsInDb, processDailyCheckInDb } from '../api/tasks';
+import { useTelegram } from '../contexts/TelegramContext';
+import { supabase } from '../api/supabase';
 
 export function useTasks() {
   const { user } = useTelegram();
-  const queryClient = useQueryClient();
 
-  const updatePointsMutation = useMutation({
-    mutationFn: (newPoints) => updatePointsInDb(user.telegramId, newPoints),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['user', user?.telegramId]);
-    }
-  });
-
-  const checkInMutation = useMutation({
-    mutationFn: ({ newStreak, dateStr, pointsEarned }) => 
-      processDailyCheckInDb(user.telegramId, newStreak, dateStr, pointsEarned),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['user', user?.telegramId]);
-    }
-  });
-
-  return {
-    updatePoints: updatePointsMutation.mutateAsync,
-    processCheckIn: checkInMutation.mutateAsync,
-    isUpdating: updatePointsMutation.isPending || checkInMutation.isPending
+  const updatePoints = async (newTotalPoints) => {
+    if (!user?.telegramId) return;
+    
+    // Save points to Supabase database permanently
+    const { error } = await supabase
+      .from('users')
+      .update({ points: newTotalPoints })
+      .eq('telegram_id', user.telegramId);
+      
+    if (error) console.error("Error saving points:", error);
   };
+
+  const processCheckIn = async ({ newStreak, dateStr, pointsEarned }) => {
+    if (!user?.telegramId) return 0;
+    
+    const newTotalPoints = (user.points || 0) + pointsEarned;
+    
+    // Save check-in streak, date, and points to Supabase database permanently
+    const { error } = await supabase
+      .from('users')
+      .update({
+        streak: newStreak,
+        last_checkin: dateStr,
+        points: newTotalPoints
+      })
+      .eq('telegram_id', user.telegramId);
+
+    if (error) console.error("Error saving check-in:", error);
+    
+    return newTotalPoints;
+  };
+
+  return { updatePoints, processCheckIn };
 }

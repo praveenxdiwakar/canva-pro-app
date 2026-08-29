@@ -20,7 +20,7 @@ export function TelegramProvider({ children }) {
   };
 
   const [user, setUser] = useState(initialUser);
-  const [isLoading, setIsLoading] = useState(false); 
+  const [isReady, setIsReady] = useState(false); // Track DB Loading
 
   useEffect(() => {
     if (tg) {
@@ -28,22 +28,31 @@ export function TelegramProvider({ children }) {
       tg.expand();
     }
 
-    // Sync with database and FORCE points update to fix the "0" issue
+    // Sync with database and load REAL points BEFORE showing the app
     syncUser(initialUser, startParam).then(dbUser => {
       if (dbUser) {
         setUser(prev => ({ 
           ...prev, 
-          points: dbUser.points !== undefined ? dbUser.points : prev.points,
-          streak: dbUser.streak !== undefined ? dbUser.streak : prev.streak,
-          last_checkin: dbUser.last_checkin !== undefined ? dbUser.last_checkin : prev.last_checkin
+          points: dbUser.points !== undefined ? dbUser.points : 0,
+          streak: dbUser.streak !== undefined ? dbUser.streak : 0,
+          last_checkin: dbUser.last_checkin !== undefined ? dbUser.last_checkin : null
         }));
       }
+      setIsReady(true); // Database is loaded, show the app!
     });
   }, []);
 
   return (
-    <TelegramContext.Provider value={{ user, setUser, isLoading }}>
-      {children}
+    <TelegramContext.Provider value={{ user, setUser }}>
+      {!isReady ? (
+        // Beautiful Loading Screen to hide the "0 points" delay
+        <div className="min-h-[100dvh] bg-[#f5f5f5] flex flex-col items-center justify-center text-gray-400 font-bold">
+           <span className="text-4xl mb-4 animate-spin">⏳</span>
+           Loading your profile...
+        </div>
+      ) : (
+        children
+      )}
     </TelegramContext.Provider>
   );
 }
@@ -55,5 +64,3 @@ export function useTelegram() {
   }
   return context;
 }
-
-export { TelegramContext };
