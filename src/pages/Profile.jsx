@@ -18,7 +18,7 @@ export default function Profile() {
 
   const activeSubs = history.filter(h => new Date(h.expires_at) > new Date());
   
-  // Bulletproof Admin Check (Forces strict string comparison)
+  // Bulletproof Admin Check
   const adminIdStr = String(import.meta.env.VITE_ADMIN_TELEGRAM_ID).trim();
   const userIdStr = String(user?.telegramId).trim();
   const isAdmin = adminIdStr === userIdStr;
@@ -40,8 +40,13 @@ export default function Profile() {
             )}
           </div>
           
-          <h2 className="text-xl font-black text-gray-900">{user?.firstName || "User"}</h2>
-          <div className="text-[10px] text-gray-400 mb-1">@{user?.firstName?.replace(/\s+/g, '').toLowerCase() || "user"}</div>
+          {/* ---- EXACT NAME & USERNAME APPLIED HERE ---- */}
+          <h2 className="text-xl font-black text-gray-900">
+            {user?.firstName || "User"} {user?.lastName || ""}
+          </h2>
+          <div className="text-[10px] text-gray-400 mb-1">
+            @{user?.username || user?.firstName?.replace(/\s+/g, '').toLowerCase() || "user"}
+          </div>
           
           <div className="inline-block bg-purple-50 border border-purple-100 text-purple-600 font-bold px-3 py-1 rounded-full text-[10px] mb-3">
             ID: {user?.telegramId || "0000000"}
