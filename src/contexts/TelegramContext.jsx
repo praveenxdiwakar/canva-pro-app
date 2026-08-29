@@ -63,4 +63,13 @@ export function TelegramProvider({ children }) {
   );
 }
 
+// Export useTelegram directly from context to prevent import mismatches
+export function useTelegram() {
+  const context = useContext(TelegramContext);
+  if (!context) {
+    throw new Error('useTelegram must be used within a TelegramProvider');
+  }
+  return context;
+}
+
 export { TelegramContext };
