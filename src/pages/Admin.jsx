@@ -17,7 +17,9 @@ export default function Admin() {
   const [newLink, setNewLink] = useState({ name: '', url: '', slots: 100 });
 
   // Security Check: Only allow the configured Admin ID
-  const isAdmin = user?.telegramId === import.meta.env.VITE_ADMIN_TELEGRAM_ID;
+  const adminIdStr = String(import.meta.env.VITE_ADMIN_TELEGRAM_ID).trim();
+  const userIdStr = String(user?.telegramId).trim();
+  const isAdmin = adminIdStr === userIdStr;
 
   useEffect(() => {
     if (isAdmin) {
@@ -33,7 +35,7 @@ export default function Admin() {
       setLinks(linksData || []);
 
       // 2. Fetch Ad Settings
-      const { data: adData } = await supabase.from('app_settings').select('*').eq('key', 'MONETAG_ZONE_ID').single();
+      const { data: adData } = await supabase.from('app_settings').select('*').eq('key', 'MONETAG_ZONE_ID').maybeSingle();
       if (adData) setAdZone(adData.value);
 
       // 3. Fetch Quick Stats
@@ -52,29 +54,49 @@ export default function Admin() {
     e.preventDefault();
     if (!newLink.name || !newLink.url) return alert("Please fill all fields!");
     
-    await supabase.from('canva_links').insert([{
+    // Safely insert and catch any database errors
+    const { error } = await supabase.from('canva_links').insert([{
       name: newLink.name,
       url: newLink.url,
       total_slots: parseInt(newLink.slots),
       used_slots: 0
     }]);
+
+    if (error) {
+      alert("❌ Error saving link: " + error.message);
+      return;
+    }
     
     setNewLink({ name: '', url: '', slots: 100 });
     setShowAddForm(false);
+    alert("✅ Link added successfully!");
     loadDashboardData(); // Refresh UI in real-time
   };
 
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this link? Active users will keep their access, but no new users can join.")) {
-      await supabase.from('canva_links').delete().eq('id', id);
+      const { error } = await supabase.from('canva_links').delete().eq('id', id);
+      if (error) {
+        alert("❌ Error deleting link: " + error.message);
+        return;
+      }
+      alert("🗑️ Link deleted.");
       loadDashboardData();
     }
   };
 
   // --- AD MANAGEMENT ---
   const handleSaveAd = async () => {
-    await supabase.from('app_settings').upsert({ key: 'MONETAG_ZONE_ID', value: adZone });
-    alert("✅ Monetag Ad Zone saved securely to database!");
+    if (!adZone) return alert("Please enter an Ad Zone ID first.");
+
+    const { error } = await supabase.from('app_settings').upsert({ key: 'MONETAG_ZONE_ID', value: adZone });
+    
+    if (error) {
+      alert("❌ Error saving Ad Zone: " + error.message);
+      return;
+    }
+    
+    alert("✅ Monetag Ad Zone saved securely to database! Ads will now work on the Earn Points tab.");
   };
 
   // If not admin, show access denied

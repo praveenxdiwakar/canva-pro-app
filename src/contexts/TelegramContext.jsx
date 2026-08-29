@@ -4,21 +4,23 @@ import { syncUser } from '../api/tasks';
 const TelegramContext = createContext({});
 
 export function TelegramProvider({ children }) {
-  // Extract Telegram WebApp data synchronously on initial load
   const tg = window.Telegram?.WebApp;
   const tgUser = tg?.initDataUnsafe?.user;
+  
+  // Get Referral ID from the invite link (e.g. ?startapp=12345)
+  const startParam = tg?.initDataUnsafe?.start_param || null; 
 
   const initialUser = {
     telegramId: tgUser?.id ? tgUser.id.toString() : (import.meta.env.VITE_ADMIN_TELEGRAM_ID || "5589713552"),
     firstName: tgUser?.first_name || "User",
     photoUrl: tgUser?.photo_url || "https://cdn-icons-png.flaticon.com/512/149/149071.png",
-    points: 0,
+    points: 0, 
     streak: 0,
     last_checkin: null
   };
 
   const [user, setUser] = useState(initialUser);
-  const [isLoading, setIsLoading] = useState(false); // Never block rendering!
+  const [isLoading, setIsLoading] = useState(false); 
 
   useEffect(() => {
     if (tg) {
@@ -26,13 +28,16 @@ export function TelegramProvider({ children }) {
       tg.expand();
     }
 
-    // Sync with Supabase cloud database in the background silently
-    syncUser(initialUser).then(dbUser => {
+    // Sync with database and FORCE points update to fix the "0" issue
+    syncUser(initialUser, startParam).then(dbUser => {
       if (dbUser) {
-        setUser(prev => ({ ...prev, ...dbUser }));
+        setUser(prev => ({ 
+          ...prev, 
+          points: dbUser.points !== undefined ? dbUser.points : prev.points,
+          streak: dbUser.streak !== undefined ? dbUser.streak : prev.streak,
+          last_checkin: dbUser.last_checkin !== undefined ? dbUser.last_checkin : prev.last_checkin
+        }));
       }
-    }).catch(err => {
-      console.warn("Background cloud sync warning:", err);
     });
   }, []);
 
