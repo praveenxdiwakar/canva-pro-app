@@ -8,7 +8,6 @@ export default function FreeCanva() {
   const [isWatchingAd, setIsWatchingAd] = useState(false);
   const [countdown, setCountdown] = useState(0);
 
-  // Fetch Step Progress
   const { data: stepData } = useQuery({
     queryKey: ['steps'],
     queryFn: async () => {
@@ -25,7 +24,6 @@ export default function FreeCanva() {
     { id: 4, completed: false }
   ];
 
-  // Calculate completed steps for the connecting line width
   const completedCount = steps.filter(s => s.completed).length;
   const progressPercentage = Math.min(100, Math.max(0, (completedCount / (steps.length - 1)) * 100));
 
@@ -62,12 +60,12 @@ export default function FreeCanva() {
         </div>
 
         {/* Steps Card */}
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl px-4 py-6 border border-gray-100 shadow-sm space-y-6">
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl px-4 py-6 border border-gray-100 shadow-sm space-y-7">
           
           {/* PERFECTLY CENTERED STEPPER */}
-          <div className="relative flex justify-between items-start w-full max-w-[260px] mx-auto">
+          <div className="relative flex justify-between items-center w-full max-w-[260px] mx-auto mt-2">
             {/* Background Line */}
-            <div className="absolute top-[18px] left-[10%] right-[10%] h-[2px] bg-gray-200 z-0">
+            <div className="absolute top-1/2 left-[5%] right-[5%] h-[2px] bg-gray-200 -translate-y-1/2 z-0">
               <div 
                 className="h-full bg-[#6200EA] transition-all duration-500" 
                 style={{ width: `${progressPercentage}%` }} 
@@ -78,13 +76,13 @@ export default function FreeCanva() {
             {steps.map((step, index) => {
               const isActive = !step.completed && (index === 0 || steps[index - 1].completed);
               return (
-                <div key={index} className="flex flex-col items-center z-10 w-12">
+                <div key={index} className="relative z-10 flex flex-col items-center">
                   <div className="bg-white p-1 rounded-full">
                     <div 
                       className="w-8 h-8 rounded-full flex items-center justify-center font-black text-sm transition-all"
                       style={
                         step.completed 
-                          ? { backgroundColor: "#6200EA", color: "#fff", boxShadow: "0 3px 8px #6200EA66" }
+                          ? { backgroundColor: "#6200EA", color: "#fff", boxShadow: "0 3px 8px rgba(98,0,234,0.4)" }
                           : isActive
                             ? { backgroundColor: "#fff", border: "2px solid #6200EA", color: "#6200EA" }
                             : { backgroundColor: "#f3f4f6", border: "2px solid #e5e7eb", color: "#9ca3af" }
@@ -93,8 +91,9 @@ export default function FreeCanva() {
                       {step.completed ? "✓" : step.id}
                     </div>
                   </div>
+                  {/* Absolute positioning prevents text from breaking the center alignment */}
                   <span 
-                    className="text-[10px] font-bold mt-1"
+                    className="absolute -bottom-5 text-[10px] font-bold whitespace-nowrap"
                     style={{ color: step.completed ? "#6200EA" : isActive ? "#374151" : "#9ca3af" }}
                   >
                     Step {step.id}
@@ -106,7 +105,7 @@ export default function FreeCanva() {
 
           <button 
             disabled={isWatchingAd || countdown > 0}
-            className="w-full bg-[#6200EA] hover:bg-[#4A00B4] active:scale-[0.98] disabled:opacity-60 text-white font-black text-[17px] py-4 rounded-xl shadow-md shadow-purple-100 transition-all flex items-center justify-center gap-2"
+            className="w-full bg-[#6200EA] hover:bg-[#4A00B4] active:scale-[0.98] disabled:opacity-60 text-white font-black text-lg py-4 rounded-xl shadow-md shadow-purple-100 transition-all flex items-center justify-center gap-2"
           >
             {isWatchingAd ? "Loading Ad…" : countdown > 0 ? `⏳ Wait ${countdown}s…` : "Watch Ads to Unlock Canva Pro"}
           </button>
@@ -115,19 +114,11 @@ export default function FreeCanva() {
         {/* Action Buttons */}
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.07 }} className="bg-white rounded-2xl px-4 py-4 border border-gray-100 shadow-sm space-y-3">
           <button onClick={() => handleLink('https://t.me/ShareCanvaProFree')} className="w-full hover:opacity-90 active:scale-[0.98] text-white font-bold text-base py-4 rounded-xl shadow-md shadow-purple-100 transition-all flex items-center justify-center gap-2.5" style={{ background: "linear-gradient(90deg, #6704E3, #8B22AF)" }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <path d="M22 2L11 13" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="white" fillOpacity="0.25"/>
-            </svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="white" fillOpacity="0.25"/></svg>
             Join Channel
           </button>
           <button onClick={() => handleLink('https://t.me/sharecanvaprofree_group')} className="w-full hover:opacity-90 active:scale-[0.98] text-white font-bold text-base py-4 rounded-xl shadow-md shadow-purple-100 transition-all flex items-center justify-center gap-2.5" style={{ background: "linear-gradient(90deg, #6704E3, #8B22AF)" }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <circle cx="9" cy="7" r="3" fill="white" fillOpacity="0.9"/>
-              <circle cx="17" cy="8" r="2.5" fill="white" fillOpacity="0.6"/>
-              <path d="M2 20C2 16.686 5.134 14 9 14C12.866 14 16 16.686 16 20" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-              <path d="M16 14C18.761 14 21 16.239 21 19" stroke="white" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.7"/>
-            </svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="7" r="3" fill="white" fillOpacity="0.9"/><circle cx="17" cy="8" r="2.5" fill="white" fillOpacity="0.6"/><path d="M2 20C2 16.686 5.134 14 9 14C12.866 14 16 16.686 16 20" stroke="white" strokeWidth="2" strokeLinecap="round"/><path d="M16 14C18.761 14 21 16.239 21 19" stroke="white" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.7"/></svg>
             Join Group
           </button>
           <button onClick={() => handleLink('https://t.me/ShareCanvaProFree')} className="w-full bg-gray-50 border border-gray-200 hover:bg-gray-100 active:scale-[0.98] text-gray-700 font-semibold text-base py-4 rounded-xl transition-all flex items-center justify-center gap-2">
@@ -159,12 +150,6 @@ export default function FreeCanva() {
             <span>No payment required</span>
           </div>
         </motion.div>
-
-        {/* Footer */}
-        <div className="text-center pt-2 pb-4 space-y-1">
-          <button className="text-[13px] text-[#6200EA] font-bold hover:underline">by H2N</button>
-          <div className="text-[11px] text-gray-400 font-medium">@ShareCanvaProFree_Bot</div>
-        </div>
       </div>
     </div>
   );
