@@ -7,21 +7,32 @@ export function useTasks() {
   const updatePoints = async (newTotalPoints) => {
     if (!user?.telegramId) return;
     
-    // Save points to Supabase database permanently
+    const tgIdStr = String(user.telegramId);
+
+    // 1. INSTANT LOCAL BACKUP (Bulletproof offline save)
+    localStorage.setItem(`canva_pts_${tgIdStr}`, newTotalPoints);
+
+    // 2. CLOUD SAVE
     const { error } = await supabase
       .from('users')
       .update({ points: newTotalPoints })
-      .eq('telegram_id', user.telegramId);
+      .eq('telegram_id', tgIdStr);
       
-    if (error) console.error("Error saving points:", error);
+    if (error) console.error("Error saving points to cloud:", error);
   };
 
   const processCheckIn = async ({ newStreak, dateStr, pointsEarned }) => {
     if (!user?.telegramId) return 0;
     
+    const tgIdStr = String(user.telegramId);
     const newTotalPoints = (user.points || 0) + pointsEarned;
     
-    // Save check-in streak, date, and points to Supabase database permanently
+    // 1. INSTANT LOCAL BACKUP
+    localStorage.setItem(`canva_pts_${tgIdStr}`, newTotalPoints);
+    localStorage.setItem(`canva_streak_${tgIdStr}`, newStreak);
+    localStorage.setItem(`canva_date_${tgIdStr}`, dateStr);
+
+    // 2. CLOUD SAVE
     const { error } = await supabase
       .from('users')
       .update({
@@ -29,9 +40,9 @@ export function useTasks() {
         last_checkin: dateStr,
         points: newTotalPoints
       })
-      .eq('telegram_id', user.telegramId);
+      .eq('telegram_id', tgIdStr);
 
-    if (error) console.error("Error saving check-in:", error);
+    if (error) console.error("Error saving check-in to cloud:", error);
     
     return newTotalPoints;
   };

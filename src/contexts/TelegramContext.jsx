@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { syncUser } from '../api/tasks';
+import { supabase } from '../api/supabase';
 
 const TelegramContext = createContext({});
 
@@ -7,11 +8,10 @@ export function TelegramProvider({ children }) {
   const tg = window.Telegram?.WebApp;
   const tgUser = tg?.initDataUnsafe?.user;
   
-  // Get Referral ID from the invite link (e.g. ?startapp=12345)
   const startParam = tg?.initDataUnsafe?.start_param || null; 
 
   const initialUser = {
-    telegramId: tgUser?.id ? tgUser.id.toString() : (import.meta.env.VITE_ADMIN_TELEGRAM_ID || "5589713552"),
+    telegramId: tgUser?.id ? String(tgUser.id) : (import.meta.env.VITE_ADMIN_TELEGRAM_ID || "5589713552"),
     firstName: tgUser?.first_name || "User",
     photoUrl: tgUser?.photo_url || "https://cdn-icons-png.flaticon.com/512/149/149071.png",
     points: 0, 
@@ -20,7 +20,7 @@ export function TelegramProvider({ children }) {
   };
 
   const [user, setUser] = useState(initialUser);
-  const [isReady, setIsReady] = useState(false); // Track DB Loading
+  const [isReady, setIsReady] = useState(false); 
 
   useEffect(() => {
     if (tg) {
@@ -28,24 +28,42 @@ export function TelegramProvider({ children }) {
       tg.expand();
     }
 
-    // Sync with database and load REAL points BEFORE showing the app
+    const tgIdStr = String(initialUser.telegramId);
+
+    // Grab emergency local backups
+    const localPts = parseInt(localStorage.getItem(`canva_pts_${tgIdStr}`)) || 0;
+    const localStreak = parseInt(localStorage.getItem(`canva_streak_${tgIdStr}`)) || 0;
+    const localDate = localStorage.getItem(`canva_date_${tgIdStr}`);
+
     syncUser(initialUser, startParam).then(dbUser => {
       if (dbUser) {
+        // SMART AUTO-HEAL: Take the higher value between Cloud and Local Backup
+        const finalPoints = Math.max(dbUser.points || 0, localPts);
+        const finalStreak = Math.max(dbUser.streak || 0, localStreak);
+        const finalDate = dbUser.last_checkin || localDate || null;
+
         setUser(prev => ({ 
           ...prev, 
-          points: dbUser.points !== undefined ? dbUser.points : 0,
-          streak: dbUser.streak !== undefined ? dbUser.streak : 0,
-          last_checkin: dbUser.last_checkin !== undefined ? dbUser.last_checkin : null
+          points: finalPoints,
+          streak: finalStreak,
+          last_checkin: finalDate
         }));
+
+        // If Local Backup was higher, the cloud dropped a save. Force re-upload!
+        if (localPts > (dbUser.points || 0)) {
+          supabase.from('users').update({ points: finalPoints }).eq('telegram_id', tgIdStr).then();
+        }
+      } else {
+        // Fallback to local if completely offline
+        setUser(prev => ({ ...prev, points: localPts, streak: localStreak, last_checkin: localDate }));
       }
-      setIsReady(true); // Database is loaded, show the app!
+      setIsReady(true); 
     });
   }, []);
 
   return (
     <TelegramContext.Provider value={{ user, setUser }}>
       {!isReady ? (
-        // Beautiful Loading Screen to hide the "0 points" delay
         <div className="min-h-[100dvh] bg-[#f5f5f5] flex flex-col items-center justify-center text-gray-400 font-bold">
            <span className="text-4xl mb-4 animate-spin">⏳</span>
            Loading your profile...
