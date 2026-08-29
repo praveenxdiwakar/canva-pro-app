@@ -4,7 +4,8 @@ import BottomNav from './BottomNav';
 
 export default function AppLayout() {
   return (
-    <div className="min-h-screen bg-[#f5f5f5] text-gray-900 max-w-md mx-auto relative shadow-2xl overflow-x-hidden">
+    {/* Limit max width for mobile view, center it on larger screens */}
+    <div className="min-h-screen bg-[#F8F9FA] text-gray-900 max-w-md mx-auto relative shadow-2xl overflow-x-hidden pb-20"> 
       <main>
         <Outlet />
       </main>

@@ -1,137 +1,87 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { useQuery } from '@tanstack/react-query';
-import { useTelegram } from '../contexts/TelegramContext';
 
-const colors = ["#f472b6", "#818cf8", "#34d399", "#60a5fa", "#f97316", "#a78bfa", "#f59e0b", "#10b981"];
-const medals = { 1: "🥇", 2: "🥈", 3: "🥉" };
+export default function LeaderboardModal({ isOpen, onClose }) {
+  if (!isOpen) return null;
 
-function Avatar({ name, color, size = 40 }) {
-  const initial = name ? name.split(" ").map(l => l[0]).join("").slice(0, 2).toUpperCase() : "??";
-  return (
-    <div className="rounded-full flex items-center justify-center font-bold text-white shrink-0 shadow-sm"
-         style={{ width: size, height: size, backgroundColor: color, fontSize: size * 0.35 }}>
-      {initial}
-    </div>
-  );
-}
+  // Mock data to match your screenshot layout exactly
+  const topThree = [
+    { rank: 2, name: "..", initials: ".", color: "bg-blue-400", pts: 48 },
+    { rank: 1, name: "Mahdi I.", initials: "MI", color: "bg-pink-400", pts: 88 },
+    { rank: 3, name: "Meet P.", initials: "MP", color: "bg-green-400", pts: 44 }
+  ];
 
-export default function LeaderboardModal({ onClose }) {
-  const { initData } = useTelegram();
-  
-  const { data: leaderboard, isLoading } = useQuery({
-    queryKey: ["leaderboard"],
-    queryFn: async () => {
-      const res = await fetch("/api/users/leaderboard", { headers: { "x-init-data": initData } });
-      if (!res.ok) throw new Error("Failed to load leaderboard");
-      return res.json();
-    },
-    enabled: !!initData,
-    staleTime: 60000
-  });
-
-  // The podium order visually displays 2nd place, 1st place, then 3rd place
-  const podiumOrder = [1, 0, 2];
-  const podiumHeights = ["h-20", "h-28", "h-16"];
-  const podiumSizes = [52, 64, 48];
+  const others = [
+    { rank: 4, name: "Farzaneh", initials: "F", color: "bg-blue-500", pts: 35 },
+    { rank: 5, name: "Wassila B.", initials: "WB", color: "bg-orange-500", pts: 28 },
+    { rank: 6, name: "Bk S.", initials: "BS", color: "bg-purple-400", pts: 27 },
+    { rank: 7, name: "Shashi Shaurya", initials: "SS", color: "bg-yellow-500", pts: 25 },
+    { rank: 8, name: "Hai H.", initials: "HH", color: "bg-teal-500", pts: 25 },
+    { rank: 9, name: "Md Aive", initials: "MA", color: "bg-pink-500", pts: 24 }
+  ];
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }} 
-      animate={{ opacity: 1 }} 
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[100] bg-black/50 flex flex-col justify-end"
-      style={{ paddingBottom: "env(safe-area-inset-bottom, 48px)" }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <motion.div
+    <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/50">
+      <motion.div 
         initial={{ y: "100%" }} 
         animate={{ y: 0 }} 
         exit={{ y: "100%" }}
-        transition={{ type: "spring", damping: 28, stiffness: 300 }}
-        className="w-full bg-[#f5f5f5] rounded-t-3xl max-h-[85dvh] flex flex-col shadow-2xl"
+        className="bg-[#f5f5f5] w-full h-[90vh] rounded-t-3xl shadow-2xl flex flex-col overflow-hidden max-w-md mx-auto relative"
       >
         {/* Header */}
-        <div className="bg-white px-4 pt-4 pb-3 border-b border-gray-100 rounded-t-3xl flex items-center justify-between z-10">
+        <div className="bg-white px-5 py-4 rounded-t-3xl flex justify-between items-center z-10 shadow-sm">
           <div>
-            <h2 className="text-xl font-black text-gray-900">🏆 Leaderboard</h2>
-            <p className="text-sm text-gray-400 mt-0.5 font-medium">Top earners ranked by points</p>
+            <h2 className="font-black text-lg text-gray-900 flex items-center gap-2">🏆 Leaderboard</h2>
+            <p className="text-[10px] text-gray-400 font-medium mt-0.5">Top earners ranked by points</p>
           </div>
-          <button onClick={onClose} className="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors flex items-center justify-center shrink-0">
-            <svg className="w-4 h-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          <button onClick={onClose} className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 font-bold hover:bg-gray-200">
+            ✕
           </button>
         </div>
 
-        {/* Scrollable List */}
-        <div className="overflow-y-auto flex-1 px-4 pt-4 space-y-2 no-scrollbar" style={{ paddingBottom: "calc(5rem + env(safe-area-inset-bottom, 0px))" }}>
-          {isLoading ? (
-            <div className="flex items-center justify-center py-16">
-              <div className="w-8 h-8 animate-spin rounded-full border-4 border-purple-200 border-t-purple-600"></div>
-            </div>
-          ) : !leaderboard || leaderboard.length === 0 ? (
-            <div className="text-center py-16 bg-white rounded-3xl shadow-sm border border-gray-100">
-              <div className="text-5xl mb-3">🏆</div>
-              <div className="font-bold text-gray-700 text-lg">No entries yet</div>
-              <div className="text-sm text-gray-400 mt-1">Complete tasks to appear here!</div>
-            </div>
-          ) : (
-            <>
-              {/* Podium Section */}
-              {leaderboard.length > 0 && (
-                <div className="flex items-end justify-center gap-3 py-4 mb-3">
-                  {podiumOrder.map((index, i) => {
-                    const user = leaderboard[index];
-                    if (!user || user.rank > 3) return null;
-                    const rank = user.rank;
-                    const color = colors[(rank - 1) % colors.length];
-                    return (
-                      <div key={user.id || rank} className="flex flex-col items-center gap-1">
-                        <Avatar name={user.displayName} color={color} size={podiumSizes[i]} />
-                        <div className="text-[11px] font-bold text-gray-700 max-w-[70px] truncate text-center mt-1">{user.displayName}</div>
-                        <div className="text-[11px] text-purple-600 font-bold">⭐ {user.points}</div>
-                        <div
-                          className={`${podiumHeights[i]} w-16 rounded-t-2xl flex items-start justify-center pt-2 font-black text-white text-xl shadow-inner`}
-                          style={{ backgroundColor: color }}
-                        >
-                          {medals[rank]}
-                        </div>
-                      </div>
-                    );
-                  })}
+        <div className="overflow-y-auto flex-1 pb-20 px-4 pt-8">
+          
+          {/* Podium */}
+          <div className="flex justify-center items-end gap-3 mb-10 h-40">
+            {topThree.map((user, i) => (
+              <div key={i} className="flex flex-col items-center relative">
+                {/* Avatar positioned floating above the bar */}
+                <div className={`w-12 h-12 rounded-full ${user.color} flex items-center justify-center text-white font-black text-sm absolute -top-14 border-4 border-[#f5f5f5] shadow-sm z-10`}>
+                  {user.initials}
                 </div>
-              )}
+                <div className="text-[10px] font-bold text-gray-800 absolute -top-2 whitespace-nowrap">{user.name}</div>
+                <div className="text-[10px] font-black text-yellow-500 absolute top-2 flex items-center gap-0.5 z-10">⭐ {user.pts}</div>
+                
+                {/* Podium Bar */}
+                <div className={`w-16 ${user.rank === 1 ? 'h-24' : user.rank === 2 ? 'h-16' : 'h-12'} ${user.color} rounded-t-xl flex items-end justify-center pb-2 shadow-inner relative`}>
+                   <div className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center text-[10px] absolute top-6 shadow-sm">
+                     {user.rank === 1 ? '🥇' : user.rank === 2 ? '🥈' : '🥉'}
+                   </div>
+                </div>
+              </div>
+            ))}
+          </div>
 
-              {/* Leaderboard Rows */}
-              {leaderboard.map((user, index) => (
-                <motion.div
-                  key={user.id || index}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.03 }}
-                  className={`bg-white rounded-2xl px-4 py-3.5 flex items-center gap-3 border shadow-sm ${user.isCurrentUser ? "border-purple-300 bg-purple-50" : "border-gray-100"}`}
-                >
-                  <div className="w-8 text-center font-black text-gray-400 shrink-0 text-sm">
-                    {medals[user.rank] ?? `#${user.rank}`}
+          {/* Leaderboard List */}
+          <div className="space-y-2">
+            {others.map((u, i) => (
+              <div key={i} className="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-bold text-gray-400 w-4 text-center">#{u.rank}</span>
+                  <div className={`w-8 h-8 rounded-full ${u.color} flex items-center justify-center text-white font-bold text-xs`}>
+                    {u.initials}
                   </div>
-                  <Avatar name={user.displayName} color={colors[(user.rank - 1) % colors.length]} />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-bold text-gray-900 text-sm truncate flex items-center gap-1.5">
-                      {user.displayName}
-                      {user.isCurrentUser && (
-                        <span className="text-[10px] bg-purple-200 text-purple-700 font-black px-2 py-0.5 rounded-full">YOU</span>
-                      )}
-                    </div>
-                    {user.username && <div className="text-[11px] text-gray-400 font-medium truncate">@{user.username}</div>}
-                  </div>
-                  <div className="text-sm font-black text-amber-500 shrink-0">
-                    ⭐ {user.points}
-                  </div>
-                </motion.div>
-              ))}
-            </>
-          )}
+                  <span className="font-bold text-xs text-gray-900">{u.name}</span>
+                </div>
+                <div className="flex items-center gap-1 text-yellow-500 font-black text-xs">
+                   ⭐ {u.pts}
+                </div>
+              </div>
+            ))}
+          </div>
+
         </div>
       </motion.div>
-    </motion.div>
+    </div>
   );
 }

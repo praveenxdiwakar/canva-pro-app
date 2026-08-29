@@ -2,21 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: light;
-}
-
 body {
   margin: 0;
   padding: 0;
-  background-color: #f5f5f5;
-  color: #111827;
-  font-family: 'Outfit', sans-serif;
+  background-color: #F8F9FA; /* Light gray background */
+  color: #111827; /* Dark text */
+  font-family: 'Outfit', sans-serif; /* Your chosen font */
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Prevent text highlighting on mobile web app view */
-* {
-  -webkit-tap-highlight-color: transparent;
+/* Custom utility for the card look */
+@layer components {
+  .app-card {
+    @apply bg-white rounded-2xl p-4 shadow-sm border border-gray-100;
+  }
 }

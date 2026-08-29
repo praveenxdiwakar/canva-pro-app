@@ -1,107 +1,147 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useTelegram } from '../contexts/TelegramContext';
-import { useTasks } from '../hooks/useTasks';
-import { useNavigate } from 'react-router-dom';
+import React from 'react';
 
 export default function Tasks() {
-  const { user, setUser } = useTelegram();
-  const { updatePoints, processCheckIn } = useTasks();
-  const navigate = useNavigate();
-  const [isSpinning, setIsSpinning] = useState(false);
-  const [rotation, setRotation] = useState(0);
-
-  const rewards = [1, 1, 1, 2, 2, 2, 3];
-  const todayStr = new Date().toDateString();
-  const hasCheckedInToday = user?.last_checkin === todayStr;
-  const currentStreak = user?.streak || 0;
-
-  const handleCheckIn = async () => {
-    if (hasCheckedInToday) {
-      alert("✅ You already checked in today! Come back tomorrow.");
-      return;
-    }
-
-    let newStreak = 1;
-    const yesterdayDate = new Date();
-    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-
-    if (user?.last_checkin === yesterdayDate.toDateString()) {
-      newStreak = Math.min(currentStreak + 1, 7);
-    } else if (user?.last_checkin !== null && user?.last_checkin !== undefined) {
-      alert("⚠️ You missed a day! Your streak has reset to Day 1.");
-    }
-
-    const pointsEarned = rewards[newStreak - 1];
-    const newTotal = await processCheckIn({ newStreak, dateStr: todayStr, pointsEarned });
-    setUser({ ...user, streak: newStreak, last_checkin: todayStr, points: newTotal });
-    alert(`✅ Checked in for Day ${newStreak}! +${pointsEarned} Points`);
-  };
-
-  const handleSpin = async () => {
-    if (isSpinning) return;
-    setIsSpinning(true);
-    const winAmounts = [1, 2, 5, 20];
-    const won = winAmounts[Math.floor(Math.random() * winAmounts.length)];
-    setRotation(prev => prev + 1800 + Math.floor(Math.random() * 360));
-
-    setTimeout(async () => {
-      setIsSpinning(false);
-      const newTotal = (user?.points || 0) + won;
-      await updatePoints(newTotal);
-      setUser({ ...user, points: newTotal });
-      alert(`🎉 You won +${won} points!`);
-    }, 4000);
-  };
-
   return (
-    <div className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24 px-4 pt-4 space-y-4">
-      <div className="bg-white rounded-2xl p-4 shadow-sm flex justify-between items-center border border-gray-100">
-        <div>
-          <h1 className="font-black text-xl text-gray-900">🎯 Earn Points</h1>
-          <p className="text-xs text-gray-500">Complete tasks to claim Canva Pro</p>
+    <div className="bg-[#F8F9FA] min-h-screen pb-24">
+        {/* Banner Area */}
+        <div className="w-full h-40 bg-gray-900 overflow-hidden relative">
+           <img src="/earn-points-banner.png" alt="Earn Points" className="w-full h-full object-cover" />
         </div>
-        <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 font-bold px-3 py-1.5 rounded-full text-xs">
-          ⭐ {user?.points || 0} pts
-        </div>
-      </div>
 
-      {/* Spin & Earn Card */}
-      <div className="bg-white rounded-2xl p-4 border border-pink-200 shadow-sm text-center">
-        <h3 className="font-black text-gray-900 text-sm mb-3">🎡 Spin & Earn Free Points</h3>
-        <div className="relative w-36 h-36 mx-auto mb-4 flex items-center justify-center">
-          <div className="absolute top-0 w-0 h-0 border-l-[6px] border-r-[6px] border-b-[12px] border-l-transparent border-r-transparent border-b-gray-900 z-10 -translate-y-1" />
-          <div 
-            className="w-full h-full rounded-full border-4 border-purple-200 shadow-inner flex items-center justify-center relative overflow-hidden bg-gradient-to-tr from-pink-200 via-purple-200 to-yellow-100"
-            style={{ transform: `rotate(${rotation}deg)`, transition: isSpinning ? 'transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99)' : 'none' }}
-          >
-            <span className="absolute text-[10px] font-black top-2 text-purple-900">+20</span>
-            <span className="absolute text-[10px] font-black bottom-2 text-blue-900">+2</span>
-          </div>
-        </div>
-        <button onClick={handleSpin} disabled={isSpinning} className="w-full bg-gray-900 disabled:bg-gray-400 text-white font-black text-xs py-3 rounded-xl shadow-md">
-          {isSpinning ? "Spinning..." : "SPIN NOW"}
-        </button>
-      </div>
-
-      {/* Daily Check-in Card */}
-      <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-        <div className="flex justify-between items-center mb-3">
-          <div className="font-black text-sm text-gray-900">📅 Daily Check-in</div>
-          {hasCheckedInToday && <span className="bg-green-100 text-green-600 text-[10px] font-black px-2 py-0.5 rounded-full">✓ Done Today</span>}
-        </div>
-        <div className="grid grid-cols-7 gap-1 mb-3">
-          {rewards.map((pts, i) => (
-            <div key={i} className={`flex flex-col items-center rounded-xl py-2 border text-center ${i + 1 <= currentStreak ? "bg-green-500 border-green-400 text-white" : "bg-gray-50 border-gray-200 text-gray-400"}`}>
-              <span className="text-[9px] font-bold">D{i + 1}</span>
-              <span className="font-black text-[10px]">+{pts}</span>
+        <div className="px-4 pt-4 space-y-4">
+            
+            {/* Header / Points */}
+            <div className="flex justify-between items-center bg-white px-4 py-3 rounded-2xl shadow-sm border border-gray-100">
+                <div className="flex items-center gap-2">
+                    <span className="text-xl">🎯</span>
+                    <h1 className="font-bold text-lg">Earn Points</h1>
+                </div>
+                <div className="flex gap-2">
+                    <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 font-bold px-3 py-1.5 rounded-full text-xs flex items-center gap-1">
+                       ⭐ 0 pts
+                    </div>
+                    <button className="bg-purple-50 text-purple-600 font-bold px-3 py-1.5 rounded-full text-xs">
+                        History
+                    </button>
+                </div>
             </div>
-          ))}
+
+            {/* Next Reward Progress */}
+            <div className="app-card">
+                <div className="flex justify-between items-center mb-2">
+                    <div className="flex items-center gap-2">
+                        <span>🏆</span>
+                        <h2 className="font-bold text-sm text-gray-800">Next Canva Reward</h2>
+                    </div>
+                    <span className="bg-purple-100 text-purple-700 font-bold px-2 py-0.5 rounded text-xs">0 / 20 pts</span>
+                </div>
+                <p className="text-xs text-gray-500 mb-3">Canva Pro • 7 Days</p>
+                <div className="w-full bg-gray-100 rounded-full h-2 mb-2">
+                     <div className="bg-purple-500 h-2 rounded-full" style={{ width: '0%' }}></div>
+                </div>
+                <p className="text-[10px] text-gray-400">20 more points needed</p>
+            </div>
+
+            {/* Spin & Earn */}
+            <div className="app-card border-pink-200 bg-pink-50/30 flex justify-between items-center cursor-pointer">
+                <div>
+                    <h2 className="font-bold text-sm text-gray-800 flex items-center gap-2">🎡 Spin & Earn</h2>
+                    <div className="flex gap-1 text-yellow-400 text-xs my-1">⭐⭐⭐</div>
+                    <p className="text-[10px] text-gray-500">3/3 Spins</p>
+                </div>
+                <span className="text-blue-500 font-bold text-xs">Tap to Spin ➔</span>
+            </div>
+
+            {/* Daily Check-in */}
+            <div className="app-card">
+                <h2 className="font-bold text-sm text-gray-800 flex items-center gap-2 mb-3">📅 Daily Check-in</h2>
+                <div className="flex justify-between gap-1 mb-4">
+                    {[
+                        { day: 'D1', pts: '+1', active: true },
+                        { day: 'D2', pts: '+1', active: false },
+                        { day: 'D3', pts: '+1', active: false },
+                        { day: 'D4', pts: '+2', active: false },
+                        { day: 'D5', pts: '+2', active: false },
+                        { day: 'D6', pts: '+2', active: false },
+                        { day: 'D7', pts: '+3', active: false, special: true }
+                    ].map((d, i) => (
+                        <div key={i} className={`flex flex-col items-center justify-center w-10 h-10 rounded-full border-2 
+                            ${d.active ? 'border-purple-500 bg-purple-50' : 'border-gray-100 bg-white'}
+                        `}>
+                            <span className={`text-[10px] font-bold ${d.active ? 'text-purple-600' : 'text-gray-400'}`}>{d.day}</span>
+                            <span className={`text-[9px] font-black ${d.active ? 'text-purple-600' : (d.special ? 'text-yellow-500' : 'text-gray-300')}`}>{d.pts}</span>
+                        </div>
+                    ))}
+                </div>
+                <button className="w-full bg-[#10B981] text-white font-bold py-3 rounded-xl shadow-md text-xs">
+                    CHECK-IN — Today's Reward: +1 pt
+                </button>
+            </div>
+
+            {/* Tasks List */}
+            <div className="space-y-3">
+                {/* Watch Ad Task */}
+                <div className="app-card flex justify-between items-center">
+                     <div className="flex items-center gap-3">
+                         <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-xl">📺</div>
+                         <div>
+                             <h3 className="font-bold text-sm text-gray-800">Watch Ads 01</h3>
+                             <p className="text-[10px] text-gray-500">+1 Point / Ad</p>
+                             <div className="flex gap-1 mt-1">
+                                 {[1,2,3,4,5].map(i => <div key={i} className="w-1.5 h-1.5 rounded-full bg-gray-200"></div>)}
+                                 <span className="text-[8px] text-gray-400 ml-1">0/5</span>
+                             </div>
+                         </div>
+                     </div>
+                     <button className="bg-[#EF4444] text-white font-bold px-4 py-2 rounded-lg text-xs">WATCH ADS</button>
+                </div>
+                 {/* Watch Ad Task 2 */}
+                <div className="app-card flex justify-between items-center">
+                     <div className="flex items-center gap-3">
+                         <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-xl">📺</div>
+                         <div>
+                             <h3 className="font-bold text-sm text-gray-800">Watch Ads 02</h3>
+                             <p className="text-[10px] text-gray-500">+1 Point / Ad</p>
+                             <div className="flex gap-1 mt-1">
+                                 {[1,2,3,4,5].map(i => <div key={i} className="w-1.5 h-1.5 rounded-full bg-gray-200"></div>)}
+                                 <span className="text-[8px] text-gray-400 ml-1">0/5</span>
+                             </div>
+                         </div>
+                     </div>
+                     <button className="bg-[#EF4444] text-white font-bold px-4 py-2 rounded-lg text-xs">WATCH ADS</button>
+                </div>
+
+                {/* Join Channel Task */}
+                <div className="app-card flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                         <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-xl">📢</div>
+                         <div>
+                             <h3 className="font-bold text-sm text-gray-800">Join Channel 01</h3>
+                             <p className="text-[10px] text-gray-500">+2 pts · One time <span className="text-gray-400 ml-1">91 / 1000</span></p>
+                         </div>
+                     </div>
+                     <div className="flex gap-2">
+                        <button className="bg-[#3B82F6] text-white font-bold px-4 py-2 rounded-lg text-xs">JOIN</button>
+                        <button className="bg-gray-100 text-gray-500 font-bold px-3 py-2 rounded-lg text-xs flex items-center gap-1">✓ Verify</button>
+                     </div>
+                </div>
+
+                 {/* Invite Task */}
+                <div className="app-card flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                         <div className="w-10 h-10 rounded-full bg-yellow-50 flex items-center justify-center text-xl">👥</div>
+                         <div>
+                             <h3 className="font-bold text-sm text-gray-800">Invite Friends</h3>
+                             <p className="text-[10px] text-gray-500">+5 pts / referral · Unlimited</p>
+                         </div>
+                     </div>
+                     <button className="bg-[#06B6D4] text-white font-bold px-4 py-2 rounded-lg text-xs flex items-center gap-1">
+                        <span className="text-sm">⎘</span> COPY
+                     </button>
+                </div>
+            </div>
+
         </div>
-        <button onClick={handleCheckIn} disabled={hasCheckedInToday} className="w-full bg-green-500 disabled:bg-gray-200 disabled:text-gray-400 text-white font-bold text-xs py-3 rounded-xl shadow-md">
-          {hasCheckedInToday ? "✅ Checked In Today" : "CHECK-IN NOW"}
-        </button>
-      </div>
     </div>
   );
 }
