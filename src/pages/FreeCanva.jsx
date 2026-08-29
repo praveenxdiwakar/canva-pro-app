@@ -9,31 +9,41 @@ export default function FreeCanva() {
   const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
-    // 1. Fetch available Canva link from Supabase (Real-time)
+    // 1. Fetch available Canva link
     supabase.from('canva_links').select('*').then(({ data }) => {
       if (data && data.length > 0) {
         const available = data.find(l => l.used_slots < l.total_slots);
-        // Fallback to invitelink if url is empty
         if (available) setCanvaLink(available.url || available.invitelink);
       }
     });
 
-    // 2. Fetch Monetag Ad Zone from Supabase Admin Settings
+    // 2. SECURELY Fetch Ad Zone and Dynamically Inject Monetag SDK
     supabase.from('app_settings').select('value').eq('key', 'MONETAG_ZONE_ID').maybeSingle().then(({data}) => {
-      if (data && data.value) setAdZone(data.value);
+      if (data && data.value) {
+        const zoneId = data.value;
+        setAdZone(zoneId);
+
+        // Dynamically inject the script into the document head
+        if (!document.getElementById(`monetag-sdk-${zoneId}`)) {
+          const script = document.createElement('script');
+          script.id = `monetag-sdk-${zoneId}`;
+          script.src = '//libtl.com/sdk.js';
+          script.setAttribute('data-zone', zoneId);
+          script.setAttribute('data-sdk', `show_${zoneId}`);
+          script.defer = true;
+          document.head.appendChild(script);
+        }
+      }
     });
   }, []);
 
-  // Calculate progress bar percentage
   const progressPercentage = Math.min(100, ((currentStep - 1) / 3) * 100);
 
-  // Bulletproof Link Opener (Bypasses Telegram & Browser Popup Blockers)
   const openExternalLink = (url) => {
     const tg = window.Telegram?.WebApp;
     if (tg && tg.openLink) {
-      tg.openLink(url); // Native Telegram opener
+      tg.openLink(url);
     } else {
-      // Invisible anchor tag click for standard web browsers
       const a = document.createElement('a');
       a.href = url;
       a.target = '_blank';
@@ -45,7 +55,7 @@ export default function FreeCanva() {
   };
 
   const handleMainAction = () => {
-    // If all 4 steps are complete, unlock the Canva Link!
+    // If completed, open Canva
     if (currentStep > 4) {
       if (canvaLink) {
         openExternalLink(canvaLink);
@@ -55,19 +65,34 @@ export default function FreeCanva() {
       return;
     }
 
-    // Step 1 to 4: Trigger Ad and progress to next step
     if (isProcessing) return;
     setIsProcessing(true);
 
-    // Open Monetag Ad securely using the bulletproof opener
-    const adUrl = adZone ? `https://go.oclasrv.com/afu.php?zoneid=${adZone}` : "https://monetag.com";
-    openExternalLink(adUrl);
+    // --- DYNAMIC MONETAG SDK INTEGRATION ---
+    // We dynamically call window["show_ZONEID"]() based on the Admin setting
+    const adFunctionName = `show_${adZone}`;
 
-    // Smart Timer: Wait 6 seconds to ensure the user viewed the ad before unlocking the next step
-    setTimeout(() => {
-      setCurrentStep(prev => prev + 1);
-      setIsProcessing(false);
-    }, 6000); 
+    if (adZone && typeof window[adFunctionName] === "function") {
+      window[adFunctionName]()
+        .then(() => {
+          // Success! The user watched the ad. Move to the next step.
+          setCurrentStep(prev => prev + 1);
+          setIsProcessing(false);
+        })
+        .catch(() => {
+          // Ad Failed or Ad-blocker detected
+          alert("⚠️ Ad failed to load. Please disable ad-blockers and try again.");
+          setIsProcessing(false);
+        });
+    } else {
+      // Fallback: If SDK fails to load or no ad zone is set, use the Direct Link + Timer method
+      const adUrl = adZone ? `https://go.oclasrv.com/afu.php?zoneid=${adZone}` : "https://monetag.com";
+      openExternalLink(adUrl);
+      setTimeout(() => {
+        setCurrentStep(prev => prev + 1);
+        setIsProcessing(false);
+      }, 6000); 
+    }
   };
 
   return (
@@ -136,7 +161,7 @@ export default function FreeCanva() {
             {currentStep > 4 ? (
               <><span>🎁</span> UNLOCK CANVA PRO</>
             ) : isProcessing ? (
-              <><span>⏳</span> Verifying Ad View...</>
+              <><span>⏳</span> Waiting for Ad...</>
             ) : (
               <><span>📺</span> Watch Ad for Step {currentStep}</>
             )}
@@ -177,12 +202,6 @@ export default function FreeCanva() {
           <div className="mt-4 pt-4 border-t border-gray-50 text-[10px] text-gray-400 font-bold flex items-center justify-center gap-1.5">
             🔒 Safe & Secure • No payment required
           </div>
-        </div>
-
-        {/* Footer Credit */}
-        <div className="text-center pt-2 pb-6">
-          <p className="text-[12px] font-black text-[#6200EA] mb-0.5">by H2N</p>
-          <p className="text-[10px] text-gray-400 font-medium">@ShareCanvaProFree_Bot</p>
         </div>
 
       </div>
