@@ -4,8 +4,15 @@ import { useNavigate } from 'react-router-dom';
 
 export default function Tasks() {
   const navigate = useNavigate();
-  // Permanent Local Storage Database for offline mode
+  // Live Points from LocalStorage
   const [livePoints, setLivePoints] = useState(() => parseInt(localStorage.getItem('user_points') || '0'));
+
+  // Daily Check-in state from LocalStorage
+  const [checkinData, setCheckinData] = useState(() => {
+    const stored = localStorage.getItem('user_checkin');
+    if (stored) return JSON.parse(stored);
+    return { lastDate: null, streak: 0 };
+  });
 
   const updatePoints = (earned) => {
     const newPoints = livePoints + earned;
@@ -13,11 +20,57 @@ export default function Tasks() {
     localStorage.setItem('user_points', newPoints.toString());
   };
 
+  // ----------------------------------------------------
+  // ADVANCED 24-HOUR DAILY CHECK-IN LOGIC
+  // ----------------------------------------------------
+  const rewards = [1, 1, 1, 2, 2, 2, 3]; // The points for Day 1 to Day 7
+  const todayStr = new Date().toDateString(); // e.g. "Sat Aug 29 2026"
+  const hasCheckedInToday = checkinData.lastDate === todayStr;
+  const currentStreak = checkinData.streak;
+  
+  // Calculate what the next day will be
+  const nextStreakDay = hasCheckedInToday ? currentStreak : Math.min(currentStreak + 1, 7);
+  const nextReward = rewards[nextStreakDay - 1];
+
+  const handleCheckIn = () => {
+    if (hasCheckedInToday) {
+      alert("✅ You already checked in today! Come back tomorrow for your next reward.");
+      return;
+    }
+
+    let newStreak = 1; // Default to Day 1
+    
+    // Check if they checked in yesterday to continue the streak
+    const yesterdayDate = new Date();
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const yesterdayStr = yesterdayDate.toDateString();
+
+    if (checkinData.lastDate === yesterdayStr) {
+      // Continue streak up to 7 days
+      newStreak = Math.min(checkinData.streak + 1, 7);
+    } else if (checkinData.lastDate !== null && checkinData.lastDate !== yesterdayStr) {
+      // Streak broken (they missed a day), reset to Day 1
+      newStreak = 1;
+      alert("⚠️ You missed a day! Your streak has reset to Day 1.");
+    }
+
+    const pointsEarned = rewards[newStreak - 1];
+    
+    // Save to Database / LocalStorage
+    const newData = { lastDate: todayStr, streak: newStreak };
+    setCheckinData(newData);
+    localStorage.setItem('user_checkin', JSON.stringify(newData));
+    
+    // Add points
+    updatePoints(pointsEarned);
+    alert(`✅ Checked in for Day ${newStreak}! +${pointsEarned} Point${pointsEarned !== 1 ? 's' : ''}`);
+  };
+
   return (
     <div className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24">
       {/* Banner */}
       <div className="relative w-full h-40 overflow-hidden">
-        <img src="/earn-points-banner.png" alt="Earn Points — Unlock Canva Pro" className="w-full h-full object-cover object-center" onError={(e) => e.target.style.display = 'none'} />
+        <img src="/earn-points-banner.png" alt="Earn Points" className="w-full h-full object-cover object-center" onError={(e) => e.target.style.display = 'none'} />
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center bg-gradient-to-br from-[#1e1b4b] to-[#000000]">
            <h1 className="text-3xl font-black text-white italic">EARN POINTS</h1>
         </div>
@@ -56,29 +109,55 @@ export default function Tasks() {
         {/* Spin & Earn */}
         <SpinEarnCard onWin={(pts) => updatePoints(pts)} />
 
-        {/* Daily Check-in */}
+        {/* ======================================= */}
+        {/* NEW DAILY CHECK-IN CARD (24H LOGIC)     */}
+        {/* ======================================= */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <div>
               <div className="font-black text-gray-900 text-sm">📅 Daily Check-in</div>
+              {currentStreak > 0 && <div className="text-xs text-orange-500 font-bold mt-0.5">🔥 Day {currentStreak} streak!</div>}
             </div>
-          </div>
-          <div className="grid grid-cols-7 gap-1 mb-3">
-            {[1, 1, 1, 2, 2, 2, 3].map((pts, i) => (
-              <div key={i} className={`flex flex-col items-center rounded-xl py-1.5 border text-center transition-all ${i === 0 ? "bg-purple-100 border-purple-400 text-purple-700" : "bg-gray-50 border-gray-200 text-gray-400"}`}>
-                <div className="text-[9px] font-bold">D{i + 1}</div>
-                <div className={`font-black text-[10px] ${i === 6 ? "text-yellow-400" : ""}`}>+{pts}</div>
+            {hasCheckedInToday && (
+              <div className="bg-green-100 text-green-600 text-[10px] font-black px-2.5 py-1 rounded-full flex items-center gap-1 uppercase tracking-wider">
+                ✓ Done
               </div>
-            ))}
+            )}
           </div>
-          <button onClick={() => { updatePoints(1); alert("✅ Checked in! +1 Point"); }} className="w-full bg-green-500 hover:bg-green-600 active:scale-[0.98] text-white font-bold text-sm py-2.5 rounded-xl transition-all">
-            CHECK-IN — Today's Reward: +1 pt
-          </button>
+          
+          <div className="grid grid-cols-7 gap-1 mb-4 mt-2">
+            {rewards.map((pts, i) => {
+              const day = i + 1;
+              const isCompleted = day <= currentStreak;
+              const isTodayTarget = day === nextStreakDay && !hasCheckedInToday;
+
+              let blockClass = "bg-gray-50 border-gray-200 text-gray-400"; // Default / Future day
+              if (isCompleted) blockClass = "bg-green-500 border-green-400 text-white shadow-sm"; // Completed days
+              else if (isTodayTarget) blockClass = "bg-purple-100 border-purple-300 text-purple-700 shadow-sm"; // Today's target
+
+              return (
+                <div key={i} className={`flex flex-col items-center rounded-xl py-1.5 border text-center transition-all ${blockClass}`}>
+                  <div className="text-[9px] font-bold">D{day}</div>
+                  <div className={`font-black text-[10px] ${day === 7 && !isCompleted && !isTodayTarget ? "text-yellow-500" : ""}`}>+{pts}</div>
+                </div>
+              );
+            })}
+          </div>
+
+          {hasCheckedInToday ? (
+            <div className="w-full bg-gray-50 border border-dashed border-gray-200 text-gray-400 font-bold text-sm py-3 rounded-xl text-center">
+              ✅ Come back tomorrow
+            </div>
+          ) : (
+            <button onClick={handleCheckIn} className="w-full bg-green-500 hover:bg-green-600 active:scale-[0.98] text-white font-bold text-sm py-3 rounded-xl transition-all shadow-md shadow-green-200">
+              CHECK-IN — Today's Reward: +{nextReward} pt{nextReward !== 1 ? 's' : ''}
+            </button>
+          )}
         </motion.div>
 
         {/* Ad & Social Tasks */}
-        <TaskCard icon="📺" bg="bg-red-500" title="Watch Ads 01" pts="+1 Point / Ad" limit="0/5" btnColor="bg-red-500" btnText="WATCH ADS" onClick={() => { updatePoints(1); alert("Ad watched! +1 pt"); }} />
-        <TaskCard icon="📺" bg="bg-orange-500" title="Watch Ads 02" pts="+1 Point / Ad" limit="0/5" btnColor="bg-orange-500" btnText="WATCH ADS" onClick={() => { updatePoints(1); alert("Ad watched! +1 pt"); }} />
+        <TaskCard icon="📺" bg="bg-red-500" title="Watch Ads 01" pts="+1 Point / Ad" limit="0/5" btnColor="bg-red-500" btnText="WATCH" onClick={() => { updatePoints(1); alert("Ad watched! +1 pt"); }} />
+        <TaskCard icon="📺" bg="bg-orange-500" title="Watch Ads 02" pts="+1 Point / Ad" limit="0/5" btnColor="bg-orange-500" btnText="WATCH" onClick={() => { updatePoints(1); alert("Ad watched! +1 pt"); }} />
         <TaskCard icon="📢" bg="bg-blue-500" title="Join Channel 01" pts="+2 pts · One time" limit="0/1000" btnColor="bg-blue-500" btnText="JOIN" onClick={() => { updatePoints(2); alert("Joined! +2 pts"); }} />
         <TaskCard icon="📢" bg="bg-cyan-500" title="Join Channel 02" pts="+2 pts · One time" limit="0/1000" btnColor="bg-cyan-500" btnText="JOIN" onClick={() => { updatePoints(2); alert("Joined! +2 pts"); }} />
         <TaskCard icon="👥" bg="bg-yellow-400" title="Invite Friends" pts="+5 pts / referral · Unlimited" limit="" btnColor="bg-cyan-500" btnText="COPY" onClick={() => alert("Link Copied!")} />
@@ -99,7 +178,7 @@ function TaskCard({ icon, bg, title, pts, limit, btnColor, btnText, onClick }) {
           <div className="font-bold text-gray-900 text-sm">{title}</div>
           <div className="text-xs text-gray-500 mt-0.5">{pts} {limit && <span className="ml-2 font-semibold text-gray-400">{limit}</span>}</div>
         </div>
-        <button onClick={onClick} className={`${btnColor} active:scale-95 text-white font-bold text-xs px-3 py-2 rounded-xl shrink-0 transition-all`}>
+        <button onClick={onClick} className={`${btnColor} active:scale-95 text-white font-bold text-[11px] uppercase tracking-wider px-3.5 py-2.5 rounded-xl shrink-0 transition-all shadow-sm`}>
           {btnText}
         </button>
       </div>
@@ -129,7 +208,7 @@ function SpinEarnCard({ onWin }) {
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="bg-white rounded-2xl border-2 border-pink-200 shadow-sm overflow-hidden">
-      <button className="w-full px-4 py-3.5 flex items-center justify-between text-left" onClick={() => setIsOpen(!isOpen)}>
+      <button className="w-full px-4 py-3.5 flex items-center justify-between text-left hover:bg-pink-50/50 transition-colors" onClick={() => setIsOpen(!isOpen)}>
         <div className="flex items-start gap-3">
           <span className="text-2xl drop-shadow-sm mt-0.5">🎡</span>
           <div>
@@ -137,14 +216,14 @@ function SpinEarnCard({ onWin }) {
             <div className="text-xs text-gray-500 mt-0.5">3/3 Spins Today</div>
           </div>
         </div>
-        <div className="text-xs font-bold text-blue-500 transition-opacity">Tap to Spin →</div>
+        <div className="text-xs font-bold text-blue-500 transition-opacity">{isOpen ? "Close ▲" : "Tap to Spin →"}</div>
       </button>
 
       <AnimatePresence>
         {isOpen && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-            <div className="px-4 pb-4 flex flex-col items-center">
-              <div className="relative w-44 h-44 mb-4">
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden bg-gray-50/50">
+            <div className="px-4 pb-4 pt-2 flex flex-col items-center">
+              <div className="relative w-44 h-44 mb-5 mt-2">
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1 z-10 w-0 h-0 border-l-[8px] border-r-[8px] border-b-[16px] border-l-transparent border-r-transparent border-b-gray-900" />
                 <div 
                   className="w-full h-full rounded-full border-4 border-purple-200 shadow-inner flex items-center justify-center relative overflow-hidden bg-gradient-to-tr from-pink-200 via-purple-200 to-yellow-100"
@@ -157,8 +236,8 @@ function SpinEarnCard({ onWin }) {
                   <div className="w-6 h-6 bg-white rounded-full shadow-md z-10" />
                 </div>
               </div>
-              <button onClick={handleSpin} disabled={isSpinning} className="w-full bg-gray-900 disabled:bg-gray-300 text-white font-black text-sm py-3 rounded-xl active:scale-[0.98] transition-all">
-                {isSpinning ? "Spinning..." : "SPIN"}
+              <button onClick={handleSpin} disabled={isSpinning} className="w-full bg-gray-900 disabled:bg-gray-400 text-white font-black text-sm py-3.5 rounded-xl active:scale-[0.98] transition-all shadow-md shadow-gray-300">
+                {isSpinning ? "Spinning..." : "SPIN NOW"}
               </button>
             </div>
           </motion.div>
