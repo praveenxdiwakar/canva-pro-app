@@ -17,6 +17,11 @@ export default function Profile() {
   }, [user]);
 
   const activeSubs = history.filter(h => new Date(h.expires_at) > new Date());
+  
+  // Bulletproof Admin Check (Forces strict string comparison)
+  const adminIdStr = String(import.meta.env.VITE_ADMIN_TELEGRAM_ID).trim();
+  const userIdStr = String(user?.telegramId).trim();
+  const isAdmin = adminIdStr === userIdStr;
 
   return (
     <div className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24">
@@ -47,6 +52,16 @@ export default function Profile() {
               ⭐ {user?.points || 0} Points
             </div>
           </div>
+
+          {/* EXCLUSIVE ADMIN BUTTON */}
+          {isAdmin && (
+            <button 
+              onClick={() => navigate('/admin')}
+              className="mt-5 w-full bg-gray-900 text-white font-black py-3.5 rounded-xl shadow-lg border border-gray-800 flex justify-center items-center gap-2 text-sm animate-pulse"
+            >
+              ⚙️ OPEN ADMIN DASHBOARD
+            </button>
+          )}
 
           <div className="grid grid-cols-2 gap-3 mt-5">
             <button onClick={() => setIsLeaderboardOpen(true)} className="bg-gradient-to-r from-orange-400 to-orange-500 text-white font-bold py-3 rounded-xl shadow-md flex justify-center items-center gap-2 text-sm">
@@ -81,22 +96,6 @@ export default function Profile() {
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-
-        {/* Invite Friends */}
-        <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="font-black text-sm text-gray-800 flex items-center gap-2">👥 Invite Friends & Earn</h3>
-            <span className="text-[9px] font-bold text-orange-500">+5 pts / friend</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="flex-1 bg-gray-50 border border-gray-200 text-gray-400 text-[10px] font-medium px-3 py-3 rounded-xl overflow-hidden text-ellipsis whitespace-nowrap">
-              https://t.me/ShareCanvaProFree_Bot?startapp={user?.telegramId}
-            </div>
-            <button className="bg-purple-50 border border-purple-100 text-purple-600 p-3 rounded-xl hover:bg-purple-100">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-            </button>
           </div>
         </div>
 
