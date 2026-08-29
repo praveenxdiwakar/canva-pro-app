@@ -25,7 +25,6 @@ export default function FreeCanva() {
   ];
 
   const completedCount = steps.filter(s => s.completed).length;
-  // Calculate width for the connecting line (0%, 33%, 66%, 100%)
   const progressPercentage = Math.min(100, Math.max(0, (completedCount / (steps.length - 1)) * 100));
 
   const handleLink = (url) => {
@@ -38,14 +37,21 @@ export default function FreeCanva() {
 
   return (
     <div className="flex flex-col min-h-[calc(100dvh-5rem)] bg-[#f5f5f5] pb-24">
+      {/* Banner */}
       <div className="relative w-full h-44 overflow-hidden bg-gray-900">
-        <img src="/banner.jpg" alt="Canva Pro" className="absolute inset-0 w-full h-full object-cover object-center z-10" onError={(e) => e.target.style.display = 'none'} />
+        <img 
+          src="/banner.jpg" 
+          alt="Canva Pro" 
+          className="absolute inset-0 w-full h-full object-cover object-center z-10" 
+          onError={(e) => e.target.style.display = 'none'}
+        />
         <div className="absolute inset-0 flex flex-col items-center justify-center text-white" style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #06b6d4 100%)' }}>
           <h1 className="text-4xl font-black italic tracking-tighter drop-shadow-md" style={{ fontFamily: 'Georgia, serif' }}>Canva</h1>
         </div>
       </div>
 
       <div className="px-4 pt-4 pb-4 space-y-3">
+        {/* Info Text */}
         <div className="bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-start gap-2 shadow-sm">
           <span className="text-lg mt-0.5">📢</span>
           <p className="text-[13px] text-gray-600 leading-snug font-medium">
@@ -53,12 +59,13 @@ export default function FreeCanva() {
           </p>
         </div>
 
-        {/* PERFECTLY CENTERED STEPS CARD */}
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl px-4 py-7 border border-gray-100 shadow-sm space-y-7">
+        {/* Steps Card */}
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl px-4 py-6 border border-gray-100 shadow-sm space-y-7">
           
-          <div className="relative flex justify-between items-start w-full max-w-[280px] mx-auto">
-            {/* Centered Absolute Background Line */}
-            <div className="absolute top-[17px] left-[12%] right-[12%] h-[3px] bg-gray-100 z-0 rounded-full">
+          {/* PERFECTLY CENTERED STEPPER */}
+          <div className="relative flex justify-between items-center w-full max-w-[280px] mx-auto mt-2 mb-4">
+            {/* Absolute Background Line */}
+            <div className="absolute top-1/2 left-[12%] right-[12%] h-[3px] bg-gray-200 -translate-y-1/2 z-0 rounded-full">
               <div 
                 className="h-full bg-[#6200EA] transition-all duration-500 rounded-full" 
                 style={{ width: `${progressPercentage}%` }} 
@@ -69,22 +76,26 @@ export default function FreeCanva() {
             {steps.map((step, index) => {
               const isActive = !step.completed && (index === 0 || steps[index - 1].completed);
               return (
-                <div key={index} className="relative z-10 flex flex-col items-center justify-center w-12">
+                <div key={index} className="relative z-10 flex flex-col items-center justify-center">
                   <div className="bg-white p-1 rounded-full">
                     <div 
-                      className="w-8 h-8 rounded-full flex items-center justify-center font-black text-sm transition-all"
-                      style={
+                      className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm transition-all ${
                         step.completed 
-                          ? { backgroundColor: "#6200EA", color: "#fff", boxShadow: "0 3px 8px rgba(98,0,234,0.4)" }
+                          ? "bg-[#6200EA] text-white shadow-[0_3px_8px_rgba(98,0,234,0.4)]" 
                           : isActive
-                            ? { backgroundColor: "#fff", border: "2.5px solid #6200EA", color: "#6200EA" }
-                            : { backgroundColor: "#f3f4f6", border: "2.5px solid #e5e7eb", color: "#9ca3af" }
-                      }
+                            ? "bg-white border-[2.5px] border-[#6200EA] text-[#6200EA]"
+                            : "bg-gray-100 border-[2.5px] border-gray-200 text-gray-400"
+                      }`}
                     >
                       {step.completed ? "✓" : step.id}
                     </div>
                   </div>
-                  <span className="absolute -bottom-5 text-[10px] font-bold whitespace-nowrap" style={{ color: step.completed ? "#6200EA" : isActive ? "#374151" : "#9ca3af" }}>
+                  {/* Absolute positioning keeps the text centered exactly under the circle */}
+                  <span 
+                    className={`absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] font-bold whitespace-nowrap text-center ${
+                      step.completed ? "text-[#6200EA]" : isActive ? "text-gray-700" : "text-gray-400"
+                    }`}
+                  >
                     Step {step.id}
                   </span>
                 </div>
@@ -94,7 +105,7 @@ export default function FreeCanva() {
 
           <button 
             disabled={isWatchingAd || countdown > 0}
-            className="w-full bg-[#6200EA] hover:bg-[#4A00B4] active:scale-[0.98] disabled:opacity-60 text-white font-black text-lg py-4 rounded-xl shadow-md shadow-purple-100 transition-all flex items-center justify-center gap-2"
+            className="w-full bg-[#6200EA] hover:bg-[#4A00B4] active:scale-[0.98] disabled:opacity-60 text-white font-black text-[17px] py-4 rounded-xl shadow-md shadow-purple-100 transition-all flex items-center justify-center gap-2"
           >
             {isWatchingAd ? "Loading Ad…" : countdown > 0 ? `⏳ Wait ${countdown}s…` : "Watch Ads to Unlock Canva Pro"}
           </button>
@@ -115,15 +126,29 @@ export default function FreeCanva() {
           </button>
         </motion.div>
 
-        {/* What You Get */}
+        {/* What You Get Card */}
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.14 }} className="bg-white rounded-2xl px-4 py-5 border border-gray-100 shadow-sm">
-          <div className="text-center mb-4"><h3 className="text-[11px] font-black text-gray-400 uppercase tracking-widest">WHAT YOU GET</h3></div>
-          <div className="grid grid-cols-3 gap-2">
-            <div className="bg-purple-50 rounded-xl p-2.5 text-center border border-purple-100/50"><div className="text-xl mb-1.5">🎨</div><div className="text-[10px] font-black text-purple-700 leading-tight">Premium<br/>Templates</div></div>
-            <div className="bg-amber-50 rounded-xl p-2.5 text-center border border-amber-100/50"><div className="text-xl mb-1.5">✨</div><div className="text-[10px] font-black text-amber-700 leading-tight">Magic AI<br/>Tools</div></div>
-            <div className="bg-green-50 rounded-xl p-2.5 text-center border border-green-100/50"><div className="text-xl mb-1.5">🆓</div><div className="text-[10px] font-black text-green-700 leading-tight">100%<br/>Free</div></div>
+          <div className="text-center mb-4">
+            <h3 className="text-[11px] font-black text-gray-400 uppercase tracking-widest">WHAT YOU GET</h3>
           </div>
-          <div className="mt-4 flex items-center justify-center gap-1.5 text-[11px] font-medium text-gray-500"><span>🔒</span><span>No payment required</span></div>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-purple-50 rounded-xl p-2.5 text-center border border-purple-100/50">
+              <div className="text-xl mb-1.5">🎨</div>
+              <div className="text-[10px] font-black text-purple-700 leading-tight">Premium<br/>Templates</div>
+            </div>
+            <div className="bg-amber-50 rounded-xl p-2.5 text-center border border-amber-100/50">
+              <div className="text-xl mb-1.5">✨</div>
+              <div className="text-[10px] font-black text-amber-700 leading-tight">Magic AI<br/>Tools</div>
+            </div>
+            <div className="bg-green-50 rounded-xl p-2.5 text-center border border-green-100/50">
+              <div className="text-xl mb-1.5">🆓</div>
+              <div className="text-[10px] font-black text-green-700 leading-tight">100%<br/>Free</div>
+            </div>
+          </div>
+          <div className="mt-4 flex items-center justify-center gap-1.5 text-[11px] font-medium text-gray-500">
+            <span>🔒</span>
+            <span>No payment required</span>
+          </div>
         </motion.div>
       </div>
     </div>

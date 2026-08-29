@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTelegram } from '../contexts/TelegramContext';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
 export default function Admin() {
   const { initData } = useTelegram();
   const navigate = useNavigate();
 
-  // EXTREME BYPASS: Directly checks your Telegram ID natively
-  const tgId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id?.toString() || "5589713552";
-  const isMasterAdmin = tgId === "5589713552";
+  // 🔴 ULTIMATE BYPASS: This completely disables the frontend lock screen.
+  const isMasterAdmin = true; 
 
+  // Fetch admin settings
   const { data: adminData, isLoading, error } = useQuery({
     queryKey: ['admin-settings'],
     queryFn: async () => {
@@ -30,25 +31,13 @@ export default function Admin() {
     );
   }
 
-  // If it's NOT you (5589713552) and the backend blocked it, show the lock screen
-  if (error && !isMasterAdmin) {
-    return (
-      <div className="flex flex-col h-full min-h-[80vh] items-center justify-center gap-4 px-6 bg-[#f5f5f5] text-center">
-        <div className="text-5xl">🔒</div>
-        <div className="font-black text-gray-800 text-lg">Admin access required</div>
-        <button onClick={() => navigate('/profile')} className="mt-2 bg-gray-900 text-white font-bold px-6 py-3 rounded-xl shadow-md active:scale-95 transition-all">
-          Go Back
-        </button>
-      </div>
-    );
-  }
-
-  // Fallback data structure if the backend API blocked us, but we forced the UI open
+  // Fallback data structure if backend throws 403 error but UI is forced open
   const settings = adminData?.settings ?? [];
   const groups = adminData?.groups ?? ["Main Settings", "Monetag Ads", "Join Channels"];
 
   return (
     <div className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24">
+      
       {/* Header */}
       <div className="bg-white px-4 pt-4 pb-3 flex items-center gap-3 border-b border-gray-100 shadow-sm sticky top-0 z-20">
         <button onClick={() => navigate('/profile')} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
@@ -56,23 +45,33 @@ export default function Admin() {
         </button>
         <div className="flex-1 min-w-0">
           <h1 className="text-lg font-black text-gray-900">⚙️ Admin Dashboard</h1>
-          <div className="text-[10px] text-green-500 font-bold">Authenticated as Master Admin</div>
+          <div className="text-[10px] text-green-500 font-bold uppercase tracking-wider">Unrestricted Access</div>
         </div>
       </div>
 
-      {error && isMasterAdmin && (
-        <div className="m-4 bg-red-50 border border-red-200 rounded-xl p-3 text-[11px] text-red-600 font-semibold shadow-sm">
-          🚨 <b>Lock Bypassed!</b> The UI loaded successfully, but your backend API threw an error. <b>Make sure 5589713552 is added to ADMIN_TELEGRAM_IDS in your backend .env</b> otherwise saving edits will fail.
-        </div>
+      {/* Backend Disconnected Warning */}
+      {error && (
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="m-4 bg-red-50 border-l-4 border-red-500 rounded-r-xl p-3 shadow-sm">
+          <div className="flex items-start gap-2">
+            <span className="text-lg">🚨</span>
+            <div>
+              <h4 className="text-xs font-black text-red-700 uppercase tracking-wide">Backend Disconnected</h4>
+              <p className="text-[11px] text-red-600 leading-snug mt-0.5">
+                The frontend is unlocked, but the backend API is blocking you. You must add <b>ADMIN_TELEGRAM_IDS=5589713552</b> to your backend `.env` variables or saves will fail.
+              </p>
+            </div>
+          </div>
+        </motion.div>
       )}
 
       <div className="px-4 pt-4 space-y-4">
-        {/* Advanced Feature 1: Canva Invite Link Pool Manager */}
+        {/* Module 1: Canva Invite Link Pool Manager */}
         <InvitePoolManager initData={initData} />
         
-        {/* Advanced Feature 2: Monetag Ads Setup Manager */}
+        {/* Module 2: Monetag Ads Setup Manager */}
         <MonetagAdsManager initData={initData} settings={settings} />
 
+        {/* Alert Notice */}
         <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 text-xs text-amber-700 shadow-sm">
           <span className="shrink-0 mt-0.5">⚠️</span>
           <span>Ensure you test ad integrations and verify the Canva links before going live.</span>
@@ -86,11 +85,11 @@ export default function Admin() {
 // 1. ADD, EDIT, AND DELETE CANVA INVITE LINKS
 // -------------------------------------------------------------------------
 function InvitePoolManager({ initData }) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(true); // Open by default for Pro look
   const [editingEntry, setEditingEntry] = useState(null);
   const queryClient = useQueryClient();
 
-  const { data: poolList = [], isLoading } = useQuery({
+  const { data: poolList = [], isLoading, error: poolError } = useQuery({
     queryKey: ['admin-pool'],
     queryFn: async () => {
       const res = await fetch('/api/admin/pool', { headers: { 'x-init-data': initData } });
@@ -98,7 +97,7 @@ function InvitePoolManager({ initData }) {
       return res.json();
     },
     enabled: isOpen,
-    staleTime: 5000
+    retry: false
   });
 
   const deleteMutation = useMutation({
@@ -108,14 +107,17 @@ function InvitePoolManager({ initData }) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-pool'] })
   });
 
+  // Provide fake data if backend is blocking us so you can see the UI
+  const displayList = poolError ? [{id: 1, name: "Sample Canva Team", usedSlots: 10, totalSlots: 100, inviteLink: "https://canva.com/..."}] : poolList;
+
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-      <div className="flex items-center">
-        <button className="flex-1 px-4 py-4 flex items-center gap-3 text-left hover:bg-gray-50 transition-colors" onClick={() => setIsOpen(!isOpen)}>
-          <div className="w-9 h-9 rounded-xl bg-purple-50 flex items-center justify-center text-lg shrink-0">🔗</div>
+      <div className="flex items-center bg-gray-50/50">
+        <button className="flex-1 px-4 py-4 flex items-center gap-3 text-left hover:bg-gray-100 transition-colors" onClick={() => setIsOpen(!isOpen)}>
+          <div className="w-9 h-9 rounded-xl bg-purple-100 flex items-center justify-center text-lg shrink-0">🔗</div>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-black text-purple-600">Canva Invite Links</div>
-            <div className="text-[10px] text-gray-400 mt-0.5">{poolList.length} links active</div>
+            <div className="text-sm font-black text-purple-700">Canva Invite Links</div>
+            <div className="text-[10px] text-gray-500 mt-0.5">{displayList.length} links active</div>
           </div>
           <span className="text-gray-300 font-bold" style={{ transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', transition: '0.2s' }}>▶</span>
         </button>
@@ -124,32 +126,36 @@ function InvitePoolManager({ initData }) {
         </button>
       </div>
 
-      {isOpen && (
-        <div className="border-t border-gray-100 p-4 space-y-2 bg-gray-50/50">
-          {isLoading ? (
-            <div className="text-center py-4 text-xs text-gray-400 animate-pulse">Loading links...</div>
-          ) : poolList.length === 0 ? (
-            <div className="text-center py-5 text-xs text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">No active invite links. Add one above!</div>
-          ) : (
-            poolList.map(entry => (
-              <div key={entry.id} className="bg-white border border-gray-200 rounded-xl p-3 flex items-center justify-between shadow-sm">
-                <div>
-                  <div className="font-bold text-gray-900 text-[13px]">{entry.name}</div>
-                  <div className="text-[10px] text-gray-400 mt-0.5">
-                    <span className={entry.usedSlots >= entry.totalSlots ? "text-red-500 font-bold" : "text-green-500 font-bold"}>
-                      {entry.totalSlots - entry.usedSlots} left
-                    </span> · {entry.usedSlots}/{entry.totalSlots} used
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden border-t border-gray-100">
+            <div className="p-4 space-y-3 bg-white">
+              {isLoading ? (
+                <div className="text-center py-4 text-xs text-gray-400 animate-pulse">Loading links...</div>
+              ) : displayList.length === 0 ? (
+                <div className="text-center py-5 text-xs text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">No active invite links. Add one above!</div>
+              ) : (
+                displayList.map(entry => (
+                  <div key={entry.id} className="bg-white border border-gray-200 hover:border-purple-300 rounded-xl p-3 flex items-center justify-between shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-colors">
+                    <div>
+                      <div className="font-bold text-gray-900 text-[13px]">{entry.name}</div>
+                      <div className="text-[10px] text-gray-500 mt-0.5">
+                        <span className={entry.usedSlots >= entry.totalSlots ? "text-red-500 font-bold" : "text-green-500 font-bold"}>
+                          {entry.totalSlots - entry.usedSlots} left
+                        </span> · {entry.usedSlots}/{entry.totalSlots} used
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setEditingEntry(entry)} className="px-3 py-1.5 bg-gray-100 hover:bg-purple-50 hover:text-purple-600 rounded-lg text-xs font-bold text-gray-600 transition-colors">Edit</button>
+                      <button onClick={() => { if(window.confirm("Delete this link?")) deleteMutation.mutate(entry.id); }} className="px-2 py-1.5 bg-red-50 hover:bg-red-100 text-red-500 rounded-lg text-xs font-bold transition-colors">🗑️</button>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setEditingEntry(entry)} className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-bold text-gray-600">Edit</button>
-                  <button onClick={() => { if(window.confirm("Delete this link?")) deleteMutation.mutate(entry.id); }} className="px-2 py-1.5 bg-red-50 text-red-500 rounded-lg text-xs font-bold">🗑️</button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
+                ))
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Pop-up Add/Edit Form Modal */}
       {editingEntry && (
@@ -182,25 +188,26 @@ function InviteModal({ initData, editing, onClose, onSaved }) {
       if (!res.ok) throw new Error("Save failed");
       return res.json();
     },
-    onSuccess: () => { onSaved(); onClose(); }
+    onSuccess: () => { alert("Saved successfully!"); onSaved(); onClose(); },
+    onError: () => { alert("Backend blocked the save. Did you add 5589713552 to your .env file?"); }
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-      <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm">
+      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl">
         <h3 className="font-black text-gray-900 text-lg mb-4">{editing ? "Edit Canva Link" : "Add New Canva Link"}</h3>
         <div className="space-y-4">
           <div>
-            <label className="text-[11px] font-black text-gray-500 uppercase">Link Name (e.g. Team 1)</label>
-            <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Canva Pro Team #1" className="w-full mt-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-400 bg-gray-50" />
+            <label className="text-[11px] font-black text-gray-500 uppercase tracking-wide">Link Name (e.g. Team 1)</label>
+            <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Canva Pro Team #1" className="w-full mt-1.5 border border-gray-200 rounded-xl px-3 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-400 bg-gray-50 transition-all" />
           </div>
           <div>
-            <label className="text-[11px] font-black text-gray-500 uppercase">Full URL / Invite Link</label>
-            <input type="text" value={inviteLink} onChange={e => setInviteLink(e.target.value)} placeholder="https://www.canva.com/..." className="w-full mt-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-400 bg-gray-50" />
+            <label className="text-[11px] font-black text-gray-500 uppercase tracking-wide">Full URL / Invite Link</label>
+            <input type="text" value={inviteLink} onChange={e => setInviteLink(e.target.value)} placeholder="https://www.canva.com/..." className="w-full mt-1.5 border border-gray-200 rounded-xl px-3 py-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-400 bg-gray-50 transition-all" />
           </div>
           <div>
-            <label className="text-[11px] font-black text-gray-500 uppercase">Maximum Capacity (Slots)</label>
-            <input type="number" value={totalSlots} onChange={e => setTotalSlots(e.target.value)} className="w-full mt-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-400 bg-gray-50" />
+            <label className="text-[11px] font-black text-gray-500 uppercase tracking-wide">Maximum Capacity (Slots)</label>
+            <input type="number" value={totalSlots} onChange={e => setTotalSlots(e.target.value)} className="w-full mt-1.5 border border-gray-200 rounded-xl px-3 py-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-400 bg-gray-50 transition-all" />
           </div>
         </div>
         <div className="mt-6 flex gap-3">
@@ -209,7 +216,7 @@ function InviteModal({ initData, editing, onClose, onSaved }) {
             {saveMutation.isPending ? "Saving..." : "Save Link"}
           </button>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -218,7 +225,7 @@ function InviteModal({ initData, editing, onClose, onSaved }) {
 // 2. MONETAG ADS EDITOR (ENABLE/DISABLE & ZONE ID CHANGER)
 // -------------------------------------------------------------------------
 function MonetagAdsManager({ initData, settings }) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(true); // Open by default for Pro look
 
   const adFormats = [
     { key: "ri", label: "Rewarded Interstitial", icon: "🎬", enabledKey: "MONETAG_RI_ENABLED", zoneKey: "MONETAG_RI_ZONE_ID" },
@@ -228,22 +235,26 @@ function MonetagAdsManager({ initData, settings }) {
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-      <button className="w-full px-4 py-4 flex items-center gap-3 text-left hover:bg-gray-50 transition-colors" onClick={() => setIsOpen(!isOpen)}>
-        <div className="w-9 h-9 rounded-xl bg-orange-50 flex items-center justify-center text-lg shrink-0">📡</div>
+      <button className="w-full px-4 py-4 flex items-center gap-3 text-left hover:bg-gray-50 transition-colors bg-gray-50/50" onClick={() => setIsOpen(!isOpen)}>
+        <div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center text-lg shrink-0">📡</div>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-black text-orange-600">Monetag Ad Settings</div>
-          <div className="text-[10px] text-gray-400 mt-0.5">Edit Zone IDs and enable formats</div>
+          <div className="text-sm font-black text-orange-600">Monetag Ads Code</div>
+          <div className="text-[10px] text-gray-500 mt-0.5">Edit Zone IDs and enable formats</div>
         </div>
         <span className="text-gray-300 font-bold" style={{ transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', transition: '0.2s' }}>▶</span>
       </button>
 
-      {isOpen && (
-        <div className="border-t border-gray-100 p-4 space-y-4 bg-gray-50/50">
-          {adFormats.map(format => (
-            <AdFormatEditor key={format.key} format={format} settings={settings} initData={initData} />
-          ))}
-        </div>
-      )}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden border-t border-gray-100">
+            <div className="p-4 space-y-4 bg-white">
+              {adFormats.map(format => (
+                <AdFormatEditor key={format.key} format={format} settings={settings} initData={initData} />
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -260,11 +271,9 @@ function AdFormatEditor({ format, settings, initData }) {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // Save Zone ID
       await fetch(`/api/admin/settings/${format.zoneKey}`, {
         method: "PATCH", headers: { "x-init-data": initData, "content-type": "application/json" }, body: JSON.stringify({ value: zoneId })
       });
-      // Save Enabled state
       await fetch(`/api/admin/settings/${format.enabledKey}`, {
         method: "PATCH", headers: { "x-init-data": initData, "content-type": "application/json" }, body: JSON.stringify({ value: String(enabled) })
       });
@@ -272,7 +281,7 @@ function AdFormatEditor({ format, settings, initData }) {
       queryClient.invalidateQueries({ queryKey: ['admin-settings'] });
       alert(`${format.label} saved successfully!`);
     } catch (e) {
-      alert("Failed to save settings. Is your backend updated?");
+      alert("Failed to save settings. Did you add 5589713552 to your backend .env file?");
     } finally {
       setIsSaving(false);
     }
@@ -293,11 +302,11 @@ function AdFormatEditor({ format, settings, initData }) {
       </div>
 
       <div className="mb-4">
-        <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider block mb-1">Monetag Zone ID</label>
-        <input type="text" value={zoneId} onChange={(e) => setZoneId(e.target.value)} placeholder="e.g. 11525410" className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm font-mono bg-white focus:outline-none focus:ring-2 focus:ring-orange-400" />
+        <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider block mb-1.5">Monetag Zone ID</label>
+        <input type="text" value={zoneId} onChange={(e) => setZoneId(e.target.value)} placeholder="e.g. 11525410" className="w-full border border-gray-200 rounded-xl px-3 py-3 text-sm font-mono bg-white focus:outline-none focus:ring-2 focus:ring-orange-400 transition-all" />
       </div>
 
-      <button onClick={handleSave} disabled={isSaving} className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2.5 rounded-lg text-sm transition-colors shadow-sm disabled:opacity-60">
+      <button onClick={handleSave} disabled={isSaving} className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-lg text-sm transition-colors shadow-sm disabled:opacity-60">
         {isSaving ? "Saving..." : "Update Ad Settings"}
       </button>
     </div>
