@@ -14,10 +14,13 @@ export default function FreeCanva() {
   const [canvaLink, setCanvaLink] = useState(null);
 
   useEffect(() => {
-    // Check if user unlocked Canva or fetch available link
-    supabase.from('canva_links').select('*').filter('used_slots', 'lt', supabase.raw('total_slots')).limit(1).then(({ data }) => {
+    supabase.from('canva_links').select('*').then(({ data }) => {
       if (data && data.length > 0) {
-        setCanvaLink(data[0].url);
+        // Find first link with available slots in JavaScript
+        const available = data.find(l => l.used_slots < l.total_slots);
+        if (available) {
+          setCanvaLink(available.url);
+        }
       }
     });
   }, []);

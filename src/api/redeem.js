@@ -16,18 +16,18 @@ export async function redeemPoints(telegramId, tierId) {
   if (!user || !tier) throw new Error("Invalid user or tier");
   if (user.points < tier.pointsCost) throw new Error("Insufficient points");
 
-  // Find an available Canva link with free slots
+  // Fetch all links and filter in JS to avoid Supabase raw expression errors
   const { data: links } = await supabase
     .from('canva_links')
-    .select('*')
-    .filter('used_slots', 'lt', supabase.raw('total_slots'))
-    .limit(1);
+    .select('*');
 
-  if (!links || links.length === 0) {
+  const availableLinks = (links || []).filter(l => l.used_slots < l.total_slots);
+
+  if (!availableLinks || availableLinks.length === 0) {
     throw new Error("No available Canva Pro links at the moment. Please check back later!");
   }
 
-  const activeLink = links[0];
+  const activeLink = availableLinks[0];
 
   // Deduct points from user balance
   const newPoints = user.points - tier.pointsCost;
