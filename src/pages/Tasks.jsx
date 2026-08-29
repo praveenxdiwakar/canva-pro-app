@@ -52,16 +52,21 @@ export default function Tasks() {
   
   const todayStr = new Date().toDateString();
   const hasCheckedInToday = user?.last_checkin === todayStr;
+  
+  // THIS IS THE MISSING VARIABLE THAT CAUSED THE CRASH:
+  const currentStreak = user?.streak || 0;
 
   const handleCheckIn = async () => {
     if (hasCheckedInToday) return alert("✅ You already checked in today! Come back tomorrow.");
     let newStreak = 1;
     const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+    
     if (user?.last_checkin === yesterday.toDateString()) {
-      newStreak = Math.min((user?.streak || 0) + 1, 7);
+      newStreak = Math.min(currentStreak + 1, 7);
     } else if (user?.last_checkin) {
       alert("⚠️ You missed a day! Your streak has reset to Day 1.");
     }
+    
     const pointsEarned = [1, 1, 1, 2, 2, 2, 3][newStreak - 1];
     const newTotal = await processCheckIn({ newStreak, dateStr: todayStr, pointsEarned });
     setUser({ ...user, streak: newStreak, last_checkin: todayStr, points: newTotal });
@@ -81,7 +86,6 @@ export default function Tasks() {
       await updatePoints(newTotal);
       setUser({ ...user, points: newTotal });
       alert(won > 0 ? `🎉 Congratulations! You won +${won} points!` : `😢 Oh no! You got 0 points. Try again next time.`);
-      // Note: Removed the auto-close code so the wheel stays open!
     }, 4000);
   };
 
@@ -278,7 +282,7 @@ export default function Tasks() {
             </div>
           </div>
           <button onClick={() => {
-            navigator.clipboard.writeText(`https://t.me/CanvaProMiniAppBot?startapp=${user?.telegramId}`);
+            navigator.clipboard.writeText(`https://t.me/ShareCanvaProFree_Bot?startapp=${user?.telegramId}`);
             alert("✅ Invite link copied! Share it to earn +5 pts automatically when they join.");
           }} className="bg-[#06B6D4] text-white font-black px-4 py-2.5 rounded-xl text-[11px] shadow-sm flex items-center gap-1.5 active:scale-95">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
