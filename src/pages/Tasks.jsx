@@ -420,7 +420,7 @@ export default function Tasks() {
         <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100 flex justify-between items-center">
           <div className="flex items-center gap-4"><div className="w-[50px] h-[50px] rounded-full bg-blue-50 flex items-center justify-center text-2xl shadow-sm border border-blue-100">📢</div><div><h3 className="font-black text-gray-900 text-[15px] mb-0.5">Join Channel 01</h3><p className="text-[11px] text-gray-500 font-medium">+2 pts · One time</p></div></div>
           <div className="flex gap-2">
-            <button onClick={() => openExternalLink('https://t.me/yourchannel')} className="bg-[#3B82F6] text-white font-black px-4 py-2.5 rounded-xl text-[11px] shadow-sm active:scale-95">JOIN</button>
+            <button onClick={() => openExternalLink('https://t.me/CanvaProMiniApp')} className="bg-[#3B82F6] text-white font-black px-4 py-2.5 rounded-xl text-[11px] shadow-sm active:scale-95">JOIN</button>
             <button onClick={() => handleVerifyChannel('channel1', 2)} disabled={taskState.channel1 || verifying === 'channel1'} className={`font-bold px-3 py-2.5 rounded-xl text-[11px] flex items-center gap-1 border ${taskState.channel1 ? 'bg-green-50 text-green-500 border-green-200' : 'bg-gray-50 text-gray-500 border-gray-200 active:scale-95'}`}>{taskState.channel1 ? '✅ Verified' : verifying === 'channel1' ? '⏳ Wait...' : '✓ Verify'}</button>
           </div>
         </div>
@@ -435,7 +435,7 @@ export default function Tasks() {
             </div>
           </div>
           <button onClick={() => {
-            navigator.clipboard.writeText(`https://t.me/ShareCanvaProFree_Bot?startapp=${user?.telegramId}`);
+            navigator.clipboard.writeText(`https://t.me/CanvaProMiniApp?startapp=${user?.telegramId}`);
             alert("✅ Invite link copied! Share it to earn +5 pts automatically when they join.");
           }} className="bg-[#06B6D4] text-white font-black px-4 py-2.5 rounded-xl text-[11px] shadow-sm flex items-center gap-1.5 active:scale-95">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
