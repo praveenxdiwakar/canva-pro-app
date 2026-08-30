@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { useTelegram } from '../contexts/TelegramContext';
 import { useTasks } from '../hooks/useTasks';
 import { useNavigate } from 'react-router-dom';
@@ -210,16 +211,14 @@ export default function Tasks() {
     setVerifying(taskKey);
 
     const runTaskLogic = () => {
-      openExternalLink(task.action_url); // Send user to external URL
+      openExternalLink(task.action_url); 
       
-      // Simulate verifying time (wait 8 seconds for them to download/watch)
       setTimeout(async () => {
         const newTotal = (user?.points || 0) + task.points_reward;
         
         await updatePoints(newTotal, task.title, task.points_reward, task.icon);
         setUser({ ...user, points: newTotal });
         
-        // Save Completion (Boolean for one-time, Integer for daily)
         setTaskState(prev => ({ ...prev, [taskKey]: task.is_daily ? 1 : true }));
         setVerifying(null);
         alert(`✅ Task Verified! +${task.points_reward} Points added.`);
@@ -234,20 +233,60 @@ export default function Tasks() {
   };
 
   return (
-    <div className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24">
-      {/* Header */}
-      <div className="bg-white px-4 py-3 flex items-center justify-between border-b border-gray-100 shadow-sm relative z-10">
-        <h1 className="text-[17px] font-black text-gray-900 flex items-center gap-2"><span className="text-red-500 text-xl">🎯</span> Earn Points</h1>
-        <div className="flex gap-2">
-          <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 font-bold px-3 py-1.5 rounded-full text-xs shadow-sm">⭐ {user?.points || 0} pts</div>
-          <button onClick={() => navigate('/reward-history')} className="bg-purple-100 text-purple-700 font-black px-4 py-1.5 rounded-full text-xs shadow-sm active:scale-95">History</button>
+    <div className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24 relative overflow-x-hidden">
+      
+      {/* ========================================================= */}
+      {/* 🌟 UPGRADED PREMIUM HEADER BANNER 🌟                        */}
+      {/* ========================================================= */}
+      <div className="relative w-full h-[170px] bg-gradient-to-br from-[#00C4CC] via-[#7B2CBF] to-[#6200EA] flex items-center justify-center overflow-hidden">
+        
+        {/* Glassmorphism Top Nav for Points & History */}
+        <div className="absolute top-0 left-0 w-full px-4 py-4 flex items-center justify-between z-30">
+          <h1 className="text-[15px] font-black text-white flex items-center gap-2 drop-shadow-md">
+            <span className="text-[18px]">🎯</span> Earn Points
+          </h1>
+          <div className="flex gap-2">
+            <div className="bg-white/20 backdrop-blur-md border border-white/20 text-white font-black px-3 py-1.5 rounded-full text-xs shadow-sm flex items-center gap-1">
+              ⭐ {user?.points || 0} pts
+            </div>
+            <button onClick={() => navigate('/reward-history')} className="bg-white text-[#6200EA] font-black px-4 py-1.5 rounded-full text-xs shadow-[0_2px_10px_rgba(0,0,0,0.1)] active:scale-95 transition-transform">
+              History
+            </button>
+          </div>
         </div>
+
+        {/* Ambient Glows */}
+        <div className="absolute top-[-20px] left-[-20px] w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none z-0"></div>
+        <div className="absolute bottom-[-30px] right-[-10px] w-40 h-40 bg-[#00E5FF]/20 rounded-full blur-[40px] pointer-events-none z-0"></div>
+        
+        {/* Animated Floating Particles */}
+        <motion.div animate={{ y: [0, -10, 0], opacity: [0.3, 0.8, 0.3] }} transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }} className="absolute top-12 left-10 text-white/50 text-[10px] select-none z-10">✨</motion.div>
+        <motion.div animate={{ y: [0, 10, 0], opacity: [0.2, 0.6, 0.2] }} transition={{ repeat: Infinity, duration: 5, ease: "easeInOut", delay: 1 }} className="absolute bottom-8 right-12 text-white/40 text-[14px] select-none z-10">✦</motion.div>
+
+        {/* Canva Logo + PRO Badge */}
+        <div className="relative z-20 flex items-center justify-center gap-1.5 drop-shadow-xl mt-4">
+          <h1 className="text-[48px] font-bold text-white tracking-tighter" style={{ fontFamily: 'Georgia, serif' }}>
+            Canva
+          </h1>
+          <motion.div 
+            initial={{ scale: 0.8, rotate: 0 }}
+            animate={{ scale: 1, rotate: 3 }}
+            transition={{ type: "spring", bounce: 0.5, delay: 0.2 }}
+            className="bg-gradient-to-tr from-[#FFD700] via-[#F59E0B] to-[#FFD700] text-[#5B3A00] font-black text-[11px] px-2 py-0.5 rounded-[6px] uppercase tracking-widest shadow-[0_4px_10px_rgba(245,158,11,0.4)] -mt-6 border border-yellow-200/50"
+          >
+            Pro
+          </motion.div>
+        </div>
+        
+        {/* Seamless Bottom Fade */}
+        <div className="absolute bottom-0 left-0 w-full h-8 bg-gradient-to-t from-[#f5f5f5] to-transparent z-20"></div>
       </div>
 
-      <div className="px-4 pt-5 space-y-4">
+      {/* Main Content Area */}
+      <div className="px-4 pt-3 space-y-4 relative z-30">
         
         {/* Next Canva Reward Progress */}
-        <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100">
+        <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100 mt-2">
           <div className="flex justify-between items-center mb-2.5">
             <div className="flex items-center gap-2"><span className="text-xl">🏆</span><h2 className="font-black text-[15px] text-gray-900">Next Canva Reward</h2></div>
             <span className="bg-purple-50 text-purple-600 font-black px-3 py-1 rounded-lg text-[11px] shadow-sm">{user?.points || 0} / 20 pts</span>
