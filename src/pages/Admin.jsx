@@ -1,235 +1,258 @@
 import React, { useState, useEffect } from 'react';
-import { useTelegram } from '../contexts/TelegramContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../api/supabase';
 
 export default function Admin() {
-  const { user } = useTelegram();
   const navigate = useNavigate();
   
-  const [links, setLinks] = useState([]);
-  const [adZone, setAdZone] = useState("");
-  const [stats, setStats] = useState({ users: 0, redemptions: 0 });
-  const [loading, setLoading] = useState(true);
+  // Stats State
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [totalRedemptions, setTotalRedemptions] = useState(0);
   
-  // Inline Form State
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newLink, setNewLink] = useState({ name: '', url: '', slots: 100 });
-
-  // Security Check: Only allow the configured Admin ID
-  const adminIdStr = String(import.meta.env.VITE_ADMIN_TELEGRAM_ID).trim();
-  const userIdStr = String(user?.telegramId).trim();
-  const isAdmin = adminIdStr === userIdStr;
+  // Settings & Links State
+  const [zoneId, setZoneId] = useState("");
+  const [links, setLinks] = useState([]);
+  const [savingZone, setSavingZone] = useState(false);
+  
+  // New Link Form State
+  const [newLink, setNewLink] = useState({ name: '', url: '', totalSlots: 100 });
+  const [addingLink, setAddingLink] = useState(false);
 
   useEffect(() => {
-    if (isAdmin) {
-      loadDashboardData();
-    }
-  }, [isAdmin]);
+    fetchInitialData();
 
-  const loadDashboardData = async () => {
-    setLoading(true);
+    // ==========================================
+    // REAL-TIME DATABASE SUBSCRIPTIONS
+    // ==========================================
+    
+    // 1. Listen for new Users joining
+    const usersSubscription = supabase.channel('users-channel')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'users' }, () => {
+        setTotalUsers(prev => prev + 1);
+      })
+      .subscribe();
+
+    // 2. Listen for new Redemptions
+    const redemptionsSubscription = supabase.channel('redemptions-channel')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'redemptions' }, () => {
+        setTotalRedemptions(prev => prev + 1);
+        fetchLinks(); // Refresh links to show updated used_slots
+      })
+      .subscribe();
+
+    // 3. Listen for Canva Links updates
+    const linksSubscription = supabase.channel('links-channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'canva_links' }, () => {
+        fetchLinks();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(usersSubscription);
+      supabase.removeChannel(redemptionsSubscription);
+      supabase.removeChannel(linksSubscription);
+    };
+  }, []);
+
+  const fetchInitialData = async () => {
+    // Get exact count of users
+    const { count: uCount } = await supabase.from('users').select('id', { count: 'exact', head: true });
+    if (uCount !== null) setTotalUsers(uCount);
+
+    // Get exact count of redemptions
+    const { count: rCount } = await supabase.from('redemptions').select('id', { count: 'exact', head: true });
+    if (rCount !== null) setTotalRedemptions(rCount);
+
+    // Get Ad Zone Setting
+    const { data: adData } = await supabase.from('app_settings').select('value').eq('key', 'MONETAG_ZONE_ID').maybeSingle();
+    if (adData) setZoneId(adData.value);
+
+    fetchLinks();
+  };
+
+  const fetchLinks = async () => {
+    const { data } = await supabase.from('canva_links').select('*').order('id', { ascending: false });
+    if (data) setLinks(data);
+  };
+
+  // --- ACTIONS ---
+
+  const handleSaveZone = async () => {
+    setSavingZone(true);
     try {
-      // 1. Fetch Links
-      const { data: linksData } = await supabase.from('canva_links').select('*').order('id', { ascending: false });
-      setLinks(linksData || []);
-
-      // 2. Fetch Ad Settings
-      const { data: adData } = await supabase.from('app_settings').select('*').eq('key', 'MONETAG_ZONE_ID').maybeSingle();
-      if (adData) setAdZone(adData.value);
-
-      // 3. Fetch Quick Stats
-      const { count: usersCount } = await supabase.from('users').select('*', { count: 'exact', head: true });
-      const { count: redemptionsCount } = await supabase.from('redemptions').select('*', { count: 'exact', head: true });
+      const { error } = await supabase
+        .from('app_settings')
+        .upsert({ key: 'MONETAG_ZONE_ID', value: zoneId });
       
-      setStats({ users: usersCount || 0, redemptions: redemptionsCount || 0 });
-    } catch (error) {
-      console.error("Admin fetch error:", error);
+      if (error) throw error;
+      alert("✅ Monetag Ad Zone saved successfully!");
+    } catch (err) {
+      alert(`❌ Error saving Ad Zone: ${err.message}`);
     }
-    setLoading(false);
+    setSavingZone(false);
   };
 
-  // --- LINK MANAGEMENT ---
-  const handleAddLink = async (e) => {
-    e.preventDefault();
-    if (!newLink.name || !newLink.url) return alert("Please fill all fields!");
-    
-    // Safely insert and catch any database errors
-    const { error } = await supabase.from('canva_links').insert([{
-      name: newLink.name,
-      url: newLink.url,
-      total_slots: parseInt(newLink.slots),
-      used_slots: 0
-    }]);
-
-    if (error) {
-      alert("❌ Error saving link: " + error.message);
-      return;
+  const handleAddLink = async () => {
+    if (!newLink.name || !newLink.url) return alert("Please fill out both Name and URL.");
+    setAddingLink(true);
+    try {
+      const { error } = await supabase.from('canva_links').insert([{
+        name: newLink.name,
+        url: newLink.url,
+        invitelink: newLink.url, // Keep in sync for older code versions
+        total_slots: parseInt(newLink.totalSlots) || 100,
+        used_slots: 0
+      }]);
+      
+      if (error) throw error;
+      
+      setNewLink({ name: '', url: '', totalSlots: 100 }); // Reset form
+      // No need to fetchLinks manually; the real-time subscription will update the list!
+    } catch (err) {
+      alert(`❌ Error saving link: ${err.message}`);
     }
-    
-    setNewLink({ name: '', url: '', slots: 100 });
-    setShowAddForm(false);
-    alert("✅ Link added successfully!");
-    loadDashboardData(); // Refresh UI in real-time
+    setAddingLink(false);
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to delete this link? Active users will keep their access, but no new users can join.")) {
-      const { error } = await supabase.from('canva_links').delete().eq('id', id);
-      if (error) {
-        alert("❌ Error deleting link: " + error.message);
-        return;
-      }
-      alert("🗑️ Link deleted.");
-      loadDashboardData();
+  const handleDeleteLink = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this link?")) return;
+    try {
+      await supabase.from('canva_links').delete().eq('id', id);
+    } catch (err) {
+      alert("Error deleting link.");
     }
   };
-
-  // --- AD MANAGEMENT ---
-  const handleSaveAd = async () => {
-    if (!adZone) return alert("Please enter an Ad Zone ID first.");
-
-    const { error } = await supabase.from('app_settings').upsert({ key: 'MONETAG_ZONE_ID', value: adZone });
-    
-    if (error) {
-      alert("❌ Error saving Ad Zone: " + error.message);
-      return;
-    }
-    
-    alert("✅ Monetag Ad Zone saved securely to database! Ads will now work on the Earn Points tab.");
-  };
-
-  // If not admin, show access denied
-  if (!isAdmin) {
-    return (
-      <div className="bg-[#f5f5f5] min-h-screen flex flex-col items-center justify-center px-4">
-        <div className="bg-white p-8 rounded-3xl shadow-sm border border-red-100 text-center max-w-sm w-full">
-          <span className="text-5xl mb-4 block">⛔</span>
-          <h1 className="text-xl font-black text-gray-900 mb-2">Access Denied</h1>
-          <p className="text-xs text-gray-500 font-medium">You do not have master admin privileges to view this dashboard.</p>
-          <button onClick={() => navigate('/profile')} className="mt-6 w-full bg-gray-900 text-white font-bold py-3 rounded-xl text-sm">
-            Return to Profile
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24">
-      {/* Top Bar */}
-      <div className="bg-white px-4 py-3 flex items-center shadow-sm border-b border-gray-100 relative">
-        <button onClick={() => navigate('/profile')} className="text-gray-400 p-1 mr-2 hover:bg-gray-50 rounded-lg transition-colors">
+      
+      {/* Header */}
+      <div className="bg-white px-4 py-4 flex items-center gap-3 border-b border-gray-100 shadow-sm sticky top-0 z-10">
+        <button onClick={() => navigate('/profile')} className="text-gray-500 hover:bg-gray-50 p-1 rounded-lg transition-colors">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
         </button>
-        <h1 className="text-[15px] font-black text-gray-900">⚙️ Master Admin</h1>
+        <h1 className="text-[17px] font-black text-[#1F2937] flex items-center gap-2">
+          ⚙️ Master Admin
+        </h1>
       </div>
 
-      <div className="px-4 pt-4 space-y-4">
+      <div className="px-4 pt-5 space-y-4">
         
-        {/* Platform Statistics */}
+        {/* Real-time Stats Grid */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex flex-col justify-center">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Total Users</span>
-            <span className="text-2xl font-black text-purple-600 leading-none">{loading ? '...' : stats.users}</span>
+          <div className="bg-white rounded-[20px] p-5 shadow-sm border border-gray-100 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-16 h-16 bg-purple-50 rounded-full blur-2xl -mr-6 -mt-6"></div>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 relative z-10">Total Users</p>
+            <div className="text-3xl font-black text-[#6200EA] relative z-10">{totalUsers.toLocaleString()}</div>
           </div>
-          <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex flex-col justify-center">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Redemptions</span>
-            <span className="text-2xl font-black text-orange-500 leading-none">{loading ? '...' : stats.redemptions}</span>
+          <div className="bg-white rounded-[20px] p-5 shadow-sm border border-gray-100 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-16 h-16 bg-orange-50 rounded-full blur-2xl -mr-6 -mt-6"></div>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 relative z-10">Redemptions</p>
+            <div className="text-3xl font-black text-[#E65100] relative z-10">{totalRedemptions.toLocaleString()}</div>
           </div>
         </div>
 
-        {/* Monetag Ads Control */}
-        <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
-          <h2 className="font-black text-sm text-gray-800 flex items-center gap-2 mb-4">📡 Monetag Ad Settings</h2>
+        {/* Monetag Settings */}
+        <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100">
+          <h2 className="font-black text-[14px] text-gray-800 flex items-center gap-2 mb-4">📡 Monetag Ad Settings</h2>
           <div className="flex gap-2">
             <input 
               type="text" 
-              value={adZone} 
-              onChange={e => setAdZone(e.target.value)} 
-              placeholder="Enter Zone ID (e.g. 11525410)" 
-              className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs text-gray-700 outline-none focus:border-purple-400 transition-colors" 
+              value={zoneId}
+              onChange={(e) => setZoneId(e.target.value)}
+              placeholder="Enter Zone ID (e.g. 9773650)" 
+              className="flex-1 bg-gray-50 border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-400 transition-colors"
             />
-            <button onClick={handleSaveAd} className="bg-orange-500 text-white font-bold px-4 rounded-xl text-xs shadow-sm active:scale-95 transition-transform">
-              Save
+            <button 
+              onClick={handleSaveZone}
+              disabled={savingZone}
+              className="bg-[#E65100] text-white font-black px-5 py-3 rounded-xl shadow-sm active:scale-95 transition-transform"
+            >
+              {savingZone ? '...' : 'Save'}
             </button>
           </div>
-          <p className="text-[9px] text-gray-400 font-medium mt-2">This Zone ID activates the ads on the Tasks page.</p>
+          <p className="text-[10px] text-gray-400 font-medium mt-2 ml-1">This Zone ID activates the ads across the entire app dynamically.</p>
         </div>
 
-        {/* Canva Links Manager */}
-        <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="font-black text-sm text-gray-800 flex items-center gap-2">🔗 Canva Pro Links</h2>
-            <button onClick={() => setShowAddForm(!showAddForm)} className="bg-purple-100 text-purple-700 font-bold px-3 py-1.5 rounded-lg text-[10px]">
-              {showAddForm ? 'Cancel' : '+ Add Link'}
-            </button>
-          </div>
-
+        {/* Canva Links Management */}
+        <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100">
+          <h2 className="font-black text-[14px] text-gray-800 flex items-center gap-2 mb-4">🔗 Manage Canva Links</h2>
+          
           {/* Add Link Form */}
-          {showAddForm && (
-            <form onSubmit={handleAddLink} className="bg-purple-50 rounded-2xl p-4 mb-4 border border-purple-100 space-y-3">
-              <input type="text" placeholder="Link Name (e.g. Team Alpha)" required
-                value={newLink.name} onChange={e => setNewLink({...newLink, name: e.target.value})}
-                className="w-full bg-white border border-purple-100 rounded-xl px-3 py-2.5 text-xs outline-none" />
-              <input type="url" placeholder="https://canva.com/brand/join?..." required
-                value={newLink.url} onChange={e => setNewLink({...newLink, url: e.target.value})}
-                className="w-full bg-white border border-purple-100 rounded-xl px-3 py-2.5 text-xs outline-none" />
-              <div className="flex items-center gap-3">
-                <div className="flex-1">
-                  <label className="text-[9px] font-bold text-purple-400 pl-1">Max Slots</label>
-                  <input type="number" min="1" required
-                    value={newLink.slots} onChange={e => setNewLink({...newLink, slots: e.target.value})}
-                    className="w-full bg-white border border-purple-100 rounded-xl px-3 py-2 text-xs outline-none mt-0.5" />
-                </div>
-                <button type="submit" className="flex-1 bg-purple-600 text-white font-bold py-2.5 rounded-xl text-xs mt-3.5 shadow-sm">
-                  Save Link
-                </button>
+          <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 mb-5 space-y-3">
+            <input 
+              type="text" 
+              placeholder="Link Name (e.g. Team Alpha - August)" 
+              value={newLink.name}
+              onChange={(e) => setNewLink({...newLink, name: e.target.value})}
+              className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-400"
+            />
+            <input 
+              type="text" 
+              placeholder="https://canva.com/brand/join/..." 
+              value={newLink.url}
+              onChange={(e) => setNewLink({...newLink, url: e.target.value})}
+              className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-400"
+            />
+            <div className="flex gap-3 items-end">
+              <div className="flex-1">
+                <label className="text-[10px] font-bold text-gray-500 ml-1 mb-1 block">Max Slots</label>
+                <input 
+                  type="number" 
+                  value={newLink.totalSlots}
+                  onChange={(e) => setNewLink({...newLink, totalSlots: e.target.value})}
+                  className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-400"
+                />
               </div>
-            </form>
-          )}
+              <button 
+                onClick={handleAddLink}
+                disabled={addingLink}
+                className="flex-[2] bg-[#6200EA] text-white font-black py-3 rounded-xl shadow-md active:scale-95 transition-transform"
+              >
+                {addingLink ? 'Saving...' : 'Save Link'}
+              </button>
+            </div>
+          </div>
 
           {/* Active Links List */}
           <div className="space-y-3">
-            {loading && !showAddForm ? (
-              <div className="text-center text-xs text-gray-400 py-4">Loading links...</div>
-            ) : links.length === 0 ? (
-              <div className="text-center text-xs text-gray-400 py-4 border-2 border-dashed border-gray-100 rounded-xl">No active links found.</div>
+            {links.length === 0 ? (
+              <div className="text-center py-4 border-2 border-dashed border-gray-100 rounded-xl">
+                <p className="text-[12px] text-gray-400 font-medium">No active links found.</p>
+              </div>
             ) : (
               links.map(link => {
-                const isFull = link.used_slots >= link.total_slots;
                 const percentage = Math.min(100, Math.round((link.used_slots / link.total_slots) * 100));
-                
+                const isFull = link.used_slots >= link.total_slots;
+
                 return (
-                  <div key={link.id} className={`rounded-2xl p-4 border ${isFull ? 'bg-red-50 border-red-100' : 'bg-gray-50 border-gray-100'} flex flex-col relative overflow-hidden`}>
-                    <div className="flex justify-between items-start mb-2 relative z-10">
-                      <div>
-                        <h3 className="font-bold text-gray-900 text-sm leading-tight">{link.name}</h3>
-                        <div className="text-[9px] text-gray-500 mt-0.5 max-w-[200px] truncate">{link.url}</div>
+                  <div key={link.id} className="bg-white border border-gray-200 rounded-2xl p-4 relative overflow-hidden">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="pr-8">
+                        <h3 className="font-black text-[13px] text-gray-900 leading-tight mb-0.5">{link.name}</h3>
+                        <p className="text-[10px] text-gray-400 font-medium truncate max-w-[200px]">{link.url}</p>
                       </div>
-                      <button onClick={() => handleDelete(link.id)} className="bg-white border border-gray-200 text-red-500 p-1.5 rounded-lg shadow-sm hover:bg-red-50 transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                      <button onClick={() => handleDeleteLink(link.id)} className="w-7 h-7 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-xs absolute top-3 right-3 hover:bg-red-100">
+                        ✕
                       </button>
                     </div>
-                    
-                    <div className="flex justify-between items-end mt-2 relative z-10">
-                      <span className={`text-[10px] font-bold ${isFull ? 'text-red-500' : 'text-purple-600'}`}>
+
+                    <div className="flex justify-between items-center mb-1.5 mt-3">
+                      <span className={`text-[10px] font-bold ${isFull ? 'text-red-500' : 'text-gray-600'}`}>
                         {link.used_slots} / {link.total_slots} slots used
                       </span>
-                      <span className="text-[9px] text-gray-400 font-bold">{percentage}%</span>
+                      <span className="text-[10px] font-black text-[#6200EA]">{percentage}%</span>
                     </div>
-                    
-                    {/* Progress Bar inside the card */}
-                    <div className="w-full bg-gray-200 rounded-full h-1 mt-1.5 relative z-10 overflow-hidden">
-                      <div className={`${isFull ? 'bg-red-500' : 'bg-purple-500'} h-1 rounded-full`} style={{ width: `${percentage}%` }}></div>
+                    <div className="w-full bg-gray-100 rounded-full h-1.5">
+                      <div className={`h-1.5 rounded-full transition-all ${isFull ? 'bg-red-500' : 'bg-[#6200EA]'}`} style={{ width: `${percentage}%` }}></div>
                     </div>
                   </div>
                 )
               })
             )}
           </div>
-        </div>
 
+        </div>
       </div>
     </div>
   );

@@ -145,7 +145,10 @@ export default function Tasks() {
       setTimeout(async () => {
         setIsSpinning(false);
         const newTotal = (user?.points || 0) + won;
-        await updatePoints(newTotal);
+        
+        // Push History Details to updatePoints Hook
+        await updatePoints(newTotal, 'Spin & Earn', won, '🎡');
+        
         setUser({ ...user, points: newTotal });
         setTaskState(prev => ({ ...prev, spins: (prev.spins || 0) + 1 }));
         alert(won > 0 ? `🎉 Congratulations! You won +${won} points!` : `😢 Oh no! You got 0 points. Try again next time.`);
@@ -159,7 +162,11 @@ export default function Tasks() {
     // Require ad for points
     triggerAd(async () => {
       const newTotal = (user?.points || 0) + 1;
-      await updatePoints(newTotal);
+      const taskName = taskKey === 'ads1' ? 'Watch Ads 01' : 'Watch Ads 02';
+      
+      // Push History Details to updatePoints Hook
+      await updatePoints(newTotal, taskName, 1, '📺');
+      
       setUser({ ...user, points: newTotal });
       setTaskState(prev => ({ ...prev, [taskKey]: prev[taskKey] + 1 }));
       alert("✅ Ad completed! +1 Point added.");
@@ -173,7 +180,11 @@ export default function Tasks() {
     // Require ad to verify
     triggerAd(async () => {
       const newTotal = (user?.points || 0) + points;
-      await updatePoints(newTotal);
+      const channelName = channelKey === 'channel1' ? 'Join Channel 01' : 'Join Channel 02';
+      
+      // Push History Details to updatePoints Hook
+      await updatePoints(newTotal, channelName, points, '📢');
+      
       setUser({ ...user, points: newTotal });
       setTaskState(prev => ({ ...prev, [channelKey]: true }));
       setVerifying(null);

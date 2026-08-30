@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTelegram } from '../contexts/TelegramContext';
@@ -10,12 +10,17 @@ export default function Redeem() {
   
   const [loading, setLoading] = useState(false);
   
+  // Premium Subscription Status & Timer
+  const [activeSub, setActiveSub] = useState(null);
+  const [loadingSub, setLoadingSub] = useState(true);
+  const [timeLeft, setTimeLeft] = useState("");
+  
   // Custom Modal States
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, tierId: null, cost: 0, days: 0 });
   const [errorModal, setErrorModal] = useState({ isOpen: false, message: "" });
   const [celebration, setCelebration] = useState({ isOpen: false, message: "", link: "", days: 0 });
 
-  // Hardcoded Static Tiers (Bypasses the old backend errors)
+  // Hardcoded Static Tiers
   const tiers = [
     { id: 1, durationDays: 7, pointsCost: 20, title: "Starter", subtitle: "7 Days Full Access" },
     { id: 2, durationDays: 15, pointsCost: 45, title: "Quick Access", subtitle: "15 Days Full Access" },
@@ -25,6 +30,46 @@ export default function Redeem() {
   const currentPoints = user?.points || 0;
   const firstRewardCost = 20;
   const mainProgress = Math.min(100, Math.round((currentPoints / firstRewardCost) * 100));
+
+  // 1. Fetch Active Subscription on Load
+  useEffect(() => {
+    if (user?.telegramId) {
+      supabase
+        .from('redemptions')
+        .select('*')
+        .eq('telegram_id', String(user.telegramId))
+        .gte('expires_at', new Date().toISOString())
+        .order('expires_at', { ascending: false })
+        .then(({ data }) => {
+          if (data && data.length > 0) {
+            setActiveSub(data[0]);
+          }
+          setLoadingSub(false);
+        });
+    } else {
+      setLoadingSub(false);
+    }
+  }, [user?.telegramId]);
+
+  // 2. Live Countdown Timer
+  useEffect(() => {
+    if (!activeSub) return;
+    const interval = setInterval(() => {
+      const difference = new Date(activeSub.expires_at) - new Date();
+      if (difference <= 0) {
+        clearInterval(interval);
+        setActiveSub(null); // Subscription expired! Show tiers again.
+        setTimeLeft("");
+      } else {
+        const d = Math.floor(difference / (1000 * 60 * 60 * 24));
+        const h = Math.floor((difference / (1000 * 60 * 60)) % 24);
+        const m = Math.floor((difference / 1000 / 60) % 60);
+        const s = Math.floor((difference / 1000) % 60);
+        setTimeLeft(`${d}d ${h}h ${m}m ${s}s`);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [activeSub]);
 
   // Bulletproof Link Opener for Telegram
   const openExternalLink = (url) => {
@@ -52,7 +97,7 @@ export default function Redeem() {
         setLoading(false); return;
       }
 
-      // 1. Find an available Canva link
+      // Find an available Canva link
       const { data: links } = await supabase.from('canva_links').select('*');
       const availableLink = links?.find(l => l.used_slots < l.total_slots);
 
@@ -64,28 +109,31 @@ export default function Redeem() {
       const newPoints = currentPoints - cost;
       const finalUrl = availableLink.url || availableLink.invitelink;
 
-      // 2. Deduct Points (Dual-Save)
+      // Deduct Points (Dual-Save)
       await supabase.from('users').update({ points: newPoints }).eq('telegram_id', tgIdStr);
       localStorage.setItem(`canva_pts_${tgIdStr}`, newPoints);
 
-      // 3. Increment Used Slots on the Link
+      // Increment Used Slots
       await supabase.from('canva_links').update({ used_slots: availableLink.used_slots + 1 }).eq('id', availableLink.id);
 
-      // 4. Log Redemption in History
+      // Log Redemption in History
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + days);
 
-      await supabase.from('redemptions').insert([{
+      const newRedemption = {
         telegram_id: tgIdStr,
         tier_id: tierId,
         points_cost: cost,
         link_name: availableLink.name,
         invite_link: finalUrl,
         expires_at: expiresAt.toISOString()
-      }]);
+      };
 
-      // 5. Update UI & SHOW CELEBRATION!
+      await supabase.from('redemptions').insert([newRedemption]);
+
+      // Update UI, Set Active Sub, & SHOW CELEBRATION!
       setUser({ ...user, points: newPoints });
+      setActiveSub(newRedemption); // Instantly switches UI to VIP Card
       setCelebration({ isOpen: true, message: `You successfully unlocked Canva Pro for ${days} Days!`, link: finalUrl, days });
 
     } catch (err) {
@@ -96,6 +144,7 @@ export default function Redeem() {
 
   return (
     <div className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24">
+      
       {/* Header / Balance Section */}
       <div className="bg-white px-5 py-6 shadow-sm border-b border-gray-100 rounded-b-3xl">
         <h1 className="text-[11px] font-black text-gray-400 tracking-[0.1em] mb-5 uppercase">Redeem Canva Pro</h1>
@@ -130,77 +179,97 @@ export default function Redeem() {
         </div>
       </div>
 
-      {/* Tiers List */}
       <div className="px-4 pt-5 space-y-4">
-        {tiers.map(tier => {
-          const progress = Math.min(100, Math.round((currentPoints / tier.pointsCost) * 100));
-          const missing = Math.max(0, tier.pointsCost - currentPoints);
-          const canRedeem = missing === 0;
+        
+        {loadingSub ? (
+          <div className="text-center py-10 text-gray-400 font-bold">Checking subscription status...</div>
+        ) : activeSub ? (
+          
+          /* ========================================================= */
+          /* 💎 VIP PREMIUM CARD (Hides purchase options while active) */
+          /* ========================================================= */
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-gradient-to-br from-[#FFD700] to-[#F59E0B] rounded-[24px] px-5 py-8 border border-yellow-300 shadow-lg text-center relative overflow-hidden">
+            <div className="absolute top-0 right-0 -mt-2 -mr-2 text-7xl opacity-20">👑</div>
+            <h2 className="text-2xl font-black text-white mb-2 drop-shadow-sm relative z-10">Premium Active!</h2>
+            <p className="text-yellow-50 font-bold mb-6 text-xs relative z-10">You already have an active subscription. Enjoy!</p>
+            
+            <div className="bg-black/20 rounded-xl p-4 mb-6 inline-block mx-auto backdrop-blur-sm border border-white/20">
+               <div className="text-[10px] text-yellow-100 font-bold uppercase tracking-widest mb-1">Time Remaining</div>
+               <div className="text-white font-black text-2xl tracking-wider font-mono">{timeLeft || "Calculating..."}</div>
+            </div>
 
-          return (
-            <div key={tier.id} className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100 relative overflow-hidden">
-              {tier.badge && (
-                <div className="absolute top-5 right-5 bg-orange-50 text-orange-600 font-black text-[9px] px-2.5 py-1.5 rounded-md uppercase tracking-wider flex items-center gap-1">
-                  {tier.badge}
-                </div>
-              )}
+            <button onClick={() => openExternalLink(activeSub.invite_link)} className="w-full bg-white text-orange-600 font-black text-[15px] py-4 rounded-2xl shadow-xl active:scale-95 transition-transform flex justify-center items-center gap-2 relative z-10">
+              <span className="text-xl">✨</span> OPEN CANVA PRO
+            </button>
+            <p className="text-[10px] text-yellow-100 font-bold mt-4 relative z-10">
+              You can redeem a new package once this timer expires.
+            </p>
+          </motion.div>
 
-              <div className="flex justify-between items-start mb-5">
-                <div className="flex gap-3.5">
-                  <div className="w-[52px] h-[52px] rounded-2xl border-2 border-gray-100 flex flex-col items-center justify-center text-gray-400 bg-gray-50">
-                    <span className="text-xl font-black leading-none text-gray-700">{tier.durationDays}</span>
-                    <span className="text-[7px] font-bold uppercase tracking-widest mt-0.5">Days</span>
-                  </div>
-                  <div>
-                    <h3 className="font-black text-gray-900 text-[17px] leading-tight mb-0.5">Canva Pro</h3>
-                    <p className="text-[11px] text-gray-500 font-medium mb-1.5">{tier.subtitle}</p>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-[22px] font-black text-gray-900 leading-none">{tier.pointsCost}</span>
-                      <span className="text-[10px] font-bold text-gray-500">points</span>
+        ) : (
+
+          /* ========================================================= */
+          /* 🛒 TIERS LIST (Only shows when user is NOT premium)       */
+          /* ========================================================= */
+          <>
+            {tiers.map(tier => {
+              const progress = Math.min(100, Math.round((currentPoints / tier.pointsCost) * 100));
+              const missing = Math.max(0, tier.pointsCost - currentPoints);
+              const canRedeem = missing === 0;
+
+              return (
+                <div key={tier.id} className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100 relative overflow-hidden">
+                  {tier.badge && (
+                    <div className="absolute top-5 right-5 bg-orange-50 text-orange-600 font-black text-[9px] px-2.5 py-1.5 rounded-md uppercase tracking-wider flex items-center gap-1">
+                      {tier.badge}
                     </div>
+                  )}
+
+                  <div className="flex justify-between items-start mb-5">
+                    <div className="flex gap-3.5">
+                      <div className="w-[52px] h-[52px] rounded-2xl border-2 border-gray-100 flex flex-col items-center justify-center text-gray-400 bg-gray-50">
+                        <span className="text-xl font-black leading-none text-gray-700">{tier.durationDays}</span>
+                        <span className="text-[7px] font-bold uppercase tracking-widest mt-0.5">Days</span>
+                      </div>
+                      <div>
+                        <h3 className="font-black text-gray-900 text-[17px] leading-tight mb-0.5">Canva Pro</h3>
+                        <p className="text-[11px] text-gray-500 font-medium mb-1.5">{tier.subtitle}</p>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-[22px] font-black text-gray-900 leading-none">{tier.pointsCost}</span>
+                          <span className="text-[10px] font-bold text-gray-500">points</span>
+                        </div>
+                      </div>
+                    </div>
+                    {!tier.badge && <span className="text-[10px] text-gray-300 font-bold uppercase tracking-wider mt-1">{tier.title}</span>}
                   </div>
+                  
+                  <div className="flex justify-between items-center mb-1.5">
+                    <span className="text-[11px] font-bold text-gray-700">{currentPoints} / {tier.pointsCost} pts</span>
+                    <span className="text-[10px] font-medium text-gray-400">{canRedeem ? 'Ready to claim!' : `Need ${missing} more`}</span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-1.5 mb-5 overflow-hidden">
+                    <div className="bg-gray-300 h-1.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                  </div>
+
+                  {canRedeem ? (
+                    <button 
+                      onClick={() => setConfirmModal({ isOpen: true, tierId: tier.id, cost: tier.pointsCost, days: tier.durationDays })}
+                      disabled={loading}
+                      className="w-full bg-[#8B5CF6] hover:bg-[#7C3AED] active:scale-[0.98] text-white font-bold py-3.5 rounded-xl text-[13px] shadow-md transition-all flex items-center justify-center gap-2"
+                    >
+                      {loading ? 'Processing...' : '🎁 Unlock Now'}
+                    </button>
+                  ) : (
+                    <button disabled className="w-full border-2 border-dashed border-gray-200 text-gray-400 font-bold py-3.5 rounded-xl text-[12px] flex items-center justify-center gap-1.5 bg-gray-50/50">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                      Need {missing} more points
+                    </button>
+                  )}
                 </div>
-                {!tier.badge && <span className="text-[10px] text-gray-300 font-bold uppercase tracking-wider mt-1">{tier.title}</span>}
-              </div>
-              
-              <div className="flex justify-between items-center mb-1.5">
-                <span className="text-[11px] font-bold text-gray-700">{currentPoints} / {tier.pointsCost} pts</span>
-                <span className="text-[10px] font-medium text-gray-400">{canRedeem ? 'Ready to claim!' : `Need ${missing} more`}</span>
-              </div>
-              <div className="w-full bg-gray-100 rounded-full h-1.5 mb-5 overflow-hidden">
-                <div className="bg-gray-300 h-1.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
-              </div>
-
-              {canRedeem ? (
-                <button 
-                  onClick={() => setConfirmModal({ isOpen: true, tierId: tier.id, cost: tier.pointsCost, days: tier.durationDays })}
-                  disabled={loading}
-                  className="w-full bg-[#8B5CF6] hover:bg-[#7C3AED] active:scale-[0.98] text-white font-bold py-3.5 rounded-xl text-[13px] shadow-md transition-all flex items-center justify-center gap-2"
-                >
-                  {loading ? 'Processing...' : '🎁 Unlock Now'}
-                </button>
-              ) : (
-                <button disabled className="w-full border-2 border-dashed border-gray-200 text-gray-400 font-bold py-3.5 rounded-xl text-[12px] flex items-center justify-center gap-1.5 bg-gray-50/50">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                  Need {missing} more points
-                </button>
-              )}
-            </div>
-          );
-        })}
-
-        <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100 mt-2">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-xl">🎯</div>
-            <div>
-              <h3 className="font-black text-gray-900 text-[15px]">Keep earning!</h3>
-              <p className="text-[11px] text-gray-500 font-medium">Watch ads · Complete tasks</p>
-            </div>
-          </div>
-          <button onClick={() => navigate('/tasks')} className="w-full bg-[#9333EA] hover:bg-purple-700 active:scale-[0.98] text-white font-black py-4 rounded-2xl shadow-md text-[13px] transition-all">
-            Earn More Points &gt;
-          </button>
-        </div>
+              );
+            })}
+          </>
+        )}
       </div>
 
       {/* --- CUSTOM MODALS --- */}
@@ -236,7 +305,6 @@ export default function Redeem() {
         {/* WOO HOO CELEBRATION MODAL */}
         {celebration.isOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-            {/* Fake CSS Confetti Animation */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-50">
                <div className="absolute top-10 left-10 w-4 h-4 bg-red-500 rounded-full animate-ping"></div>
                <div className="absolute top-20 right-20 w-3 h-3 bg-blue-500 rounded-full animate-ping" style={{ animationDelay: '0.2s'}}></div>
@@ -258,11 +326,8 @@ export default function Redeem() {
                 <button onClick={() => openExternalLink(celebration.link)} className="w-full bg-white text-purple-700 font-black py-4 rounded-xl text-[15px] active:scale-95 shadow-xl flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors">
                   <span className="text-xl">👑</span> OPEN CANVA PRO
                 </button>
-                <button onClick={() => {
-                  setCelebration({ isOpen: false, message: "", link: "", days: 0 });
-                  navigate('/profile'); // Redirects to profile so they can see their active subscription
-                }} className="w-full bg-transparent border-2 border-white/30 text-white font-bold py-3 rounded-xl text-sm active:scale-95 transition-colors hover:bg-white/10">
-                  Close & View Profile
+                <button onClick={() => setCelebration({ isOpen: false, message: "", link: "", days: 0 })} className="w-full bg-transparent border-2 border-white/30 text-white font-bold py-3 rounded-xl text-sm active:scale-95 transition-colors hover:bg-white/10">
+                  Close
                 </button>
               </div>
             </motion.div>

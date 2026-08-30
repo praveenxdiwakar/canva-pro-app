@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../api/supabase';
 import { useTelegram } from '../contexts/TelegramContext';
 
@@ -14,9 +14,10 @@ export default function FreeCanva() {
   // Premium Subscription Status
   const [activeSub, setActiveSub] = useState(null);
   const [loadingSub, setLoadingSub] = useState(true);
+  const [timeLeft, setTimeLeft] = useState("");
 
   useEffect(() => {
-    // 1. Check if the user has an active 7, 15, or 30-day Premium Subscription
+    // 1. Check for Active Premium Subscriptions (7, 15, 30 Days)
     if (user?.telegramId) {
       supabase
         .from('redemptions')
@@ -26,7 +27,7 @@ export default function FreeCanva() {
         .order('expires_at', { ascending: false })
         .then(({ data }) => {
           if (data && data.length > 0) {
-            setActiveSub(data[0].invite_link); // User is Premium!
+            setActiveSub(data[0]); // User is Premium!
           }
           setLoadingSub(false);
         });
@@ -60,7 +61,25 @@ export default function FreeCanva() {
     });
   }, [user?.telegramId]);
 
-  const progressPercentage = Math.min(100, ((currentStep - 1) / 3) * 100);
+  // Premium Countdown Timer Logic
+  useEffect(() => {
+    if (!activeSub) return;
+    const interval = setInterval(() => {
+      const difference = new Date(activeSub.expires_at) - new Date();
+      if (difference <= 0) {
+        clearInterval(interval);
+        setActiveSub(null); // Sub expired, revert to free version!
+        setTimeLeft("");
+      } else {
+        const d = Math.floor(difference / (1000 * 60 * 60 * 24));
+        const h = Math.floor((difference / (1000 * 60 * 60)) % 24);
+        const m = Math.floor((difference / 1000 / 60) % 60);
+        const s = Math.floor((difference / 1000) % 60);
+        setTimeLeft(`${d}d ${h}h ${m}m ${s}s`);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [activeSub]);
 
   const openExternalLink = (url) => {
     const tg = window.Telegram?.WebApp;
@@ -102,30 +121,31 @@ export default function FreeCanva() {
   return (
     <div className="flex flex-col min-h-[calc(100dvh-5rem)] bg-[#f5f5f5] pb-24 relative">
       
-      {/* Dynamic Header Banner */}
-      <div className="relative w-full h-[170px] overflow-hidden bg-gray-900 shadow-sm">
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-white bg-gradient-to-br from-[#7c3aed] via-[#6366f1] to-[#06b6d4] z-20">
-          <h1 className="text-5xl font-black italic tracking-tighter drop-shadow-lg" style={{ fontFamily: 'Georgia, serif' }}>Canva</h1>
-          <div className="mt-2 bg-black/20 px-3 py-1 rounded-full border border-white/20 backdrop-blur-sm">
-             <span className="text-[10px] font-bold uppercase tracking-widest text-white/90">Pro Access • 100% Free</span>
-          </div>
-        </div>
+      {/* Header Banner (Matches screenshot aesthetic) */}
+      <div className="relative w-full h-[150px] bg-gradient-to-r from-[#00C4CC] to-[#7B2CBF] flex items-center justify-center shadow-sm">
+         <h1 className="text-6xl font-bold text-white italic tracking-tighter" style={{ fontFamily: 'Georgia, serif' }}>Canva</h1>
       </div>
 
-      <div className="px-4 pt-4 pb-4 space-y-3 -mt-4 relative z-30">
+      <div className="px-4 pt-4 pb-4 space-y-4 -mt-4 relative z-30">
         
         {loadingSub ? (
           <div className="bg-white rounded-[24px] p-6 text-center text-gray-400 font-bold shadow-sm">Loading Access...</div>
         ) : activeSub ? (
           
           /* ========================================================= */
-          /* 💎 VIP PREMIUM CARD (Bypasses Ads for Subscribed Users!) */
+          /* 💎 VIP PREMIUM CARD (With Live Countdown)                 */
           /* ========================================================= */
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-gradient-to-br from-[#FFD700] to-[#FF8C00] rounded-[24px] px-5 py-8 border border-yellow-300 shadow-lg text-center relative overflow-hidden">
-            <div className="absolute top-0 right-0 -mt-4 -mr-4 text-8xl opacity-20">👑</div>
-            <h2 className="text-2xl font-black text-white mb-2 drop-shadow-sm relative z-10">Premium Unlocked!</h2>
-            <p className="text-yellow-50 font-bold mb-6 text-sm relative z-10 px-2">Because you redeemed points, you have UNLIMITED ad-free access anytime.</p>
-            <button onClick={() => openExternalLink(activeSub)} className="w-full bg-white text-orange-600 font-black text-[15px] py-4 rounded-2xl shadow-xl active:scale-95 transition-transform flex justify-center items-center gap-2 relative z-10">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-gradient-to-br from-[#FFD700] to-[#F59E0B] rounded-[24px] px-5 py-8 border border-yellow-300 shadow-lg text-center relative overflow-hidden">
+            <div className="absolute top-0 right-0 -mt-2 -mr-2 text-7xl opacity-20">👑</div>
+            <h2 className="text-2xl font-black text-white mb-1 drop-shadow-sm relative z-10">Premium Unlocked!</h2>
+            <p className="text-yellow-50 font-bold mb-4 text-xs relative z-10">Ad-Free VIP Access</p>
+            
+            <div className="bg-black/20 rounded-xl p-3 mb-6 inline-block mx-auto backdrop-blur-sm border border-white/20">
+               <div className="text-[10px] text-yellow-100 font-bold uppercase tracking-widest mb-0.5">Access Expires In</div>
+               <div className="text-white font-black text-xl tracking-wider font-mono">{timeLeft || "Calculating..."}</div>
+            </div>
+
+            <button onClick={() => openExternalLink(activeSub.invite_link)} className="w-full bg-white text-orange-600 font-black text-[15px] py-4 rounded-2xl shadow-xl active:scale-95 transition-transform flex justify-center items-center gap-2 relative z-10">
               <span className="text-xl">✨</span> OPEN CANVA PRO
             </button>
           </motion.div>
@@ -133,37 +153,32 @@ export default function FreeCanva() {
         ) : (
 
           /* ========================================================= */
-          /* 📺 FREE USER CARD (Requires the 4 Ads)                    */
+          /* 📺 FREE USER CARD (Matches new screenshot design exactly) */
           /* ========================================================= */
           <>
-            <div className="bg-white border border-gray-100 rounded-[20px] px-4 py-3.5 flex items-start gap-3 shadow-sm">
-              <span className="text-xl mt-0.5">📢</span>
-              <p className="text-[12px] text-gray-600 leading-snug font-medium">Complete the 4 steps below to unlock your free Canva Pro access button.</p>
+            {/* Instruction Alert */}
+            <div className="bg-white border border-gray-100 rounded-2xl px-4 py-3 flex items-center gap-3 shadow-sm">
+              <span className="text-2xl">📢</span>
+              <p className="text-[12px] text-gray-600 leading-tight font-medium">Complete 4 Step, the Canva Pro button will be unlocked. Then click again to open Canva Pro.</p>
             </div>
 
-            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-[24px] px-5 py-6 border border-gray-100 shadow-sm">
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl px-5 py-6 border border-gray-100 shadow-sm">
               
               {currentStep > 4 ? (
                 
                 /* 🎉 INLINE WOO HOO ANIMATION (NO POPUP!) 🎉 */
                 <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center py-4 relative">
-                  <motion.div animate={{ y: [0, -15, 0] }} transition={{ repeat: Infinity, duration: 1.5 }} className="text-6xl mb-4">
-                    🎉
-                  </motion.div>
-                  <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#6200EA] to-[#00E5FF] mb-2 uppercase tracking-wide">
-                    Woo Hoo!
-                  </h2>
-                  <p className="text-gray-500 font-bold mb-6 text-sm">
-                    You completed all steps! Here is your link.
-                  </p>
+                  <motion.div animate={{ y: [0, -15, 0] }} transition={{ repeat: Infinity, duration: 1.5 }} className="text-6xl mb-4">🎉</motion.div>
+                  <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#6200EA] to-[#00E5FF] mb-2 uppercase tracking-wide">Woo Hoo!</h2>
+                  <p className="text-gray-500 font-bold mb-6 text-sm">You completed all steps! Here is your link.</p>
                   <button 
                     onClick={() => {
                       if (canvaLink) openExternalLink(canvaLink);
                       else alert("All slots full!");
                     }} 
-                    className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-black text-[15px] py-4 rounded-2xl shadow-xl active:scale-95 transition-transform flex justify-center items-center gap-2"
+                    className="w-full bg-[#6200EA] text-white font-black text-[16px] py-4 rounded-2xl shadow-lg active:scale-95 transition-transform flex justify-center items-center gap-2"
                   >
-                    <span className="text-xl">👑</span> OPEN CANVA PRO
+                    Open Canva Pro
                   </button>
                 </motion.div>
 
@@ -171,30 +186,33 @@ export default function FreeCanva() {
 
                 /* 🟢 4-STEP PROGRESS UI */
                 <div className="space-y-6">
-                  <div className="relative w-full max-w-[280px] mx-auto mt-2 mb-4">
-                    <div className="absolute top-[18px] left-[10%] right-[10%] h-[4px] bg-gray-100 z-0 rounded-full overflow-hidden">
-                      <div className="h-full bg-green-500 transition-all duration-700 ease-out rounded-full" style={{ width: `${progressPercentage}%` }} />
-                    </div>
-                    <div className="relative z-10 flex justify-between items-start w-full">
-                      {[1, 2, 3, 4].map((stepNum) => {
-                        const isCompleted = currentStep > stepNum;
-                        const isActive = currentStep === stepNum;
-                        return (
-                          <div key={stepNum} className="flex flex-col items-center w-12">
-                            <div className="bg-white p-1 rounded-full mb-1">
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm transition-all duration-300 shadow-sm ${isCompleted ? "bg-green-500 text-white border-2 border-green-500" : isActive ? "bg-white border-[3px] border-[#6200EA] text-[#6200EA] shadow-md scale-110" : "bg-gray-50 border-2 border-gray-200 text-gray-300"}`}>
-                                {isCompleted ? "✓" : stepNum}
-                              </div>
-                            </div>
-                            <span className={`text-[9px] font-bold text-center ${isCompleted ? "text-green-600" : isActive ? "text-gray-800" : "text-gray-400"}`}>Step {stepNum}</span>
+                  
+                  {/* Custom Step Indicator matching screenshot */}
+                  <div className="flex justify-between items-center relative w-full mb-6 mt-2 px-2">
+                    <div className="absolute top-[18px] left-6 right-6 h-[2px] bg-gray-200 z-0"></div>
+                    {[1, 2, 3, 4].map((stepNum) => {
+                      const isActive = currentStep === stepNum;
+                      const isCompleted = currentStep > stepNum;
+                      
+                      return (
+                        <div key={stepNum} className="flex flex-col items-center relative z-10 bg-white px-1">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-[15px] mb-1.5 transition-all
+                            ${isCompleted ? "bg-[#6200EA] text-white border-2 border-[#6200EA]" : 
+                              isActive ? "bg-white border-[2px] border-red-500 text-red-500" : 
+                              "bg-white border-[2px] border-gray-200 text-gray-300"}`}>
+                            {isCompleted ? "✓" : stepNum}
                           </div>
-                        );
-                      })}
-                    </div>
+                          <span className={`text-[10px] font-bold text-center 
+                            ${isActive ? "text-gray-900" : isCompleted ? "text-[#6200EA]" : "text-gray-400"}`}>
+                            Step {stepNum}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
 
-                  <button onClick={handleMainAction} disabled={isProcessing} className={`w-full text-white font-black text-[14px] py-4 rounded-2xl shadow-md transition-all active:scale-95 flex justify-center items-center gap-2 ${isProcessing ? "bg-gray-400 cursor-not-allowed" : "bg-[#6200EA] hover:bg-[#5000c9]"}`}>
-                    {isProcessing ? <><span>⏳</span> Waiting for Ad...</> : <><span>📺</span> Watch Ad for Step {currentStep}</>}
+                  <button onClick={handleMainAction} disabled={isProcessing} className={`w-full text-white font-bold text-[16px] py-4.5 rounded-[18px] shadow-sm transition-all active:scale-95 flex justify-center items-center gap-2 ${isProcessing ? "bg-gray-400 cursor-not-allowed" : "bg-[#6200EA] hover:bg-[#5000c9]"}`} style={{ minHeight: '56px' }}>
+                    {isProcessing ? "Waiting for Ad..." : "Watch Ads to Unlock Canva Pro"}
                   </button>
                 </div>
               )}
@@ -202,15 +220,48 @@ export default function FreeCanva() {
           </>
         )}
 
-        {/* COMPACT Social / Join Buttons */}
-        <div className="grid grid-cols-2 gap-3 mt-2">
-          <button onClick={() => openExternalLink('https://t.me/yourchannel')} className="bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold py-3 rounded-[16px] shadow-sm flex justify-center items-center gap-2 active:scale-95 transition-transform text-[12px]"><span className="text-[16px]">📢</span> Join Channel</button>
-          <button onClick={() => openExternalLink('https://t.me/yourgroup')} className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold py-3 rounded-[16px] shadow-sm flex justify-center items-center gap-2 active:scale-95 transition-transform text-[12px]"><span className="text-[16px]">👥</span> Join Group</button>
+        {/* Stacked Social / Join Buttons (Matching Screenshot) */}
+        <div className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100 flex flex-col gap-3">
+          <button onClick={() => openExternalLink('https://t.me/yourchannel')} className="w-full bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white font-bold py-4 rounded-[16px] flex justify-center items-center gap-2 active:scale-95 transition-transform text-[14px]">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            Join Channel
+          </button>
+          <button onClick={() => openExternalLink('https://t.me/yourgroup')} className="w-full bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white font-bold py-4 rounded-[16px] flex justify-center items-center gap-2 active:scale-95 transition-transform text-[14px]">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            Join Group
+          </button>
+          <button className="w-full bg-[#F3F4F6] text-gray-700 font-bold py-4 rounded-[16px] text-[14px] flex justify-center items-center gap-1.5 active:bg-gray-200 transition-colors">
+            How to join Canva Pro <span className="text-[16px]">🌿</span>
+          </button>
         </div>
-        
-        <button className="w-full bg-white border-2 border-dashed border-gray-200 text-gray-500 font-bold py-3 rounded-[16px] text-[12px] flex justify-center items-center gap-1.5 active:bg-gray-50 transition-colors">
-          How to join Canva Pro <span className="text-[14px]">🌿</span>
-        </button>
+
+        {/* Features / Benefits Card (Matching Screenshot colors) */}
+        <div className="bg-white rounded-3xl px-4 py-6 border border-gray-100 shadow-sm text-center">
+          <h3 className="text-[11px] font-black text-gray-400 tracking-[0.15em] mb-5 uppercase">What You Get</h3>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-[#F3E8FF] rounded-[20px] p-3 flex flex-col items-center justify-center gap-2 h-[90px]">
+              <span className="text-2xl drop-shadow-sm">🎨</span>
+              <span className="text-[10px] font-black text-[#7B2CBF] leading-tight">Premium<br/>Templates</span>
+            </div>
+            <div className="bg-[#FEF3C7] rounded-[20px] p-3 flex flex-col items-center justify-center gap-2 h-[90px]">
+              <span className="text-2xl drop-shadow-sm">✨</span>
+              <span className="text-[10px] font-black text-[#D97706] leading-tight">Magic AI<br/>Tools</span>
+            </div>
+            <div className="bg-[#D1FAE5] rounded-[20px] p-3 flex flex-col items-center justify-center gap-2 h-[90px]">
+              <div className="bg-[#10B981] text-white font-black text-[9px] px-2 py-0.5 rounded uppercase tracking-wider">Free</div>
+              <span className="text-[10px] font-black text-[#059669] leading-tight">100% Free</span>
+            </div>
+          </div>
+          <div className="mt-5 text-[11px] text-gray-400 font-medium flex items-center justify-center gap-1.5">
+            <span className="text-yellow-500">🔒</span> No payment required
+          </div>
+        </div>
+
+        {/* Footer Credit */}
+        <div className="text-center pt-2 pb-6">
+          <p className="text-[13px] font-black text-[#6200EA] mb-0.5">by H2N</p>
+          <p className="text-[11px] text-gray-400 font-medium">@ShareCanvaProFree_Bot</p>
+        </div>
 
       </div>
     </div>
