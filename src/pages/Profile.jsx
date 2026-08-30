@@ -113,7 +113,7 @@ export default function Profile() {
               <button onClick={() => setIsLeaderboardOpen(true)} className="bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 active:scale-95 transition-transform text-white font-bold py-3.5 rounded-xl shadow-md flex justify-center items-center gap-2 text-[13px]">
                 <span className="text-lg leading-none">🏆</span> Leaderboard
               </button>
-              <button className="bg-[#3B82F6] hover:bg-blue-600 active:scale-95 transition-transform text-white font-bold py-3.5 rounded-xl shadow-md flex justify-center items-center gap-2 text-[13px]">
+              <button onClick={() => openExternalLink('https://t.me/noobfrager')} className="bg-[#3B82F6] hover:bg-blue-600 active:scale-95 transition-transform text-white font-bold py-3.5 rounded-xl shadow-md flex justify-center items-center gap-2 text-[13px]">
                 <span className="text-lg leading-none">🎧</span> Support
               </button>
             </div>
