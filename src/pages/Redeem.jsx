@@ -164,27 +164,55 @@ export default function Redeem() {
   };
 
   return (
-    <div className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24">
+    <div className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24 relative overflow-x-hidden">
       
-      {/* Header / Balance Section */}
-      <div className="bg-white px-5 py-6 shadow-sm border-b border-gray-100 rounded-b-3xl">
-        <h1 className="text-[11px] font-black text-gray-400 tracking-[0.1em] mb-5 uppercase">Redeem Canva Pro</h1>
+      {/* ========================================================= */}
+      {/* 🌟 UPGRADED PREMIUM HEADER BANNER 🌟                        */}
+      {/* ========================================================= */}
+      <div className="relative w-full h-[150px] bg-gradient-to-br from-[#00C4CC] via-[#7B2CBF] to-[#6200EA] flex items-center justify-center overflow-hidden">
         
-        <div className="flex justify-between items-center mb-6">
+        {/* Ambient Glows */}
+        <div className="absolute top-[-20px] left-[-20px] w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none z-0"></div>
+        <div className="absolute bottom-[-30px] right-[-10px] w-40 h-40 bg-[#00E5FF]/20 rounded-full blur-[40px] pointer-events-none z-0"></div>
+        
+        {/* Animated Floating Particles */}
+        <motion.div animate={{ y: [0, -10, 0], opacity: [0.3, 0.8, 0.3] }} transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }} className="absolute top-6 left-10 text-white/50 text-[10px] select-none z-10">✨</motion.div>
+        <motion.div animate={{ y: [0, 10, 0], opacity: [0.2, 0.6, 0.2] }} transition={{ repeat: Infinity, duration: 5, ease: "easeInOut", delay: 1 }} className="absolute bottom-8 right-12 text-white/40 text-[14px] select-none z-10">✦</motion.div>
+
+        {/* Canva Logo + PRO Badge */}
+        <div className="relative z-20 flex items-center justify-center gap-1.5 drop-shadow-xl mt-2">
+          <h1 className="text-[52px] font-bold text-white tracking-tighter" style={{ fontFamily: 'Georgia, serif' }}>
+            Canva
+          </h1>
+          <motion.div 
+            initial={{ scale: 0.8, rotate: 0 }}
+            animate={{ scale: 1, rotate: 3 }}
+            transition={{ type: "spring", bounce: 0.5, delay: 0.2 }}
+            className="bg-gradient-to-tr from-[#FFD700] via-[#F59E0B] to-[#FFD700] text-[#5B3A00] font-black text-[11px] px-2 py-0.5 rounded-[6px] uppercase tracking-widest shadow-[0_4px_10px_rgba(245,158,11,0.4)] -mt-8 border border-yellow-200/50"
+          >
+            Pro
+          </motion.div>
+        </div>
+      </div>
+
+      {/* ========================================================= */}
+      {/* 📍 BALANCE & PROGRESS SECTION (Header Bottom)             */}
+      {/* ========================================================= */}
+      <div className="bg-white px-5 py-5 shadow-sm border-b border-gray-100 relative z-30">
+        <div className="flex justify-between items-center mb-5">
           <div className="flex items-center gap-4">
-            <div className="w-[60px] h-[60px] bg-[#8B5CF6] rounded-2xl flex items-center justify-center text-3xl shadow-lg shadow-purple-200 border-2 border-purple-400">🪙</div>
+            <div className="w-[50px] h-[50px] bg-gradient-to-br from-[#8B5CF6] to-[#6200EA] rounded-2xl flex items-center justify-center text-2xl shadow-lg shadow-purple-200 border-2 border-purple-200">🪙</div>
             <div>
-              <p className="text-[11px] text-gray-500 font-bold mb-0.5">Your Balance</p>
+              <p className="text-[10px] text-gray-500 font-bold mb-0.5 uppercase tracking-widest">Your Balance</p>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-[40px] font-black text-gray-900 leading-none tracking-tighter">{currentPoints}</span>
-                <span className="text-[11px] font-bold text-gray-400">points</span>
+                <span className="text-[34px] font-black text-gray-900 leading-none tracking-tighter">{currentPoints}</span>
+                <span className="text-[11px] font-bold text-gray-400">pts</span>
               </div>
             </div>
           </div>
           
-          <button onClick={() => navigate('/tasks')} className="border border-purple-200 text-purple-700 bg-white font-bold px-4 py-2 rounded-full text-xs flex items-center gap-1.5 shadow-sm active:scale-95 transition-transform">
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
-            Earn
+          <button onClick={() => navigate('/tasks')} className="border border-purple-200 text-[#6200EA] bg-purple-50 font-black px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 shadow-sm active:scale-95 transition-transform">
+            Earn More
           </button>
         </div>
 
