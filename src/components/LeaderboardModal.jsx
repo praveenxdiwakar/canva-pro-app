@@ -16,11 +16,12 @@ export default function LeaderboardModal({ isOpen, onClose }) {
   const fetchLeaderboard = async () => {
     setLoading(true);
     try {
+      // Changed to select('*') to ensure we grab photo_url regardless of database casing
       const { data, error } = await supabase
         .from('users')
-        .select('telegram_id, first_name, last_name, points')
+        .select('*')
         .order('points', { ascending: false })
-        .limit(100); // Fetch top 100 users for the leaderboard
+        .limit(100); 
       
       if (data && !error) {
         setUsers(data);
@@ -38,20 +39,25 @@ export default function LeaderboardModal({ isOpen, onClose }) {
     return (f + l).trim();
   };
 
-  // Helper to extract 1 or 2 letter Initials for Avatars
+  // Helper to safely extract Initials (Emoji & Special Character Safe!)
   const getInitials = (first, last) => {
-    const f = first ? first.charAt(0).toUpperCase() : "?";
-    const l = last ? last.charAt(0).toUpperCase() : "";
+    // Array.from() safely handles emojis and special characters unlike charAt()
+    const f = first ? Array.from(first)[0].toUpperCase() : "?";
+    const l = last ? Array.from(last)[0].toUpperCase() : "";
     return f + l;
   };
 
-  // Fixed colors for Top 3 (Matches Screenshot), dynamic hashed colors for the rest
+  // Helper to safely grab the photo URL regardless of database column casing
+  const getPhotoUrl = (u) => {
+    return u.photo_url || u.photourl || u.photoUrl || null;
+  };
+
+  // Fixed colors for Top 3, dynamic hashed colors for the rest
   const getAvatarBg = (index, nameStr) => {
-    if (index === 0) return 'bg-[#FF65B3]'; // 1st Place: Pink
-    if (index === 1) return 'bg-[#7C7CFF]'; // 2nd Place: Purple/Blue
-    if (index === 2) return 'bg-[#29D697]'; // 3rd Place: Teal/Green
+    if (index === 0) return 'bg-[#FF65B3]'; // 1st Place
+    if (index === 1) return 'bg-[#7C7CFF]'; // 2nd Place
+    if (index === 2) return 'bg-[#29D697]'; // 3rd Place
     
-    // Dynamic colors for rank #4 and below
     const colors = ['bg-[#FF8A65]', 'bg-[#FFB74D]', 'bg-[#4DB6AC]', 'bg-[#7986CB]', 'bg-[#F06292]', 'bg-[#64B5F6]'];
     let hash = 0;
     for (let i = 0; i < nameStr.length; i++) {
@@ -112,26 +118,29 @@ export default function LeaderboardModal({ isOpen, onClose }) {
                 {users.length >= 1 && (
                   <div className="flex justify-center items-end gap-3 mt-10 mb-8 px-2">
                     {top3.map((u, i) => {
-                      if (!u) return <div key={`spacer-${i}`} className="flex-1 max-w-[90px]" />; // Spacer if less than 3 users
+                      if (!u) return <div key={`spacer-${i}`} className="flex-1 max-w-[90px]" />; 
                       
                       const isFirst = i === 1;
                       const isSecond = i === 0;
-                      const isThird = i === 2;
                       
-                      const nameStr = formatName(u.first_name, u.last_name);
+                      const nameStr = formatName(u.first_name || u.firstname, u.last_name || u.lastname);
+                      const photo = getPhotoUrl(u);
                       
-                      // Map the visual podium index back to actual rank for colors
                       const originalIndex = isFirst ? 0 : isSecond ? 1 : 2; 
                       const bgColor = getAvatarBg(originalIndex, nameStr);
                       const height = isFirst ? 'h-[130px]' : isSecond ? 'h-[90px]' : 'h-[75px]';
                       const medal = isFirst ? '🥇' : isSecond ? '🥈' : '🥉';
                       
                       return (
-                        <div key={`podium-${u.telegram_id}`} className="flex flex-col items-center flex-1 max-w-[95px]">
+                        <div key={`podium-${u.telegram_id || u.telegramid || i}`} className="flex flex-col items-center flex-1 max-w-[95px]">
                           
-                          {/* Avatar */}
-                          <div className={`w-[52px] h-[52px] rounded-full text-white flex items-center justify-center font-black text-lg mb-2 shadow-sm ${bgColor}`}>
-                            {getInitials(u.first_name, u.last_name)}
+                          {/* Avatar with Photo Support */}
+                          <div className={`w-[52px] h-[52px] rounded-full text-white flex items-center justify-center font-black text-lg mb-2 shadow-sm border-2 border-white overflow-hidden ${bgColor}`}>
+                            {photo ? (
+                              <img src={photo} alt={nameStr} className="w-full h-full object-cover" />
+                            ) : (
+                              getInitials(u.first_name || u.firstname, u.last_name || u.lastname)
+                            )}
                           </div>
                           
                           {/* Name & Points */}
@@ -157,13 +166,14 @@ export default function LeaderboardModal({ isOpen, onClose }) {
                 {/* ========================================= */}
                 <div className="space-y-3 mt-4">
                   {users.map((u, i) => {
-                    const nameStr = formatName(u.first_name, u.last_name);
+                    const nameStr = formatName(u.first_name || u.firstname, u.last_name || u.lastname);
+                    const photo = getPhotoUrl(u);
                     const bgColor = getAvatarBg(i, nameStr);
                     const isTop3 = i < 3;
                     const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : null;
 
                     return (
-                      <div key={`list-${u.telegram_id}`} className="bg-white rounded-[20px] p-4 flex items-center justify-between shadow-[0_2px_12px_rgba(0,0,0,0.03)] border border-gray-50">
+                      <div key={`list-${u.telegram_id || u.telegramid || i}`} className="bg-white rounded-[20px] p-4 flex items-center justify-between shadow-[0_2px_12px_rgba(0,0,0,0.03)] border border-gray-50">
                         
                         <div className="flex items-center gap-4 flex-1 overflow-hidden">
                           {/* Rank # or Medal Badge */}
@@ -175,9 +185,13 @@ export default function LeaderboardModal({ isOpen, onClose }) {
                             )}
                           </div>
 
-                          {/* Avatar */}
-                          <div className={`w-10 h-10 rounded-full text-white flex items-center justify-center font-black text-[13px] flex-shrink-0 shadow-sm ${bgColor}`}>
-                            {getInitials(u.first_name, u.last_name)}
+                          {/* Avatar with Photo Support */}
+                          <div className={`w-10 h-10 rounded-full text-white flex items-center justify-center font-black text-[13px] flex-shrink-0 shadow-sm border-2 border-white overflow-hidden ${bgColor}`}>
+                            {photo ? (
+                              <img src={photo} alt={nameStr} className="w-full h-full object-cover" />
+                            ) : (
+                              getInitials(u.first_name || u.firstname, u.last_name || u.lastname)
+                            )}
                           </div>
 
                           {/* Full Name */}
