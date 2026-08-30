@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { supabase } from '../api/supabase';
 
 export default function Admin() {
@@ -158,29 +159,60 @@ export default function Admin() {
   };
 
   return (
-    <div className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24">
+    <div className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24 relative overflow-x-hidden">
       
-      {/* Header */}
-      <div className="bg-white px-4 py-4 flex items-center gap-3 border-b border-gray-100 shadow-sm sticky top-0 z-10">
-        <button onClick={() => navigate('/profile')} className="text-gray-500 hover:bg-gray-50 p-1 rounded-lg transition-colors">
+      {/* ========================================================= */}
+      {/* 🌟 UPGRADED PREMIUM HEADER BANNER 🌟                        */}
+      {/* ========================================================= */}
+      <div className="relative w-full h-[150px] bg-gradient-to-br from-[#00C4CC] via-[#7B2CBF] to-[#6200EA] flex items-center justify-center overflow-hidden">
+        
+        {/* Ambient Glows */}
+        <div className="absolute top-[-20px] left-[-20px] w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none z-0"></div>
+        <div className="absolute bottom-[-30px] right-[-10px] w-40 h-40 bg-[#00E5FF]/20 rounded-full blur-[40px] pointer-events-none z-0"></div>
+        
+        {/* Animated Floating Particles */}
+        <motion.div animate={{ y: [0, -10, 0], opacity: [0.3, 0.8, 0.3] }} transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }} className="absolute top-6 left-10 text-white/50 text-[10px] select-none z-10">✨</motion.div>
+        <motion.div animate={{ y: [0, 10, 0], opacity: [0.2, 0.6, 0.2] }} transition={{ repeat: Infinity, duration: 5, ease: "easeInOut", delay: 1 }} className="absolute bottom-8 right-12 text-white/40 text-[14px] select-none z-10">✦</motion.div>
+
+        {/* Canva Logo + PRO Badge */}
+        <div className="relative z-20 flex items-center justify-center gap-1.5 drop-shadow-xl mt-2">
+          <h1 className="text-[52px] font-bold text-white tracking-tighter" style={{ fontFamily: 'Georgia, serif' }}>
+            Canva
+          </h1>
+          <motion.div 
+            initial={{ scale: 0.8, rotate: 0 }}
+            animate={{ scale: 1, rotate: 3 }}
+            transition={{ type: "spring", bounce: 0.5, delay: 0.2 }}
+            className="bg-gradient-to-tr from-[#FFD700] via-[#F59E0B] to-[#FFD700] text-[#5B3A00] font-black text-[11px] px-2 py-0.5 rounded-[6px] uppercase tracking-widest shadow-[0_4px_10px_rgba(245,158,11,0.4)] -mt-8 border border-yellow-200/50"
+          >
+            Pro
+          </motion.div>
+        </div>
+      </div>
+
+      {/* ========================================================= */}
+      {/* 📍 ADMIN HEADER BAR (Header Bottom)                       */}
+      {/* ========================================================= */}
+      <div className="bg-white px-4 py-4 flex items-center gap-3 shadow-sm border-b border-gray-100 relative z-30">
+        <button onClick={() => navigate('/profile')} className="text-gray-500 hover:bg-gray-100 p-1.5 rounded-lg active:scale-95 transition-all">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
         </button>
-        <h1 className="text-[17px] font-black text-[#1F2937] flex items-center gap-2">
-          ⚙️ Master Admin
+        <h1 className="text-[16px] font-black text-gray-900 flex items-center gap-2">
+          <span className="text-[18px]">⚙️</span> Master Admin
         </h1>
       </div>
 
-      <div className="px-4 pt-5 space-y-4">
+      <div className="px-4 pt-5 space-y-4 relative z-30">
         
         {/* Real-time Stats Grid */}
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-white rounded-[20px] p-5 shadow-sm border border-gray-100 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-16 h-16 bg-purple-50 rounded-full blur-2xl -mr-6 -mt-6"></div>
+            <div className="absolute top-0 right-0 w-16 h-16 bg-purple-50 rounded-full blur-2xl -mr-6 -mt-6 z-0 pointer-events-none"></div>
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 relative z-10">Total Users</p>
             <div className="text-3xl font-black text-[#6200EA] relative z-10">{totalUsers.toLocaleString()}</div>
           </div>
           <div className="bg-white rounded-[20px] p-5 shadow-sm border border-gray-100 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-16 h-16 bg-orange-50 rounded-full blur-2xl -mr-6 -mt-6"></div>
+            <div className="absolute top-0 right-0 w-16 h-16 bg-orange-50 rounded-full blur-2xl -mr-6 -mt-6 z-0 pointer-events-none"></div>
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 relative z-10">Redemptions</p>
             <div className="text-3xl font-black text-[#E65100] relative z-10">{totalRedemptions.toLocaleString()}</div>
           </div>
