@@ -10,33 +10,36 @@ export function TelegramProvider({ children }) {
   const tgUser = tg?.initDataUnsafe?.user;
   
   // 🚨 BROWSER BLOCKER 🚨
+  // If there is no Telegram User ID, it means they opened the link in Safari/Chrome.
   const isBrowser = !tgUser?.id && !import.meta.env.DEV;
 
   if (isBrowser) {
     return (
-      <div className="min-h-[100dvh] bg-[#F3F4F6] flex flex-col items-center justify-center p-6 font-sans">
-        <div className="bg-white p-8 rounded-[24px] shadow-sm border border-gray-100 max-w-sm w-full text-center">
-          {/* Professional SVG Warning Icon */}
-          <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-5 text-red-500">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-          </div>
-          
-          <h1 className="text-xl font-black text-gray-900 mb-2 tracking-tight">
-            Telegram Required
-          </h1>
-          <p className="text-[13px] text-gray-500 font-medium mb-8 leading-relaxed">
-            This mini app is securely linked to Telegram. Please open it directly through our official bot.
-          </p>
-
-          <a 
-            href="https://telegram.me/CanvaProMiniApp" 
-            className="block w-full bg-[#2481cc] hover:bg-[#1d6ba8] active:scale-[0.98] transition-all text-white font-bold py-3.5 rounded-xl shadow-md"
-          >
-            Open in Telegram
-          </a>
+      <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#05030A] text-white px-6 select-none overflow-hidden text-center">
+        {/* Ambient Red/Purple Error Glow */}
+        <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-red-600/15 rounded-full blur-[120px] pointer-events-none"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-80 h-80 bg-[#6200EA]/15 rounded-full blur-[100px] pointer-events-none"></div>
+        
+        {/* Error Icon */}
+        <div className="w-24 h-24 bg-red-500/10 rounded-full flex items-center justify-center mb-6 border border-red-500/20 shadow-[0_0_30px_rgba(220,38,38,0.15)] z-10">
+          <span className="text-4xl drop-shadow-md">⚠️</span>
         </div>
+        
+        {/* Error Typography */}
+        <h1 className="text-2xl font-black tracking-tight text-white mb-3 drop-shadow-md z-10">
+          Telegram Required
+        </h1>
+        <p className="text-[13px] font-medium text-gray-400 max-w-[280px] leading-relaxed mb-10 z-10">
+          This app is securely linked to Telegram. Please open it directly through our official bot.
+        </p>
+
+        {/* Action Button */}
+        <a 
+          href="https://telegram.me/CanvaProMiniApp" 
+          className="relative overflow-hidden group bg-gradient-to-r from-[#6200EA] to-[#00E5FF] text-white font-black py-4 px-10 rounded-2xl shadow-[0_0_30px_rgba(0,229,255,0.3)] active:scale-95 transition-all z-10 flex items-center gap-2"
+        >
+          <span className="text-xl">✈️</span> Open in Telegram
+        </a>
       </div>
     );
   }
@@ -64,16 +67,16 @@ export function TelegramProvider({ children }) {
       tg.expand();
     }
 
-    // Snappy, realistic loading progress
+    // Smoothly increment progress to simulate complex loading
     const interval = setInterval(() => {
       setLoadingProgress(prev => {
-        if (prev >= 90) {
+        if (prev >= 88) {
           clearInterval(interval);
-          return 90;
+          return 88; // Hold at 88% until DB finishes
         }
-        return prev + 15; 
+        return prev + (Math.random() * 15 + 5); 
       });
-    }, 100);
+    }, 250);
 
     const tgIdStr = String(initialUser.telegramId);
 
@@ -105,13 +108,16 @@ export function TelegramProvider({ children }) {
           setUser(prev => ({ ...prev, points: localPts, streak: localStreak, last_checkin: localDate }));
         }
         setIsReady(true); 
-      }, 300); // Quick fade out for a snappy app feel
+      }, 600); // Wait for 100% animation to finish
     });
   }, []);
 
-  let statusText = "Connecting...";
-  if (loadingProgress > 40) statusText = "Syncing profile...";
-  if (loadingProgress > 80) statusText = "Ready";
+  // Dynamic Status Text based on progress
+  let statusText = "Initializing Core...";
+  if (loadingProgress > 25) statusText = "Authenticating Telegram Session...";
+  if (loadingProgress > 55) statusText = "Syncing Cloud Database...";
+  if (loadingProgress > 85) statusText = "Preparing Your VIP Dashboard...";
+  if (loadingProgress === 100) statusText = "Access Granted! 🚀";
 
   return (
     <TelegramContext.Provider value={{ user, setUser }}>
@@ -119,34 +125,110 @@ export function TelegramProvider({ children }) {
         {!isReady && (
           <motion.div 
             initial={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#F9FAFB]"
+            exit={{ opacity: 0, filter: "blur(10px)" }}
+            transition={{ duration: 0.6, ease: "easeInOut" }}
+            className="fixed inset-0 z-[9999] flex flex-col items-center justify-between bg-[#05030A] text-white px-6 py-12 select-none overflow-hidden"
           >
-            {/* Clean, Modern Spinner */}
-            <div className="relative w-14 h-14 mb-6">
-              <motion.div 
-                animate={{ rotate: 360 }}
-                transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-                className="w-full h-full rounded-full border-[3px] border-gray-200 border-t-[#6200EA]"
-              />
+            {/* --- AMBIENT BACKGROUND & PARTICLES --- */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+              <div className="absolute top-[-20%] left-[-10%] w-96 h-96 bg-[#6200EA]/20 rounded-full blur-[120px] mix-blend-screen animate-pulse"></div>
+              <div className="absolute bottom-[-10%] right-[-10%] w-80 h-80 bg-[#00E5FF]/15 rounded-full blur-[100px] mix-blend-screen"></div>
+              
+              {/* Floating Light Orbs */}
+              <motion.div animate={{ y: [-20, 20, -20], x: [-10, 10, -10], opacity: [0.3, 0.8, 0.3] }} transition={{ repeat: Infinity, duration: 4 }} className="absolute top-[30%] left-[20%] w-2 h-2 bg-cyan-300 rounded-full blur-[2px]"></motion.div>
+              <motion.div animate={{ y: [20, -20, 20], x: [15, -15, 15], opacity: [0.2, 0.6, 0.2] }} transition={{ repeat: Infinity, duration: 5, delay: 1 }} className="absolute top-[60%] right-[25%] w-3 h-3 bg-purple-400 rounded-full blur-[3px]"></motion.div>
             </div>
-            
-            <h1 className="text-lg font-black text-gray-900 tracking-tight mb-1">
-              Canva Pro App
-            </h1>
-            <p className="text-[13px] font-medium text-gray-500">
-              {statusText}
-            </p>
 
-            {/* Minimalist Progress Bar */}
-            <div className="w-48 h-1 bg-gray-200 rounded-full mt-6 overflow-hidden">
-              <motion.div 
-                className="h-full bg-[#6200EA]"
-                animate={{ width: `${loadingProgress}%` }}
-                transition={{ ease: "easeOut", duration: 0.2 }}
-              />
-            </div>
+            {/* --- TOP BRANDING --- */}
+            <motion.div 
+              initial={{ y: -30, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+              className="flex flex-col items-center mt-10 z-10"
+            >
+              <h1 className="text-2xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-white via-purple-100 to-cyan-200 drop-shadow-lg">
+                CANVA PRO APP
+              </h1>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="w-8 h-[1px] bg-gradient-to-r from-transparent to-purple-500"></span>
+                <p className="text-[9px] font-bold text-purple-300 tracking-[0.3em] uppercase">
+                  VIP Access
+                </p>
+                <span className="w-8 h-[1px] bg-gradient-to-l from-transparent to-cyan-500"></span>
+              </div>
+            </motion.div>
+
+            {/* --- CENTER HOLOGRAPHIC SPINNER --- */}
+            <motion.div 
+              initial={{ scale: 0.7, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.7, delay: 0.2, type: "spring" }}
+              className="relative flex flex-col items-center justify-center z-10 my-auto"
+            >
+              <div className="relative w-36 h-36 flex items-center justify-center">
+                
+                {/* Outer Dashed Orbit */}
+                <motion.div 
+                  animate={{ rotate: -360 }}
+                  transition={{ repeat: Infinity, duration: 8, ease: "linear" }}
+                  className="absolute inset-0 rounded-full border border-dashed border-white/20"
+                />
+
+                {/* Middle Fast Gradient Ring */}
+                <motion.div 
+                  animate={{ rotate: 360 }}
+                  transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+                  className="absolute inset-2 rounded-full border-2 border-transparent border-t-[#00E5FF] border-b-[#6200EA] opacity-80"
+                />
+                
+                {/* Inner Glowing Core */}
+                <div className="absolute inset-6 rounded-full bg-gradient-to-tr from-[#6200EA]/20 to-[#00E5FF]/20 backdrop-blur-xl border border-white/10 flex items-center justify-center shadow-[0_0_30px_rgba(98,0,234,0.3)]">
+                  <motion.div 
+                    animate={{ scale: [1, 1.15, 1], rotate: [0, 5, -5, 0] }}
+                    transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
+                    className="text-4xl drop-shadow-[0_0_15px_rgba(255,255,255,0.6)]"
+                  >
+                    👑
+                  </motion.div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* --- BOTTOM PROGRESS SYSTEM --- */}
+            <motion.div 
+              initial={{ y: 30, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.8, delay: 0.4 }}
+              className="w-full max-w-[280px] z-10 mb-8"
+            >
+              {/* Dynamic Text */}
+              <div className="text-center mb-4">
+                <p className="text-[11px] font-bold text-cyan-100 tracking-wider uppercase drop-shadow-md">
+                  {statusText}
+                </p>
+              </div>
+
+              {/* Progress Bar Container */}
+              <div className="relative w-full h-2 bg-white/5 rounded-full overflow-hidden border border-white/10 shadow-inner">
+                {/* Glowing Progress Fill */}
+                <motion.div 
+                  className="absolute top-0 left-0 h-full bg-gradient-to-r from-[#6200EA] via-[#9D4EDD] to-[#00E5FF] shadow-[0_0_15px_rgba(0,229,255,0.8)]"
+                  animate={{ width: `${Math.min(loadingProgress, 100)}%` }}
+                  transition={{ ease: "easeOut", duration: 0.3 }}
+                />
+              </div>
+
+              {/* Data readout */}
+              <div className="flex justify-between items-center mt-2 px-1">
+                <span className="text-[8px] text-white/40 font-mono tracking-widest">
+                  SYS.SYNC
+                </span>
+                <span className="text-[10px] font-black font-mono text-cyan-300">
+                  {Math.round(Math.min(loadingProgress, 100))}%
+                </span>
+              </div>
+            </motion.div>
+
           </motion.div>
         )}
       </AnimatePresence>
