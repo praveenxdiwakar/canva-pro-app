@@ -14,7 +14,7 @@ export default function ProUsers() {
   const fetchProUsers = async () => {
     setLoading(true);
     try {
-      // 1. Fetch all redemptions (latest first)
+      // 1. Fetch all redemptions
       const { data: redemptions, error: rErr } = await supabase
         .from('redemptions')
         .select('*')
@@ -22,7 +22,7 @@ export default function ProUsers() {
 
       if (rErr) console.error("Redemption fetch error:", rErr);
 
-      // 2. Fetch all users (Select * prevents any missing column crashes)
+      // 2. Fetch all users
       const { data: users, error: uErr } = await supabase
         .from('users')
         .select('*');
@@ -30,21 +30,25 @@ export default function ProUsers() {
       if (uErr) console.error("Users fetch error:", uErr);
 
       if (redemptions) {
-        const safeUsers = users || []; // Fallback to empty array if error
+        const safeUsers = users || [];
 
-        // 3. Merge the data and calculate status
+        // 3. Merge the data with BULLETPROOF matching
         const mergedData = redemptions.map(redemption => {
           
-          // BULLETPROOF CHECK: Find user by telegram_id OR standard id
+          // Check both formats for the redemption ID
+          const redempId = String(redemption.telegram_id || redemption.telegramId || "");
+
+          // Find the user by checking ALL possible ID columns
           const userProfile = safeUsers.find(u => 
-            String(u.telegram_id) === String(redemption.telegram_id) || 
-            String(u.id) === String(redemption.telegram_id)
+            String(u.telegram_id) === redempId || 
+            String(u.telegramId) === redempId || 
+            String(u.id) === redempId
           ) || {};
           
           return {
             ...redemption,
             user: userProfile,
-            statusInfo: calculateStatus(redemption.expires_at)
+            statusInfo: calculateStatus(redemption.expires_at || redemption.expiresAt)
           };
         });
         
@@ -167,11 +171,18 @@ export default function ProUsers() {
         ) : (
           <AnimatePresence>
             {filteredUsers.map((item, index) => {
-              // Safety checks in case the user data is still slightly broken
-              const firstName = item.user?.first_name || "Unknown";
-              const lastName = item.user?.last_name ? ` ${item.user.last_name}` : "";
-              const username = item.user?.username ? `@${item.user.username}` : "@user";
+              
+              // BULLETPROOF NAME CHECKER (Checks both camelCase and snake_case)
+              const firstName = item.user?.first_name || item.user?.firstName || "Unknown";
+              const rawLastName = item.user?.last_name || item.user?.lastName || "";
+              const lastName = rawLastName ? ` ${rawLastName}` : "";
+              const rawUsername = item.user?.username || item.user?.userName || "";
+              const username = rawUsername ? `@${rawUsername}` : "@user";
+              
               const initial = firstName.charAt(0).toUpperCase();
+
+              // Safe fallback for tier days
+              const claimedDays = item.tier_id === 1 ? '7 Days' : item.tier_id === 2 ? '15 Days' : item.tier_id === 3 ? '30 Days' : 'Pro';
 
               return (
                 <motion.div 
@@ -184,8 +195,8 @@ export default function ProUsers() {
                   {/* User Info Left Side */}
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 bg-purple-50 rounded-full border-2 border-purple-100 overflow-hidden flex-shrink-0 flex items-center justify-center relative z-10">
-                      {item.user?.photo_url ? (
-                        <img src={item.user.photo_url} alt="Avatar" className="w-full h-full object-cover" />
+                      {item.user?.photo_url || item.user?.photoUrl ? (
+                        <img src={item.user.photo_url || item.user.photoUrl} alt="Avatar" className="w-full h-full object-cover" />
                       ) : (
                         <span className="text-sm font-black text-purple-400">
                           {initial}
@@ -201,10 +212,10 @@ export default function ProUsers() {
                       </p>
                       <div className="flex items-center gap-1.5">
                         <span className="text-[9px] font-bold bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">
-                          {item.tier_id === 1 ? '7 Days' : item.tier_id === 2 ? '15 Days' : '30 Days'} Pro
+                          {claimedDays}
                         </span>
                         <span className="text-[8px] text-gray-400">
-                          Claimed: {new Date(item.created_at).toLocaleDateString()}
+                          Claimed: {new Date(item.created_at || item.createdAt).toLocaleDateString()}
                         </span>
                       </div>
                     </div>
