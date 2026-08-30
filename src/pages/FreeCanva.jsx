@@ -17,17 +17,34 @@ export default function FreeCanva() {
   const [timeLeft, setTimeLeft] = useState("");
 
   useEffect(() => {
-    // 1. Check for Active Premium Subscriptions (7, 15, 30 Days)
+    // 1. Check for Active Premium Subscriptions (WITH LOCAL BACKUP)
     if (user?.telegramId) {
+      const tgIdStr = String(user.telegramId);
+
+      // --- INSTANT LOCAL LOAD ---
+      const localPremium = localStorage.getItem(`canva_premium_${tgIdStr}`);
+      if (localPremium) {
+        const parsed = JSON.parse(localPremium);
+        if (new Date(parsed.expires_at) > new Date()) {
+          setActiveSub(parsed);
+          setLoadingSub(false);
+        }
+      }
+
+      // --- CLOUD SYNC ---
       supabase
         .from('redemptions')
         .select('*')
-        .eq('telegram_id', String(user.telegramId))
+        .eq('telegram_id', tgIdStr)
         .gte('expires_at', new Date().toISOString())
         .order('expires_at', { ascending: false })
-        .then(({ data }) => {
+        .then(({ data, error }) => {
           if (data && data.length > 0) {
-            setActiveSub(data[0]); // User is Premium!
+            setActiveSub(data[0]);
+            localStorage.setItem(`canva_premium_${tgIdStr}`, JSON.stringify(data[0]));
+          } else if (!error && data?.length === 0) {
+            setActiveSub(null);
+            localStorage.removeItem(`canva_premium_${tgIdStr}`);
           }
           setLoadingSub(false);
         });
@@ -69,6 +86,7 @@ export default function FreeCanva() {
       if (difference <= 0) {
         clearInterval(interval);
         setActiveSub(null); // Sub expired, revert to free version!
+        if (user?.telegramId) localStorage.removeItem(`canva_premium_${String(user.telegramId)}`);
         setTimeLeft("");
       } else {
         const d = Math.floor(difference / (1000 * 60 * 60 * 24));
@@ -79,7 +97,7 @@ export default function FreeCanva() {
       }
     }, 1000);
     return () => clearInterval(interval);
-  }, [activeSub]);
+  }, [activeSub, user?.telegramId]);
 
   const openExternalLink = (url) => {
     const tg = window.Telegram?.WebApp;

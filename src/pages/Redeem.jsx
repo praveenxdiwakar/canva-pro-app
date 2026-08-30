@@ -31,18 +31,36 @@ export default function Redeem() {
   const firstRewardCost = 20;
   const mainProgress = Math.min(100, Math.round((currentPoints / firstRewardCost) * 100));
 
-  // 1. Fetch Active Subscription on Load
+  // 1. Fetch Active Subscription on Load (WITH INSTANT LOCAL BACKUP)
   useEffect(() => {
     if (user?.telegramId) {
+      const tgIdStr = String(user.telegramId);
+
+      // --- INSTANT LOCAL LOAD ---
+      const localPremium = localStorage.getItem(`canva_premium_${tgIdStr}`);
+      if (localPremium) {
+        const parsed = JSON.parse(localPremium);
+        // Only load if it hasn't expired
+        if (new Date(parsed.expires_at) > new Date()) {
+          setActiveSub(parsed);
+          setLoadingSub(false);
+        }
+      }
+
+      // --- CLOUD SYNC ---
       supabase
         .from('redemptions')
         .select('*')
-        .eq('telegram_id', String(user.telegramId))
+        .eq('telegram_id', tgIdStr)
         .gte('expires_at', new Date().toISOString())
         .order('expires_at', { ascending: false })
-        .then(({ data }) => {
+        .then(({ data, error }) => {
           if (data && data.length > 0) {
             setActiveSub(data[0]);
+            localStorage.setItem(`canva_premium_${tgIdStr}`, JSON.stringify(data[0])); // Update backup
+          } else if (!error && data?.length === 0) {
+            setActiveSub(null);
+            localStorage.removeItem(`canva_premium_${tgIdStr}`); // Clear backup if expired
           }
           setLoadingSub(false);
         });
@@ -59,6 +77,7 @@ export default function Redeem() {
       if (difference <= 0) {
         clearInterval(interval);
         setActiveSub(null); // Subscription expired! Show tiers again.
+        if (user?.telegramId) localStorage.removeItem(`canva_premium_${String(user.telegramId)}`);
         setTimeLeft("");
       } else {
         const d = Math.floor(difference / (1000 * 60 * 60 * 24));
@@ -69,19 +88,12 @@ export default function Redeem() {
       }
     }, 1000);
     return () => clearInterval(interval);
-  }, [activeSub]);
+  }, [activeSub, user?.telegramId]);
 
-  // Bulletproof Link Opener for Telegram
   const openExternalLink = (url) => {
     const tg = window.Telegram?.WebApp;
-    if (tg && tg.openLink) {
-      tg.openLink(url);
-    } else {
-      const a = document.createElement('a');
-      a.href = url;
-      a.target = '_blank';
-      a.click();
-    }
+    if (tg && tg.openLink) { tg.openLink(url); } 
+    else { const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.click(); }
   };
 
   const executeRedemption = async () => {
@@ -97,8 +109,9 @@ export default function Redeem() {
         setLoading(false); return;
       }
 
-      // Find an available Canva link
-      const { data: links } = await supabase.from('canva_links').select('*');
+      const { data: links, error: linkErr } = await supabase.from('canva_links').select('*');
+      if (linkErr) throw linkErr;
+      
       const availableLink = links?.find(l => l.used_slots < l.total_slots);
 
       if (!availableLink) {
@@ -109,14 +122,6 @@ export default function Redeem() {
       const newPoints = currentPoints - cost;
       const finalUrl = availableLink.url || availableLink.invitelink;
 
-      // Deduct Points (Dual-Save)
-      await supabase.from('users').update({ points: newPoints }).eq('telegram_id', tgIdStr);
-      localStorage.setItem(`canva_pts_${tgIdStr}`, newPoints);
-
-      // Increment Used Slots
-      await supabase.from('canva_links').update({ used_slots: availableLink.used_slots + 1 }).eq('id', availableLink.id);
-
-      // Log Redemption in History
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + days);
 
@@ -129,15 +134,33 @@ export default function Redeem() {
         expires_at: expiresAt.toISOString()
       };
 
-      await supabase.from('redemptions').insert([newRedemption]);
+      const { error: insertError } = await supabase.from('redemptions').insert([newRedemption]);
+      
+      if (insertError) {
+        console.error("DB Insert Error:", insertError);
+        throw new Error("Failed to save redemption to cloud. Please try again.");
+      }
 
-      // Update UI, Set Active Sub, & SHOW CELEBRATION!
+      // Deduct Points
+      await supabase.from('users').update({ points: newPoints }).eq('telegram_id', tgIdStr);
+      localStorage.setItem(`canva_pts_${tgIdStr}`, newPoints);
+
+      // INSTANT PREMIUM LOCAL BACKUP
+      localStorage.setItem(`canva_premium_${tgIdStr}`, JSON.stringify(newRedemption));
+
+      // Increment Used Slots
+      await supabase.from('canva_links').update({ used_slots: availableLink.used_slots + 1 }).eq('id', availableLink.id);
+
+      // Log to Task History
+      await supabase.from('task_history').insert([{ telegram_id: tgIdStr, task_name: `Redeemed ${days} Days Pro`, points_earned: -cost, icon: '💎' }]);
+
+      // Update UI
       setUser({ ...user, points: newPoints });
-      setActiveSub(newRedemption); // Instantly switches UI to VIP Card
+      setActiveSub(newRedemption); 
       setCelebration({ isOpen: true, message: `You successfully unlocked Canva Pro for ${days} Days!`, link: finalUrl, days });
 
     } catch (err) {
-      setErrorModal({ isOpen: true, message: "A network error occurred. Please try again." });
+      setErrorModal({ isOpen: true, message: err.message || "A network error occurred. Please try again." });
     }
     setLoading(false);
   };
@@ -185,9 +208,7 @@ export default function Redeem() {
           <div className="text-center py-10 text-gray-400 font-bold">Checking subscription status...</div>
         ) : activeSub ? (
           
-          /* ========================================================= */
-          /* 💎 VIP PREMIUM CARD (Hides purchase options while active) */
-          /* ========================================================= */
+          /* VIP PREMIUM CARD */
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-gradient-to-br from-[#FFD700] to-[#F59E0B] rounded-[24px] px-5 py-8 border border-yellow-300 shadow-lg text-center relative overflow-hidden">
             <div className="absolute top-0 right-0 -mt-2 -mr-2 text-7xl opacity-20">👑</div>
             <h2 className="text-2xl font-black text-white mb-2 drop-shadow-sm relative z-10">Premium Active!</h2>
@@ -208,9 +229,7 @@ export default function Redeem() {
 
         ) : (
 
-          /* ========================================================= */
-          /* 🛒 TIERS LIST (Only shows when user is NOT premium)       */
-          /* ========================================================= */
+          /* TIERS LIST */
           <>
             {tiers.map(tier => {
               const progress = Math.min(100, Math.round((currentPoints / tier.pointsCost) * 100));
@@ -272,9 +291,7 @@ export default function Redeem() {
             {/* KEEP EARNING SECTION */}
             <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100 mt-4">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 flex items-center justify-center text-3xl drop-shadow-sm">
-                  🎯
-                </div>
+                <div className="w-10 h-10 flex items-center justify-center text-3xl drop-shadow-sm">🎯</div>
                 <div>
                   <h3 className="font-black text-gray-900 text-[15px] leading-tight mb-0.5">Keep earning!</h3>
                   <p className="text-[11px] text-gray-500 font-medium">Watch ads · Complete tasks</p>
