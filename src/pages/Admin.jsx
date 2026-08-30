@@ -18,6 +18,11 @@ export default function Admin() {
   const [newLink, setNewLink] = useState({ name: '', url: '', totalSlots: 100 });
   const [addingLink, setAddingLink] = useState(false);
 
+  // Dynamic Tasks State
+  const [customTasks, setCustomTasks] = useState([]);
+  const [newTask, setNewTask] = useState({ title: '', description: '', icon: '📱', action_url: '', points_reward: 5, requires_ad: true, is_daily: false });
+  const [addingTask, setAddingTask] = useState(false);
+
   useEffect(() => {
     fetchInitialData();
 
@@ -47,10 +52,18 @@ export default function Admin() {
       })
       .subscribe();
 
+    // 4. Listen for Dynamic Tasks updates
+    const tasksSubscription = supabase.channel('tasks-channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'dynamic_tasks' }, () => {
+        fetchTasks();
+      })
+      .subscribe();
+
     return () => {
       supabase.removeChannel(usersSubscription);
       supabase.removeChannel(redemptionsSubscription);
       supabase.removeChannel(linksSubscription);
+      supabase.removeChannel(tasksSubscription);
     };
   }, []);
 
@@ -68,11 +81,17 @@ export default function Admin() {
     if (adData) setZoneId(adData.value);
 
     fetchLinks();
+    fetchTasks();
   };
 
   const fetchLinks = async () => {
     const { data } = await supabase.from('canva_links').select('*').order('id', { ascending: false });
     if (data) setLinks(data);
+  };
+
+  const fetchTasks = async () => {
+    const { data } = await supabase.from('dynamic_tasks').select('*').order('created_at', { ascending: false });
+    if (data) setCustomTasks(data);
   };
 
   // --- ACTIONS ---
@@ -107,19 +126,34 @@ export default function Admin() {
       if (error) throw error;
       
       setNewLink({ name: '', url: '', totalSlots: 100 }); // Reset form
-      // No need to fetchLinks manually; the real-time subscription will update the list!
     } catch (err) {
       alert(`❌ Error saving link: ${err.message}`);
     }
     setAddingLink(false);
   };
 
-  const handleDeleteLink = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this link?")) return;
+  const handleAddCustomTask = async () => {
+    if (!newTask.title || !newTask.action_url) return alert("Title and Action URL are required!");
+    setAddingTask(true);
     try {
-      await supabase.from('canva_links').delete().eq('id', id);
+      const { error } = await supabase.from('dynamic_tasks').insert([newTask]);
+      if (error) throw error;
+      
+      setNewTask({ title: '', description: '', icon: '📱', action_url: '', points_reward: 5, requires_ad: true, is_daily: false });
+      alert("✅ Custom task added instantly!");
     } catch (err) {
-      alert("Error deleting link.");
+      alert(`❌ Error saving task: ${err.message}`);
+    }
+    setAddingTask(false);
+  };
+
+  // Unified Delete Function for both Links and Tasks
+  const deleteRecord = async (table, id) => {
+    if (!window.confirm("Are you sure you want to delete this item?")) return;
+    try {
+      await supabase.from(table).delete().eq('id', id);
+    } catch (err) {
+      alert(`Error deleting from ${table}.`);
     }
   };
 
@@ -172,6 +206,105 @@ export default function Admin() {
             </button>
           </div>
           <p className="text-[10px] text-gray-400 font-medium mt-2 ml-1">This Zone ID activates the ads across the entire app dynamically.</p>
+        </div>
+
+        {/* 🚀 DYNAMIC TASK GENERATOR */}
+        <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100">
+          <h2 className="font-black text-[14px] text-gray-800 flex items-center gap-2 mb-4">🚀 Custom Task Generator</h2>
+          
+          {/* Add Task Form */}
+          <div className="bg-blue-50/50 rounded-2xl p-4 border border-blue-100 mb-5 space-y-3">
+            <div className="flex gap-2">
+              <input 
+                type="text" 
+                placeholder="Emoji (📱)" 
+                value={newTask.icon}
+                onChange={(e) => setNewTask({...newTask, icon: e.target.value})}
+                className="w-16 text-center bg-white border border-gray-200 text-gray-900 rounded-xl px-2 py-3 text-lg outline-none focus:border-blue-400"
+              />
+              <input 
+                type="text" 
+                placeholder="Task Title (e.g. Download App)" 
+                value={newTask.title}
+                onChange={(e) => setNewTask({...newTask, title: e.target.value})}
+                className="flex-1 bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400"
+              />
+            </div>
+            
+            <input 
+              type="text" 
+              placeholder="Description (e.g. Install & Open the app)" 
+              value={newTask.description}
+              onChange={(e) => setNewTask({...newTask, description: e.target.value})}
+              className="w-full bg-white border border-gray-200 text-gray-900 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400"
+            />
+            
+            <input 
+              type="text" 
+              placeholder="Action URL (e.g. https://play.google.com/...)" 
+              value={newTask.action_url}
+              onChange={(e) => setNewTask({...newTask, action_url: e.target.value})}
+              className="w-full bg-white border border-gray-200 text-gray-900 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400"
+            />
+            
+            <div className="flex gap-3 items-end">
+              <div className="flex-1">
+                <label className="text-[10px] font-bold text-gray-500 ml-1 block mb-1">Points Reward</label>
+                <input 
+                  type="number" 
+                  value={newTask.points_reward}
+                  onChange={(e) => setNewTask({...newTask, points_reward: parseInt(e.target.value) || 0})}
+                  className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5 flex-1 pb-1">
+                <label className="flex items-center gap-2 text-[10px] font-bold text-gray-600 cursor-pointer">
+                  <input type="checkbox" checked={newTask.requires_ad} onChange={(e) => setNewTask({...newTask, requires_ad: e.target.checked})} className="accent-blue-600 w-4 h-4" /> 
+                  Require Ad
+                </label>
+                <label className="flex items-center gap-2 text-[10px] font-bold text-gray-600 cursor-pointer">
+                  <input type="checkbox" checked={newTask.is_daily} onChange={(e) => setNewTask({...newTask, is_daily: e.target.checked})} className="accent-blue-600 w-4 h-4" /> 
+                  Daily Task
+                </label>
+              </div>
+            </div>
+            
+            <button 
+              onClick={handleAddCustomTask}
+              disabled={addingTask}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded-xl shadow-md active:scale-95 transition-all mt-2"
+            >
+              {addingTask ? 'Saving...' : '➕ Create Custom Task'}
+            </button>
+          </div>
+
+          {/* Active Tasks List */}
+          <div className="space-y-3">
+            {customTasks.length === 0 ? (
+              <div className="text-center py-4 border-2 border-dashed border-gray-100 rounded-xl">
+                <p className="text-[12px] text-gray-400 font-medium">No custom tasks yet.</p>
+              </div>
+            ) : (
+              customTasks.map(task => (
+                <div key={task.id} className="bg-white border border-gray-200 rounded-xl p-3 flex justify-between items-center relative overflow-hidden">
+                  <div className="flex gap-3 items-center">
+                    <div className="text-xl bg-gray-50 p-2 rounded-lg border border-gray-100">
+                      {task.icon}
+                    </div>
+                    <div>
+                      <h3 className="font-black text-[13px] text-gray-900 leading-tight">{task.title}</h3>
+                      <p className="text-[10px] text-gray-400 font-medium mt-0.5">
+                        <span className="text-yellow-500 font-bold">+{task.points_reward} pts</span> • {task.is_daily ? 'Daily' : 'One-time'} • {task.requires_ad ? 'Ads On' : 'No Ads'}
+                      </p>
+                    </div>
+                  </div>
+                  <button onClick={() => deleteRecord('dynamic_tasks', task.id)} className="w-8 h-8 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-xs hover:bg-red-100 transition-colors">
+                    ✕
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
         </div>
 
         {/* Canva Links Management */}
@@ -232,7 +365,7 @@ export default function Admin() {
                         <h3 className="font-black text-[13px] text-gray-900 leading-tight mb-0.5">{link.name}</h3>
                         <p className="text-[10px] text-gray-400 font-medium truncate max-w-[200px]">{link.url}</p>
                       </div>
-                      <button onClick={() => handleDeleteLink(link.id)} className="w-7 h-7 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-xs absolute top-3 right-3 hover:bg-red-100">
+                      <button onClick={() => deleteRecord('canva_links', link.id)} className="w-7 h-7 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-xs absolute top-3 right-3 hover:bg-red-100">
                         ✕
                       </button>
                     </div>

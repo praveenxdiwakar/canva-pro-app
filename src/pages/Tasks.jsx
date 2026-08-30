@@ -9,28 +9,50 @@ export default function Tasks() {
   const { updatePoints, processCheckIn } = useTasks();
   const navigate = useNavigate();
   
-  // Wheel State
+  // States
   const [isSpinOpen, setIsSpinOpen] = useState(false);
   const [isSpinning, setIsSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [adZone, setAdZone] = useState("");
+  const [canCheckIn, setCanCheckIn] = useState(false);
+  const [checkInTimer, setCheckInTimer] = useState("");
+  const [mathA, setMathA] = useState(0);
+  const [mathB, setMathB] = useState(0);
+  const [mathOp, setMathOp] = useState('+');
+  const [mathAns, setMathAns] = useState('');
+  
+  // Dynamic Admin Tasks State
+  const [dynamicTasks, setDynamicTasks] = useState([]);
 
-  // Task Completion Tracker (Saves to device)
+  // Task Completion Tracker
   const [taskState, setTaskState] = useState({
-    ads1: 0, ads2: 0, spins: 0,
+    ads1: 0, ads2: 0, spins: 0, math: 0,
     channel1: false, channel2: false,
     lastDate: new Date().toDateString()
   });
   const [verifying, setVerifying] = useState(null);
 
-  // Load Task State & Dynamically Inject Monetag SDK
+  const generateMath = () => {
+    const ops = ['+', '-'];
+    const op = ops[Math.floor(Math.random() * ops.length)];
+    let a = Math.floor(Math.random() * 20) + 1;
+    let b = Math.floor(Math.random() * 20) + 1;
+    if (op === '-' && a < b) { let temp = a; a = b; b = temp; }
+    setMathA(a); setMathB(b); setMathOp(op); setMathAns('');
+  };
+
   useEffect(() => {
+    generateMath();
+
+    // Fetch Dynamic Tasks
+    supabase.from('dynamic_tasks').select('*').order('created_at', { ascending: true }).then(({data}) => {
+      if(data) setDynamicTasks(data);
+    });
+
     supabase.from('app_settings').select('value').eq('key', 'MONETAG_ZONE_ID').maybeSingle().then(({data}) => {
       if (data && data.value) {
         const zoneId = data.value;
         setAdZone(zoneId);
-
-        // Dynamically inject the script into the document head
         if (!document.getElementById(`monetag-sdk-${zoneId}`)) {
           const script = document.createElement('script');
           script.id = `monetag-sdk-${zoneId}`;
@@ -48,107 +70,102 @@ export default function Tasks() {
       if (savedTasks) {
         const parsed = JSON.parse(savedTasks);
         if (parsed.lastDate !== new Date().toDateString()) {
-          // Reset daily limits
-          parsed.ads1 = 0; parsed.ads2 = 0; parsed.spins = 0; parsed.lastDate = new Date().toDateString();
+          // Smart Reset: Reset all integers (daily tasks) to 0, keep booleans (one-time tasks)
+          Object.keys(parsed).forEach(key => {
+            if (key === 'lastDate' || typeof parsed[key] === 'boolean') return;
+            parsed[key] = 0; 
+          });
+          parsed.lastDate = new Date().toDateString();
         }
+        if (parsed.math === undefined) parsed.math = 0;
         setTaskState(parsed);
       }
     }
   }, [user?.telegramId]);
 
-  // Save Task State
+  // Strict 24-Hour Timer
   useEffect(() => {
-    if (user?.telegramId) localStorage.setItem(`tasks_${user.telegramId}`, JSON.stringify(taskState));
-  }, [taskState, user?.telegramId]);
+    if (!user?.last_checkin) { setCanCheckIn(true); return; }
+    const interval = setInterval(() => {
+      const diff = (new Date(user.last_checkin).getTime() + (24 * 60 * 60 * 1000)) - new Date().getTime();
+      if (diff <= 0) { setCanCheckIn(true); setCheckInTimer(""); clearInterval(interval); } 
+      else {
+        setCanCheckIn(false);
+        const h = Math.floor((diff / (1000 * 60 * 60)) % 24);
+        const m = Math.floor((diff / 1000 / 60) % 60);
+        const s = Math.floor((diff / 1000) % 60);
+        setCheckInTimer(`${h}h ${m}m ${s}s`);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [user?.last_checkin]);
+
+  useEffect(() => { if (user?.telegramId) localStorage.setItem(`tasks_${user.telegramId}`, JSON.stringify(taskState)); }, [taskState, user?.telegramId]);
 
   const prizes = [20, 0, 1, 0, 2, 0, 5, 1];
   const labels = ['+20', '0', '+1', '0', '+2', '0', '+5', '+1'];
-  
-  const todayStr = new Date().toDateString();
-  const hasCheckedInToday = user?.last_checkin === todayStr;
   const currentStreak = user?.streak || 0;
 
-  // Bulletproof Link Opener
   const openExternalLink = (url) => {
     const tg = window.Telegram?.WebApp;
-    if (tg && tg.openLink) {
-      tg.openLink(url);
-    } else {
-      const a = document.createElement('a');
-      a.href = url;
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    }
+    if (tg && tg.openLink) { tg.openLink(url); } 
+    else { const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; document.body.appendChild(a); a.click(); document.body.removeChild(a); }
   };
 
-  // --- UNIVERSAL AD TRIGGER ---
-  // Wraps any action with the Monetag SDK ad requirement
   const triggerAd = (onSuccess, onFail) => {
     const adFunctionName = `show_${adZone}`;
-
     if (adZone && typeof window[adFunctionName] === "function") {
-      window[adFunctionName]()
-        .then(() => {
-          onSuccess(); // Ad successfully watched
-        })
-        .catch(() => {
-          alert("⚠️ Ad failed to load. Please disable ad-blockers and try again.");
-          if (onFail) onFail();
-        });
+      window[adFunctionName]().then(() => onSuccess()).catch(() => { alert("⚠️ Ad failed to load."); if (onFail) onFail(); });
     } else {
-      // Fallback: Direct Link + Timer
       const adUrl = adZone ? `https://go.oclasrv.com/afu.php?zoneid=${adZone}` : "https://monetag.com";
       openExternalLink(adUrl);
-      setTimeout(() => {
-        onSuccess();
-      }, 6000); 
+      setTimeout(() => onSuccess(), 6000); 
     }
   };
 
-  // --- ACTION HANDLERS ---
-
+  // --- STANDARD HANDLERS ---
   const handleCheckIn = () => {
-    if (hasCheckedInToday) return alert("✅ You already checked in today! Come back tomorrow.");
-    
-    // Require ad before checking in
+    if (!canCheckIn) return alert(`⏳ Please wait ${checkInTimer} before checking in again!`);
     triggerAd(async () => {
       let newStreak = 1;
-      const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
-      
-      if (user?.last_checkin === yesterday.toDateString()) {
-        newStreak = Math.min(currentStreak + 1, 7);
-      } else if (user?.last_checkin) {
-        alert("⚠️ You missed a day! Your streak has reset to Day 1.");
-      }
-      
+      const now = new Date().getTime();
+      const lastTime = new Date(user?.last_checkin || 0).getTime();
+      if (user?.last_checkin && now - lastTime <= 48 * 60 * 60 * 1000) { newStreak = Math.min(currentStreak + 1, 7); } 
+      else if (user?.last_checkin) { alert("⚠️ You missed the 48-hour window! Your streak has reset to Day 1."); }
+      const todayIso = new Date().toISOString();
       const pointsEarned = [1, 1, 1, 2, 2, 2, 3][newStreak - 1];
-      const newTotal = await processCheckIn({ newStreak, dateStr: todayStr, pointsEarned });
-      setUser({ ...user, streak: newStreak, last_checkin: todayStr, points: newTotal });
+      const newTotal = await processCheckIn({ newStreak, dateStr: todayIso, pointsEarned });
+      setUser({ ...user, streak: newStreak, last_checkin: todayIso, points: newTotal });
       alert(`✅ Checked in for Day ${newStreak}! +${pointsEarned} Points`);
+    });
+  };
+
+  const handleMathSubmit = () => {
+    if (taskState.math >= 5) return alert("✅ Daily math limit reached! Come back tomorrow.");
+    const correctAns = mathOp === '+' ? mathA + mathB : mathA - mathB;
+    if (parseInt(mathAns) !== correctAns) return alert("❌ Incorrect answer! Please try again.");
+    triggerAd(async () => {
+      const newTotal = (user?.points || 0) + 1;
+      await updatePoints(newTotal, 'Solve & Earn', 1, '🧮');
+      setUser({ ...user, points: newTotal });
+      setTaskState(prev => ({ ...prev, math: (prev.math || 0) + 1 }));
+      generateMath();
+      alert("✅ Correct! +1 Point added.");
     });
   };
 
   const handleSpin = () => {
     if (isSpinning) return;
     if (taskState.spins >= 3) return alert("✅ Daily spin limit reached! Come back tomorrow.");
-
-    // Require ad before spinning
     triggerAd(() => {
       setIsSpinning(true);
       const prizeIndex = Math.floor(Math.random() * prizes.length);
       const won = prizes[prizeIndex];
       setRotation(rotation + (360 * 5) + (360 - (prizeIndex * 45)) - (rotation % 360));
-
       setTimeout(async () => {
         setIsSpinning(false);
         const newTotal = (user?.points || 0) + won;
-        
-        // Push History Details to updatePoints Hook
         await updatePoints(newTotal, 'Spin & Earn', won, '🎡');
-        
         setUser({ ...user, points: newTotal });
         setTaskState(prev => ({ ...prev, spins: (prev.spins || 0) + 1 }));
         alert(won > 0 ? `🎉 Congratulations! You won +${won} points!` : `😢 Oh no! You got 0 points. Try again next time.`);
@@ -158,15 +175,10 @@ export default function Tasks() {
 
   const handleWatchAd = (taskKey, maxCount) => {
     if (taskState[taskKey] >= maxCount) return alert("✅ Daily limit reached for this task!");
-    
-    // Require ad for points
     triggerAd(async () => {
       const newTotal = (user?.points || 0) + 1;
       const taskName = taskKey === 'ads1' ? 'Watch Ads 01' : 'Watch Ads 02';
-      
-      // Push History Details to updatePoints Hook
       await updatePoints(newTotal, taskName, 1, '📺');
-      
       setUser({ ...user, points: newTotal });
       setTaskState(prev => ({ ...prev, [taskKey]: prev[taskKey] + 1 }));
       alert("✅ Ad completed! +1 Point added.");
@@ -175,16 +187,11 @@ export default function Tasks() {
 
   const handleVerifyChannel = (channelKey, points) => {
     if (taskState[channelKey]) return alert("✅ You have already verified this channel!");
-    
     setVerifying(channelKey);
-    // Require ad to verify
     triggerAd(async () => {
       const newTotal = (user?.points || 0) + points;
       const channelName = channelKey === 'channel1' ? 'Join Channel 01' : 'Join Channel 02';
-      
-      // Push History Details to updatePoints Hook
       await updatePoints(newTotal, channelName, points, '📢');
-      
       setUser({ ...user, points: newTotal });
       setTaskState(prev => ({ ...prev, [channelKey]: true }));
       setVerifying(null);
@@ -192,20 +199,48 @@ export default function Tasks() {
     }, () => setVerifying(null));
   };
 
+  // --- DYNAMIC TASK HANDLER ---
+  const handleDynamicTask = (task) => {
+    const taskKey = `custom_${task.id}`;
+    
+    // Check Limits
+    if (!task.is_daily && taskState[taskKey] === true) return alert("✅ You have already completed this one-time task!");
+    if (task.is_daily && taskState[taskKey] >= 1) return alert("✅ You have already completed this daily task today! Come back tomorrow.");
+
+    setVerifying(taskKey);
+
+    const runTaskLogic = () => {
+      openExternalLink(task.action_url); // Send user to external URL
+      
+      // Simulate verifying time (wait 8 seconds for them to download/watch)
+      setTimeout(async () => {
+        const newTotal = (user?.points || 0) + task.points_reward;
+        
+        await updatePoints(newTotal, task.title, task.points_reward, task.icon);
+        setUser({ ...user, points: newTotal });
+        
+        // Save Completion (Boolean for one-time, Integer for daily)
+        setTaskState(prev => ({ ...prev, [taskKey]: task.is_daily ? 1 : true }));
+        setVerifying(null);
+        alert(`✅ Task Verified! +${task.points_reward} Points added.`);
+      }, 8000);
+    };
+
+    if (task.requires_ad) {
+      triggerAd(runTaskLogic, () => setVerifying(null));
+    } else {
+      runTaskLogic();
+    }
+  };
+
   return (
     <div className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24">
       {/* Header */}
       <div className="bg-white px-4 py-3 flex items-center justify-between border-b border-gray-100 shadow-sm relative z-10">
-        <h1 className="text-[17px] font-black text-gray-900 flex items-center gap-2">
-          <span className="text-red-500 text-xl">🎯</span> Earn Points
-        </h1>
+        <h1 className="text-[17px] font-black text-gray-900 flex items-center gap-2"><span className="text-red-500 text-xl">🎯</span> Earn Points</h1>
         <div className="flex gap-2">
-          <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 font-bold px-3 py-1.5 rounded-full text-xs flex items-center gap-1 shadow-sm">
-            ⭐ {user?.points || 0} pts
-          </div>
-          <button onClick={() => navigate('/reward-history')} className="bg-purple-100 text-purple-700 font-black px-4 py-1.5 rounded-full text-xs shadow-sm active:scale-95">
-            History
-          </button>
+          <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 font-bold px-3 py-1.5 rounded-full text-xs shadow-sm">⭐ {user?.points || 0} pts</div>
+          <button onClick={() => navigate('/reward-history')} className="bg-purple-100 text-purple-700 font-black px-4 py-1.5 rounded-full text-xs shadow-sm active:scale-95">History</button>
         </div>
       </div>
 
@@ -214,54 +249,83 @@ export default function Tasks() {
         {/* Next Canva Reward Progress */}
         <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100">
           <div className="flex justify-between items-center mb-2.5">
-            <div className="flex items-center gap-2">
-              <span className="text-xl">🏆</span>
-              <h2 className="font-black text-[15px] text-gray-900">Next Canva Reward</h2>
-            </div>
-            <span className="bg-purple-50 text-purple-600 font-black px-3 py-1 rounded-lg text-[11px] shadow-sm">
-              {user?.points || 0} / 20 pts
-            </span>
+            <div className="flex items-center gap-2"><span className="text-xl">🏆</span><h2 className="font-black text-[15px] text-gray-900">Next Canva Reward</h2></div>
+            <span className="bg-purple-50 text-purple-600 font-black px-3 py-1 rounded-lg text-[11px] shadow-sm">{user?.points || 0} / 20 pts</span>
           </div>
           <p className="text-[12px] text-gray-500 font-medium mb-3">Canva Pro • 7 Days</p>
-          <div className="w-full bg-gray-100 rounded-full h-2 mb-2.5 overflow-hidden">
-            <div className="bg-gray-200 h-2 rounded-full transition-all duration-500" style={{ width: `${Math.min(100, ((user?.points || 0) / 20) * 100)}%` }}></div>
-          </div>
-          <p className="text-[11px] text-gray-400 font-medium">
-            {Math.max(0, 20 - (user?.points || 0))} more points needed
-          </p>
+          <div className="w-full bg-gray-100 rounded-full h-2 mb-2.5 overflow-hidden"><div className="bg-gray-200 h-2 rounded-full transition-all duration-500" style={{ width: `${Math.min(100, ((user?.points || 0) / 20) * 100)}%` }}></div></div>
+          <p className="text-[11px] text-gray-400 font-medium">{Math.max(0, 20 - (user?.points || 0))} more points needed</p>
         </div>
 
-        {/* Spin & Earn (Accordion) */}
+        {/* ================================================= */}
+        {/* 🚀 NEW: DYNAMIC ADMIN TASKS SECTIONS              */}
+        {/* ================================================= */}
+        {dynamicTasks.length > 0 && (
+          <>
+            <div className="flex items-center gap-2 my-6">
+              <div className="h-[1px] bg-gray-200 flex-1"></div>
+              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Premium Tasks</span>
+              <div className="h-[1px] bg-gray-200 flex-1"></div>
+            </div>
+
+            {dynamicTasks.map((task) => {
+              const taskKey = `custom_${task.id}`;
+              const isCompleted = !task.is_daily ? taskState[taskKey] === true : taskState[taskKey] >= 1;
+              const isVerifying = verifying === taskKey;
+
+              return (
+                <div key={task.id} className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100 flex justify-between items-center relative overflow-hidden">
+                  <div className="flex items-center gap-4 relative z-10">
+                    <div className="w-[50px] h-[50px] rounded-full bg-blue-50 flex items-center justify-center text-2xl shadow-sm border border-blue-100">{task.icon}</div>
+                    <div>
+                      <h3 className="font-black text-gray-900 text-[15px] mb-0.5">{task.title}</h3>
+                      <p className="text-[11px] text-gray-500 font-medium">{task.description}</p>
+                      <div className="mt-1.5 flex gap-1.5">
+                        <span className="bg-yellow-100 text-yellow-700 text-[9px] font-black px-2 py-0.5 rounded uppercase">+{task.points_reward} pts</span>
+                        {task.is_daily && <span className="bg-gray-100 text-gray-600 text-[9px] font-black px-2 py-0.5 rounded uppercase">Daily</span>}
+                      </div>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => handleDynamicTask(task)}
+                    disabled={isCompleted || isVerifying}
+                    className={`relative z-10 font-black px-4 py-2.5 rounded-xl text-[11px] shadow-sm flex items-center gap-1 transition-all ${
+                      isCompleted ? 'bg-green-50 text-green-500 border border-green-200 shadow-none' : 
+                      isVerifying ? 'bg-gray-100 text-gray-500 border border-gray-200 shadow-none' : 
+                      'bg-blue-600 text-white active:scale-95'
+                    }`}
+                  >
+                    {isCompleted ? '✅ DONE' : isVerifying ? '⏳ WAIT...' : 'DO TASK'}
+                  </button>
+                </div>
+              );
+            })}
+
+            <div className="flex items-center gap-2 my-6">
+              <div className="h-[1px] bg-gray-200 flex-1"></div>
+              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Standard Tasks</span>
+              <div className="h-[1px] bg-gray-200 flex-1"></div>
+            </div>
+          </>
+        )}
+
+        {/* --- STANDARD TASKS BELOW --- */}
+
+        {/* Spin & Earn */}
         <div className={`bg-white rounded-[24px] p-5 shadow-sm border-2 transition-all ${isSpinOpen ? 'border-pink-100' : 'border-gray-100'} overflow-hidden`}>
           <div className="flex justify-between items-start cursor-pointer select-none" onClick={() => !isSpinning && setIsSpinOpen(!isSpinOpen)}>
-            <div>
-              <h2 className="font-black text-[15px] text-gray-900 flex items-center gap-2">🎡 Spin & Earn</h2>
-              <div className="flex gap-1 text-yellow-400 text-[10px] my-1.5">⭐⭐⭐</div>
-              <p className="text-[11px] text-gray-500 font-medium">{Math.max(0, 3 - (taskState.spins || 0))}/3 Spins Left</p>
-            </div>
-            {!isSpinOpen ? (
-              <span className="text-[#3B82F6] font-black text-[12px] mt-1">Tap to Spin ➔</span>
-            ) : (
-              <button className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 font-black hover:bg-gray-200">✕</button>
-            )}
+            <div><h2 className="font-black text-[15px] text-gray-900 flex items-center gap-2">🎡 Spin & Earn</h2><div className="flex gap-1 text-yellow-400 text-[10px] my-1.5">⭐⭐⭐</div><p className="text-[11px] text-gray-500 font-medium">{Math.max(0, 3 - (taskState.spins || 0))}/3 Spins Left</p></div>
+            {!isSpinOpen ? <span className="text-[#3B82F6] font-black text-[12px] mt-1">Tap to Spin ➔</span> : <button className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 font-black hover:bg-gray-200">✕</button>}
           </div>
-
           {isSpinOpen && (
             <div className="animate-in fade-in slide-in-from-top-4 duration-300">
               <div className="relative w-[220px] h-[220px] mx-auto my-8">
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[14px] border-r-[14px] border-b-[20px] border-l-transparent border-r-transparent border-b-gray-900 z-20"></div>
-                
-                <div className="w-full h-full rounded-full overflow-hidden border-[6px] border-white shadow-2xl relative"
-                  style={{ background: 'conic-gradient(from -22.5deg, #FCD34D 0deg 45deg, #E5E7EB 45deg 90deg, #6EE7B7 90deg 135deg, #E5E7EB 135deg 180deg, #93C5FD 180deg 225deg, #FCA5A5 225deg 270deg, #FDBA74 270deg 315deg, #C4B5FD 315deg 360deg)', transform: `rotate(${rotation}deg)`, transition: isSpinning ? 'transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99)' : 'none' }}>
-                  {labels.map((lbl, i) => (
-                    <div key={i} className="absolute w-full h-full text-center font-black text-[15px] pt-4 flex justify-center" style={{ transform: `rotate(${i * 45}deg)` }}>
-                      <span className={`drop-shadow-sm ${lbl === '0' ? 'text-gray-400' : 'text-gray-800/80'}`}>{lbl}</span>
-                    </div>
-                  ))}
+                <div className="w-full h-full rounded-full overflow-hidden border-[6px] border-white shadow-2xl relative" style={{ background: 'conic-gradient(from -22.5deg, #FCD34D 0deg 45deg, #E5E7EB 45deg 90deg, #6EE7B7 90deg 135deg, #E5E7EB 135deg 180deg, #93C5FD 180deg 225deg, #FCA5A5 225deg 270deg, #FDBA74 270deg 315deg, #C4B5FD 315deg 360deg)', transform: `rotate(${rotation}deg)`, transition: isSpinning ? 'transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99)' : 'none' }}>
+                  {labels.map((lbl, i) => (<div key={i} className="absolute w-full h-full text-center font-black text-[15px] pt-4 flex justify-center" style={{ transform: `rotate(${i * 45}deg)` }}><span className={`drop-shadow-sm ${lbl === '0' ? 'text-gray-400' : 'text-gray-800/80'}`}>{lbl}</span></div>))}
                   <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-full border-[6px] border-purple-500 shadow-md z-10"></div>
                 </div>
               </div>
-
               <button onClick={handleSpin} disabled={isSpinning || taskState.spins >= 3} className="w-full bg-[#111827] disabled:bg-gray-400 text-white font-black py-4 rounded-2xl shadow-xl text-[14px] tracking-[0.2em] active:scale-95 transition-transform">
                 {taskState.spins >= 3 ? "COME BACK TOMORROW" : isSpinning ? "SPINNING..." : "WATCH AD TO SPIN"}
               </button>
@@ -269,7 +333,7 @@ export default function Tasks() {
           )}
         </div>
 
-        {/* Daily Check-in */}
+        {/* 24-Hour Strict Daily Check-in */}
         <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100">
           <h2 className="font-black text-[15px] text-gray-800 flex items-center gap-2 mb-4">📅 Daily Check-in</h2>
           <div className="flex justify-between gap-1 mb-5">
@@ -284,61 +348,42 @@ export default function Tasks() {
               )
             })}
           </div>
-          <button onClick={handleCheckIn} disabled={hasCheckedInToday} className={`w-full font-bold py-4 rounded-xl shadow-md text-[13px] transition-colors ${hasCheckedInToday ? 'bg-gray-100 text-gray-400' : 'bg-[#10B981] text-white active:scale-95'}`}>
-            {hasCheckedInToday ? "✅ Checked-in for today" : "WATCH AD TO CHECK-IN"}
+          <button onClick={handleCheckIn} disabled={!canCheckIn} className={`w-full font-bold py-4 rounded-xl shadow-md text-[13px] transition-colors ${!canCheckIn ? 'bg-gray-100 text-gray-500' : 'bg-[#10B981] text-white active:scale-95'}`}>
+            {!canCheckIn ? `⏳ Wait ${checkInTimer}` : "WATCH AD TO CHECK-IN"}
           </button>
+        </div>
+
+        {/* Solve & Earn (Math Task) */}
+        <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center gap-4"><div className="w-[50px] h-[50px] rounded-full bg-indigo-50 flex items-center justify-center text-2xl shadow-sm border border-indigo-100">🧮</div><div><h3 className="font-black text-gray-900 text-[15px] mb-0.5">Solve & Earn</h3><p className="text-[11px] text-gray-500 font-medium">+1 Point / Correct Answer</p></div></div>
+            <div className="flex gap-1.5 items-center">{[1,2,3,4,5].map(i => <div key={i} className={`w-2 h-2 rounded-full ${i <= (taskState.math || 0) ? 'bg-indigo-400' : 'bg-gray-200'}`}></div>)}</div>
+          </div>
+          <div className="flex gap-2 items-center">
+            <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-black text-gray-800 text-[18px] tracking-widest text-center flex-1 shadow-inner">{mathA} {mathOp} {mathB} = ?</div>
+            <input type="number" value={mathAns} onChange={(e) => setMathAns(e.target.value)} placeholder="Ans" className="w-16 bg-white border border-gray-200 rounded-xl px-2 py-3 font-bold text-center outline-none focus:border-indigo-400"/>
+            <button onClick={handleMathSubmit} className="bg-[#6366F1] text-white font-black px-4 py-3 rounded-xl text-[12px] shadow-sm active:scale-95">SOLVE</button>
+          </div>
         </div>
 
         {/* Watch Ads 01 */}
         <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <div className="w-[50px] h-[50px] rounded-full bg-red-50 flex items-center justify-center text-2xl shadow-sm border border-red-100">📺</div>
-            <div>
-              <h3 className="font-black text-gray-900 text-[15px] mb-0.5">Watch Ads 01</h3>
-              <p className="text-[11px] text-gray-500 font-medium">+1 Point / Ad</p>
-              <div className="flex gap-1.5 mt-2 items-center">
-                {[1,2,3,4,5].map(i => <div key={i} className={`w-2 h-2 rounded-full ${i <= taskState.ads1 ? 'bg-red-400' : 'bg-gray-200'}`}></div>)}
-                <span className="text-[9px] text-gray-400 font-bold ml-1">{taskState.ads1}/5</span>
-              </div>
-            </div>
-          </div>
+          <div className="flex items-center gap-4"><div className="w-[50px] h-[50px] rounded-full bg-red-50 flex items-center justify-center text-2xl shadow-sm border border-red-100">📺</div><div><h3 className="font-black text-gray-900 text-[15px] mb-0.5">Watch Ads 01</h3><p className="text-[11px] text-gray-500 font-medium">+1 Point / Ad</p><div className="flex gap-1.5 mt-2 items-center">{[1,2,3,4,5].map(i => <div key={i} className={`w-2 h-2 rounded-full ${i <= taskState.ads1 ? 'bg-red-400' : 'bg-gray-200'}`}></div>)}<span className="text-[9px] text-gray-400 font-bold ml-1">{taskState.ads1}/5</span></div></div></div>
           <button onClick={() => handleWatchAd('ads1', 5)} className="bg-[#EF4444] text-white font-black px-4 py-2.5 rounded-xl text-[11px] shadow-sm active:scale-95">WATCH ADS</button>
         </div>
 
         {/* Watch Ads 02 */}
         <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <div className="w-[50px] h-[50px] rounded-full bg-orange-50 flex items-center justify-center text-2xl shadow-sm border border-orange-100">📺</div>
-            <div>
-              <h3 className="font-black text-gray-900 text-[15px] mb-0.5">Watch Ads 02</h3>
-              <p className="text-[11px] text-gray-500 font-medium">+1 Point / Ad</p>
-              <div className="flex gap-1.5 mt-2 items-center">
-                {[1,2,3,4,5].map(i => <div key={i} className={`w-2 h-2 rounded-full ${i <= taskState.ads2 ? 'bg-orange-400' : 'bg-gray-200'}`}></div>)}
-                <span className="text-[9px] text-gray-400 font-bold ml-1">{taskState.ads2}/5</span>
-              </div>
-            </div>
-          </div>
+          <div className="flex items-center gap-4"><div className="w-[50px] h-[50px] rounded-full bg-orange-50 flex items-center justify-center text-2xl shadow-sm border border-orange-100">📺</div><div><h3 className="font-black text-gray-900 text-[15px] mb-0.5">Watch Ads 02</h3><p className="text-[11px] text-gray-500 font-medium">+1 Point / Ad</p><div className="flex gap-1.5 mt-2 items-center">{[1,2,3,4,5].map(i => <div key={i} className={`w-2 h-2 rounded-full ${i <= taskState.ads2 ? 'bg-orange-400' : 'bg-gray-200'}`}></div>)}<span className="text-[9px] text-gray-400 font-bold ml-1">{taskState.ads2}/5</span></div></div></div>
           <button onClick={() => handleWatchAd('ads2', 5)} className="bg-[#EF4444] text-white font-black px-4 py-2.5 rounded-xl text-[11px] shadow-sm active:scale-95">WATCH ADS</button>
         </div>
 
         {/* Join Channel 01 */}
         <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <div className="w-[50px] h-[50px] rounded-full bg-blue-50 flex items-center justify-center text-2xl shadow-sm border border-blue-100">📢</div>
-            <div>
-              <h3 className="font-black text-gray-900 text-[15px] mb-0.5">Join Channel 01</h3>
-              <p className="text-[11px] text-gray-500 font-medium">+2 pts · One time</p>
-            </div>
-          </div>
+          <div className="flex items-center gap-4"><div className="w-[50px] h-[50px] rounded-full bg-blue-50 flex items-center justify-center text-2xl shadow-sm border border-blue-100">📢</div><div><h3 className="font-black text-gray-900 text-[15px] mb-0.5">Join Channel 01</h3><p className="text-[11px] text-gray-500 font-medium">+2 pts · One time</p></div></div>
           <div className="flex gap-2">
             <button onClick={() => openExternalLink('https://t.me/yourchannel')} className="bg-[#3B82F6] text-white font-black px-4 py-2.5 rounded-xl text-[11px] shadow-sm active:scale-95">JOIN</button>
-            <button 
-              onClick={() => handleVerifyChannel('channel1', 2)} 
-              disabled={taskState.channel1 || verifying === 'channel1'}
-              className={`font-bold px-3 py-2.5 rounded-xl text-[11px] flex items-center gap-1 border ${taskState.channel1 ? 'bg-green-50 text-green-500 border-green-200' : 'bg-gray-50 text-gray-500 border-gray-200 active:scale-95'}`}
-            >
-              {taskState.channel1 ? '✅ Verified' : verifying === 'channel1' ? '⏳ Wait...' : '✓ Verify'}
-            </button>
+            <button onClick={() => handleVerifyChannel('channel1', 2)} disabled={taskState.channel1 || verifying === 'channel1'} className={`font-bold px-3 py-2.5 rounded-xl text-[11px] flex items-center gap-1 border ${taskState.channel1 ? 'bg-green-50 text-green-500 border-green-200' : 'bg-gray-50 text-gray-500 border-gray-200 active:scale-95'}`}>{taskState.channel1 ? '✅ Verified' : verifying === 'channel1' ? '⏳ Wait...' : '✓ Verify'}</button>
           </div>
         </div>
 
