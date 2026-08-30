@@ -24,6 +24,13 @@ export default function Profile() {
   const userIdStr = String(user?.telegramId).trim();
   const isAdmin = adminIdStr === userIdStr;
 
+  // ✅ ADDED: The helper function to properly open Telegram links!
+  const openExternalLink = (url) => {
+    const tg = window.Telegram?.WebApp;
+    if (tg && tg.openLink) { tg.openLink(url); } 
+    else { const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.click(); }
+  };
+
   return (
     <div className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24 relative overflow-x-hidden">
       
@@ -113,6 +120,8 @@ export default function Profile() {
               <button onClick={() => setIsLeaderboardOpen(true)} className="bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 active:scale-95 transition-transform text-white font-bold py-3.5 rounded-xl shadow-md flex justify-center items-center gap-2 text-[13px]">
                 <span className="text-lg leading-none">🏆</span> Leaderboard
               </button>
+              
+              {/* ✅ SUPPORT BUTTON FIXED HERE */}
               <button onClick={() => openExternalLink('https://t.me/noobfrager')} className="bg-[#3B82F6] hover:bg-blue-600 active:scale-95 transition-transform text-white font-bold py-3.5 rounded-xl shadow-md flex justify-center items-center gap-2 text-[13px]">
                 <span className="text-lg leading-none">🎧</span> Support
               </button>
