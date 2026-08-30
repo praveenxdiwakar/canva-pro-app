@@ -268,6 +268,29 @@ export default function Redeem() {
                 </div>
               );
             })}
+            
+            {/* KEEP EARNING SECTION */}
+            <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100 mt-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 flex items-center justify-center text-3xl drop-shadow-sm">
+                  🎯
+                </div>
+                <div>
+                  <h3 className="font-black text-gray-900 text-[15px] leading-tight mb-0.5">Keep earning!</h3>
+                  <p className="text-[11px] text-gray-500 font-medium">Watch ads · Complete tasks</p>
+                </div>
+              </div>
+              <button onClick={() => navigate('/tasks')} className="w-full bg-[#9333EA] hover:bg-purple-700 active:scale-[0.98] text-white font-bold py-3.5 rounded-xl shadow-md text-[14px] transition-all flex justify-center items-center gap-2">
+                Earn More Points &gt;
+              </button>
+            </div>
+
+            {/* CONTACT SUPPORT LINK */}
+            <div className="text-center mt-6 mb-2">
+              <p className="text-[11px] text-gray-400 font-medium">
+                Need help? <span className="text-gray-500 cursor-pointer hover:underline font-bold" onClick={() => openExternalLink('https://t.me/your_support_bot')}>🎧 Contact Support</span>
+              </p>
+            </div>
           </>
         )}
       </div>
