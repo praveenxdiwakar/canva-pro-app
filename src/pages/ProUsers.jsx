@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../api/supabase';
+import { useTelegram } from '../contexts/TelegramContext';
 
 export default function ProUsers() {
+  const { user: currentUser } = useTelegram(); // Pulls live profile from Telegram
   const [loading, setLoading] = useState(true);
   const [proUsers, setProUsers] = useState([]);
   const [filter, setFilter] = useState('all'); // 'all', 'active', 'expiring', 'expired'
@@ -15,35 +17,37 @@ export default function ProUsers() {
     setLoading(true);
     try {
       // 1. Fetch all redemptions
-      const { data: redemptions, error: rErr } = await supabase
+      const { data: redemptions } = await supabase
         .from('redemptions')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (rErr) console.error("Redemption fetch error:", rErr);
-
-      // 2. Fetch all users
-      const { data: users, error: uErr } = await supabase
-        .from('users')
-        .select('*');
-
-      if (uErr) console.error("Users fetch error:", uErr);
+      // 2. Fetch all users safely
+      const { data: users } = await supabase.from('users').select('*');
 
       if (redemptions) {
         const safeUsers = users || [];
 
-        // 3. Merge the data with BULLETPROOF matching
+        // 3. Merge data
         const mergedData = redemptions.map(redemption => {
-          
-          // Capture Redemption ID (Handles ALL possible column spellings)
           const rId = String(redemption.telegram_id || redemption.telegramid || redemption.telegramId || redemption.id || "").trim();
 
-          // Match to User Profile (Handles ALL possible column spellings)
-          const userProfile = safeUsers.find(u => {
+          // Find the user by checking ALL possible ID columns
+          let userProfile = safeUsers.find(u => {
             const uId = String(u.telegram_id || u.telegramid || u.telegramId || u.id || "").trim();
             return uId === rId && rId !== "";
           }) || {};
           
+          // ✨ MAGIC FIX: If this redemption belongs to the current user, inject live Telegram data! ✨
+          if (currentUser && String(currentUser.telegramId) === rId) {
+             userProfile = {
+                first_name: currentUser.firstName,
+                last_name: currentUser.lastName,
+                username: currentUser.username,
+                photo_url: currentUser.photoUrl
+             };
+          }
+
           return {
             ...redemption,
             redempId: rId,
@@ -172,7 +176,6 @@ export default function ProUsers() {
           <AnimatePresence>
             {filteredUsers.map((item, index) => {
               
-              // BULLETPROOF FIELD EXTRACTION (Checks all possible column spellings)
               const fName = item.user?.first_name || item.user?.firstname || item.user?.firstName || "";
               const lName = item.user?.last_name || item.user?.lastname || item.user?.lastName || "";
               const uName = item.user?.username || item.user?.userName || "";
@@ -180,7 +183,6 @@ export default function ProUsers() {
               
               let displayName = `${fName} ${lName}`.trim();
               
-              // Beautiful Fallback: If DB name is totally blank, use their Telegram ID gracefully
               if (!displayName || displayName === "Unknown") {
                 displayName = item.redempId ? `Member ${item.redempId.substring(0, 5)}` : "Pro Member";
               }
@@ -188,7 +190,6 @@ export default function ProUsers() {
               const displayUsername = uName ? `@${uName.replace('@', '')}` : (item.redempId ? `@user_${item.redempId.substring(0,4)}` : "@user");
               const initial = displayName.charAt(0).toUpperCase();
 
-              // Safe fallbacks for tier and dates
               const claimedDays = item.tier_id === 1 ? '7 Days' : item.tier_id === 2 ? '15 Days' : item.tier_id === 3 ? '30 Days' : 'Pro';
               const claimDate = item.created_at || item.createdat || item.createdAt || new Date().toISOString();
 

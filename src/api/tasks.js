@@ -6,73 +6,69 @@ export async function syncUser(tgUser, referrerId = null) {
   try {
     const tgIdStr = String(tgUser.telegramId);
 
+    // Fetch user by checking all possible column names safely
     const { data, error } = await supabase
       .from('users')
       .select('*')
-      .eq('telegram_id', tgIdStr)
+      .or(`telegram_id.eq.${tgIdStr},telegramid.eq.${tgIdStr},id.eq.${tgIdStr}`)
       .maybeSingle();
 
     if (!data) {
-      // NEW USER: Create their profile (Now includes exact username and last_name)
-      const { data: newUser, error: insertError } = await supabase
+      // NEW USER: Create their profile
+      let payload = {
+        telegram_id: tgIdStr,
+        first_name: tgUser.firstName || "User",
+        last_name: tgUser.lastName || "",
+        username: tgUser.username || "",
+        photo_url: tgUser.photoUrl || "",
+        points: 0,
+        streak: 0,
+        last_checkin: null
+      };
+
+      let { data: newUser, error: insertError } = await supabase
         .from('users')
-        .insert([{
-          telegram_id: tgIdStr,
-          first_name: tgUser.firstName || "User",
-          last_name: tgUser.lastName || "",
-          username: tgUser.username || "",
-          photo_url: tgUser.photoUrl || "",
-          points: 0,
-          streak: 0,
-          last_checkin: null
-        }])
+        .insert([payload])
         .select()
-        .single();
+        .maybeSingle();
         
+      // 🔥 AUTO-FIX: If database complains about missing 'telegramid' (no underscore), retry with it!
+      if (insertError && (insertError.message.includes('telegramid') || insertError.code === '23502')) {
+        payload.telegramid = tgIdStr; // Add the required column
+        const retry = await supabase.from('users').insert([payload]).select().maybeSingle();
+        newUser = retry.data;
+        insertError = retry.error;
+      }
+
       if (insertError) {
         console.error("Error creating user:", insertError);
         return null;
       }
 
-      // REFERRAL SYSTEM: Reward the person who invited them
+      // REFERRAL SYSTEM
       if (referrerId && String(referrerId) !== tgIdStr) {
         const refIdStr = String(referrerId);
-        const { data: refUser } = await supabase.from('users').select('points').eq('telegram_id', refIdStr).maybeSingle();
-        
+        const { data: refUser } = await supabase.from('users').select('points').or(`telegram_id.eq.${refIdStr},telegramid.eq.${refIdStr}`).maybeSingle();
         if (refUser) {
-          // 1. Give the referrer +5 Points
           await supabase.from('users').update({ points: refUser.points + 5 }).eq('telegram_id', refIdStr);
-          
-          // 2. Log it beautifully in the Reward History!
-          await supabase.from('task_history').insert([{ 
-            telegram_id: refIdStr, 
-            task_name: 'Referral Bonus', 
-            points_earned: 5, 
-            icon: '👥' 
-          }]);
+          await supabase.from('task_history').insert([{ telegram_id: refIdStr, task_name: 'Referral Bonus', points_earned: 5, icon: '👥' }]);
         }
       }
 
       return newUser;
     }
 
-    // EXISTING USER: Update avatar/name/username if changed on Telegram
-    if (
-      data.photo_url !== tgUser.photoUrl || 
-      data.first_name !== tgUser.firstName || 
-      data.last_name !== tgUser.lastName ||
-      data.username !== tgUser.username
-    ) {
-      await supabase
-        .from('users')
-        .update({ 
-          photo_url: tgUser.photoUrl, 
-          first_name: tgUser.firstName,
-          last_name: tgUser.lastName || "",
-          username: tgUser.username || ""
-        })
-        .eq('telegram_id', tgIdStr);
-    }
+    // EXISTING USER: Update avatar/name if changed
+    const updates = { 
+      photo_url: tgUser.photoUrl, 
+      first_name: tgUser.firstName,
+      last_name: tgUser.lastName || "",
+      username: tgUser.username || ""
+    };
+
+    // Safely update both possible column names
+    await supabase.from('users').update(updates).eq('telegram_id', tgIdStr);
+    await supabase.from('users').update(updates).eq('telegramid', tgIdStr); 
 
     return data;
   } catch (err) {
@@ -83,7 +79,9 @@ export async function syncUser(tgUser, referrerId = null) {
 
 export async function updatePointsInDb(telegramId, newPoints) {
   try {
-    await supabase.from('users').update({ points: newPoints }).eq('telegram_id', String(telegramId));
+    const tgIdStr = String(telegramId);
+    await supabase.from('users').update({ points: newPoints }).eq('telegram_id', tgIdStr);
+    await supabase.from('users').update({ points: newPoints }).eq('telegramid', tgIdStr);
   } catch (err) {
     console.error("Network error updating points:", err);
   }
@@ -93,18 +91,17 @@ export async function updatePointsInDb(telegramId, newPoints) {
 export async function processDailyCheckInDb(telegramId, newStreak, dateStr, pointsEarned) {
   try {
     const tgIdStr = String(telegramId);
-    const { data: user } = await supabase.from('users').select('points').eq('telegram_id', tgIdStr).maybeSingle();
+    const { data: user } = await supabase.from('users').select('points').or(`telegram_id.eq.${tgIdStr},telegramid.eq.${tgIdStr}`).maybeSingle();
     const currentPoints = user ? user.points : 0;
     const newPoints = currentPoints + pointsEarned;
 
-    await supabase
-      .from('users')
-      .update({ streak: newStreak, last_checkin: dateStr, points: newPoints })
-      .eq('telegram_id', tgIdStr);
+    const updates = { streak: newStreak, last_checkin: dateStr, points: newPoints };
+    await supabase.from('users').update(updates).eq('telegram_id', tgIdStr);
+    await supabase.from('users').update(updates).eq('telegramid', tgIdStr);
 
     return newPoints;
   } catch (err) {
     console.error("Error processing check-in:", err);
-    return pointsEarned; // Fallback
+    return pointsEarned; 
   }
 }
