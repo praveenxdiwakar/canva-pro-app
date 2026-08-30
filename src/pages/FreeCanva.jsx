@@ -137,15 +137,41 @@ export default function FreeCanva() {
   };
 
   return (
-    <div className="flex flex-col min-h-[calc(100dvh-5rem)] bg-[#f5f5f5] pb-24 relative">
+    <div className="flex flex-col min-h-[calc(100dvh-5rem)] bg-[#f5f5f5] pb-24 relative overflow-hidden">
       
-      {/* Header Banner (Matches screenshot aesthetic) */}
-      <div className="relative w-full h-[150px] bg-gradient-to-r from-[#00C4CC] to-[#7B2CBF] flex items-center justify-center shadow-sm">
-         <h1 className="text-6xl font-bold text-white italic tracking-tighter" style={{ fontFamily: 'Georgia, serif' }}>Canva</h1>
+      {/* ========================================================= */}
+      {/* 🌟 UPGRADED PREMIUM HEADER BANNER 🌟                        */}
+      {/* ========================================================= */}
+      <div className="relative w-full h-[160px] bg-gradient-to-br from-[#00C4CC] via-[#7B2CBF] to-[#6200EA] flex items-center justify-center overflow-hidden">
+        
+        {/* Ambient Glows */}
+        <div className="absolute top-[-20px] left-[-20px] w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+        <div className="absolute bottom-[-30px] right-[-10px] w-40 h-40 bg-[#00E5FF]/20 rounded-full blur-[40px] pointer-events-none"></div>
+        
+        {/* Animated Floating Particles */}
+        <motion.div animate={{ y: [0, -10, 0], opacity: [0.3, 0.8, 0.3] }} transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }} className="absolute top-6 left-10 text-white/50 text-[10px] select-none">✨</motion.div>
+        <motion.div animate={{ y: [0, 10, 0], opacity: [0.2, 0.6, 0.2] }} transition={{ repeat: Infinity, duration: 5, ease: "easeInOut", delay: 1 }} className="absolute bottom-10 right-12 text-white/40 text-[14px] select-none">✦</motion.div>
+
+        {/* Canva Logo + PRO Badge */}
+        <div className="relative z-10 flex items-center justify-center gap-1.5 drop-shadow-xl mt-[-10px]">
+          <h1 className="text-[52px] font-bold text-white tracking-tighter" style={{ fontFamily: 'Georgia, serif' }}>
+            Canva
+          </h1>
+          <motion.div 
+            initial={{ scale: 0.8, rotate: 0 }}
+            animate={{ scale: 1, rotate: 3 }}
+            transition={{ type: "spring", bounce: 0.5, delay: 0.2 }}
+            className="bg-gradient-to-tr from-[#FFD700] via-[#F59E0B] to-[#FFD700] text-[#5B3A00] font-black text-[11px] px-2 py-0.5 rounded-[6px] uppercase tracking-widest shadow-[0_4px_10px_rgba(245,158,11,0.4)] -mt-8 border border-yellow-200/50"
+          >
+            Pro
+          </motion.div>
+        </div>
+        
+        {/* Seamless Bottom Fade (Blends banner smoothly into the gray app background) */}
+        <div className="absolute bottom-0 left-0 w-full h-8 bg-gradient-to-t from-[#f5f5f5] to-transparent z-10"></div>
       </div>
 
-      {/* CHANGED: Removed the negative margin (-mt-4) and added padding (pt-6) to create a perfect gap */}
-      <div className="px-4 pt-6 pb-4 space-y-5 relative z-30">
+      <div className="px-4 pt-4 pb-4 space-y-5 relative z-30">
         
         {loadingSub ? (
           <div className="bg-white rounded-[24px] p-6 text-center text-gray-400 font-bold shadow-sm">Loading Access...</div>
@@ -175,7 +201,7 @@ export default function FreeCanva() {
           /* 📺 FREE USER CARD                                         */
           /* ========================================================= */
           <>
-            {/* Instruction Alert - Now has a perfect gap from the banner */}
+            {/* Instruction Alert */}
             <div className="bg-white border border-gray-100 rounded-2xl px-4 py-3.5 flex items-center gap-3 shadow-sm">
               <span className="text-2xl drop-shadow-sm">📢</span>
               <p className="text-[12px] text-gray-700 leading-snug font-medium">
