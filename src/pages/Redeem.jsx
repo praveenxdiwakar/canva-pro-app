@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTelegram } from '../contexts/TelegramContext';
@@ -15,7 +15,7 @@ export default function Redeem() {
   const [errorModal, setErrorModal] = useState({ isOpen: false, message: "" });
   const [celebration, setCelebration] = useState({ isOpen: false, message: "", link: "", days: 0 });
 
-  // Hardcoded Static Tiers (Bypasses the "Invalid Tier" backend error)
+  // Hardcoded Static Tiers (Bypasses the old backend errors)
   const tiers = [
     { id: 1, durationDays: 7, pointsCost: 20, title: "Starter", subtitle: "7 Days Full Access" },
     { id: 2, durationDays: 15, pointsCost: 45, title: "Quick Access", subtitle: "15 Days Full Access" },
@@ -26,7 +26,7 @@ export default function Redeem() {
   const firstRewardCost = 20;
   const mainProgress = Math.min(100, Math.round((currentPoints / firstRewardCost) * 100));
 
-  // Bulletproof Link Opener
+  // Bulletproof Link Opener for Telegram
   const openExternalLink = (url) => {
     const tg = window.Telegram?.WebApp;
     if (tg && tg.openLink) {
@@ -64,11 +64,11 @@ export default function Redeem() {
       const newPoints = currentPoints - cost;
       const finalUrl = availableLink.url || availableLink.invitelink;
 
-      // 2. Deduct Points
+      // 2. Deduct Points (Dual-Save)
       await supabase.from('users').update({ points: newPoints }).eq('telegram_id', tgIdStr);
-      localStorage.setItem(`canva_pts_${tgIdStr}`, newPoints); // Dual-save update
+      localStorage.setItem(`canva_pts_${tgIdStr}`, newPoints);
 
-      // 3. Increment Used Slots
+      // 3. Increment Used Slots on the Link
       await supabase.from('canva_links').update({ used_slots: availableLink.used_slots + 1 }).eq('id', availableLink.id);
 
       // 4. Log Redemption in History
@@ -258,8 +258,11 @@ export default function Redeem() {
                 <button onClick={() => openExternalLink(celebration.link)} className="w-full bg-white text-purple-700 font-black py-4 rounded-xl text-[15px] active:scale-95 shadow-xl flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors">
                   <span className="text-xl">👑</span> OPEN CANVA PRO
                 </button>
-                <button onClick={() => setCelebration({ isOpen: false, message: "", link: "", days: 0 })} className="w-full bg-transparent border-2 border-white/30 text-white font-bold py-3 rounded-xl text-sm active:scale-95 transition-colors hover:bg-white/10">
-                  Close
+                <button onClick={() => {
+                  setCelebration({ isOpen: false, message: "", link: "", days: 0 });
+                  navigate('/profile'); // Redirects to profile so they can see their active subscription
+                }} className="w-full bg-transparent border-2 border-white/30 text-white font-bold py-3 rounded-xl text-sm active:scale-95 transition-colors hover:bg-white/10">
+                  Close & View Profile
                 </button>
               </div>
             </motion.div>
