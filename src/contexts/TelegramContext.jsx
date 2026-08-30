@@ -9,6 +9,42 @@ export function TelegramProvider({ children }) {
   const tg = window.Telegram?.WebApp;
   const tgUser = tg?.initDataUnsafe?.user;
   
+  // 🚨 BROWSER BLOCKER 🚨
+  // If there is no Telegram User ID, it means they opened the link in Safari/Chrome.
+  // (Note: `!import.meta.env.DEV` ensures you can still test it on localhost on your PC, but it will block everyone on the live Vercel link).
+  const isBrowser = !tgUser?.id && !import.meta.env.DEV;
+
+  if (isBrowser) {
+    return (
+      <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#05030A] text-white px-6 select-none overflow-hidden text-center">
+        {/* Ambient Red/Purple Error Glow */}
+        <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-red-600/15 rounded-full blur-[120px] pointer-events-none"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-80 h-80 bg-purple-600/15 rounded-full blur-[100px] pointer-events-none"></div>
+        
+        {/* Error Icon */}
+        <div className="w-24 h-24 bg-red-500/10 rounded-full flex items-center justify-center mb-6 border border-red-500/20 shadow-[0_0_30px_rgba(220,38,38,0.15)] z-10">
+          <span className="text-4xl drop-shadow-md">⚠️</span>
+        </div>
+        
+        {/* Error Typography */}
+        <h1 className="text-2xl font-black tracking-tight text-white mb-3 drop-shadow-md z-10">
+          Connection Error
+        </h1>
+        <p className="text-[13px] font-medium text-gray-400 max-w-[280px] leading-relaxed mb-10 z-10">
+          Unable to authenticate with Telegram. Please try reopening the app directly inside the Telegram Mini App.
+        </p>
+
+        {/* Action Button */}
+        <a 
+          href="https://t.me/" 
+          className="relative overflow-hidden group bg-white text-[#05030A] font-black py-4 px-10 rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.1)] active:scale-95 transition-all z-10 flex items-center gap-2"
+        >
+          <span className="text-xl">✈️</span> Open in Telegram
+        </a>
+      </div>
+    );
+  }
+
   const startParam = tg?.initDataUnsafe?.start_param || null; 
 
   const initialUser = {
@@ -73,7 +109,7 @@ export function TelegramProvider({ children }) {
           setUser(prev => ({ ...prev, points: localPts, streak: localStreak, last_checkin: localDate }));
         }
         setIsReady(true); 
-      }, 600); // Wait for 100% animation to finish
+      }, 600); 
     });
   }, []);
 
