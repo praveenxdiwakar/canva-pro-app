@@ -35,20 +35,20 @@ export default function ProUsers() {
         // 3. Merge the data with BULLETPROOF matching
         const mergedData = redemptions.map(redemption => {
           
-          // Check both formats for the redemption ID
-          const redempId = String(redemption.telegram_id || redemption.telegramId || "");
+          // Capture Redemption ID (Handles ALL possible column spellings)
+          const rId = String(redemption.telegram_id || redemption.telegramid || redemption.telegramId || redemption.id || "").trim();
 
-          // Find the user by checking ALL possible ID columns
-          const userProfile = safeUsers.find(u => 
-            String(u.telegram_id) === redempId || 
-            String(u.telegramId) === redempId || 
-            String(u.id) === redempId
-          ) || {};
+          // Match to User Profile (Handles ALL possible column spellings)
+          const userProfile = safeUsers.find(u => {
+            const uId = String(u.telegram_id || u.telegramid || u.telegramId || u.id || "").trim();
+            return uId === rId && rId !== "";
+          }) || {};
           
           return {
             ...redemption,
+            redempId: rId,
             user: userProfile,
-            statusInfo: calculateStatus(redemption.expires_at || redemption.expiresAt)
+            statusInfo: calculateStatus(redemption.expires_at || redemption.expiresat || redemption.expiresAt)
           };
         });
         
@@ -172,17 +172,25 @@ export default function ProUsers() {
           <AnimatePresence>
             {filteredUsers.map((item, index) => {
               
-              // BULLETPROOF NAME CHECKER (Checks both camelCase and snake_case)
-              const firstName = item.user?.first_name || item.user?.firstName || "Unknown";
-              const rawLastName = item.user?.last_name || item.user?.lastName || "";
-              const lastName = rawLastName ? ` ${rawLastName}` : "";
-              const rawUsername = item.user?.username || item.user?.userName || "";
-              const username = rawUsername ? `@${rawUsername}` : "@user";
+              // BULLETPROOF FIELD EXTRACTION (Checks all possible column spellings)
+              const fName = item.user?.first_name || item.user?.firstname || item.user?.firstName || "";
+              const lName = item.user?.last_name || item.user?.lastname || item.user?.lastName || "";
+              const uName = item.user?.username || item.user?.userName || "";
+              const photoUrl = item.user?.photo_url || item.user?.photourl || item.user?.photoUrl || "";
               
-              const initial = firstName.charAt(0).toUpperCase();
+              let displayName = `${fName} ${lName}`.trim();
+              
+              // Beautiful Fallback: If DB name is totally blank, use their Telegram ID gracefully
+              if (!displayName || displayName === "Unknown") {
+                displayName = item.redempId ? `Member ${item.redempId.substring(0, 5)}` : "Pro Member";
+              }
 
-              // Safe fallback for tier days
+              const displayUsername = uName ? `@${uName.replace('@', '')}` : (item.redempId ? `@user_${item.redempId.substring(0,4)}` : "@user");
+              const initial = displayName.charAt(0).toUpperCase();
+
+              // Safe fallbacks for tier and dates
               const claimedDays = item.tier_id === 1 ? '7 Days' : item.tier_id === 2 ? '15 Days' : item.tier_id === 3 ? '30 Days' : 'Pro';
+              const claimDate = item.created_at || item.createdat || item.createdAt || new Date().toISOString();
 
               return (
                 <motion.div 
@@ -195,8 +203,8 @@ export default function ProUsers() {
                   {/* User Info Left Side */}
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 bg-purple-50 rounded-full border-2 border-purple-100 overflow-hidden flex-shrink-0 flex items-center justify-center relative z-10">
-                      {item.user?.photo_url || item.user?.photoUrl ? (
-                        <img src={item.user.photo_url || item.user.photoUrl} alt="Avatar" className="w-full h-full object-cover" />
+                      {photoUrl ? (
+                        <img src={photoUrl} alt="Avatar" className="w-full h-full object-cover" />
                       ) : (
                         <span className="text-sm font-black text-purple-400">
                           {initial}
@@ -205,17 +213,17 @@ export default function ProUsers() {
                     </div>
                     <div className="relative z-10">
                       <h3 className="font-black text-[13px] text-gray-900 leading-tight">
-                        {firstName}{lastName}
+                        {displayName}
                       </h3>
                       <p className="text-[9px] text-gray-400 font-medium mb-1">
-                        {username}
+                        {displayUsername}
                       </p>
                       <div className="flex items-center gap-1.5">
                         <span className="text-[9px] font-bold bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">
                           {claimedDays}
                         </span>
                         <span className="text-[8px] text-gray-400">
-                          Claimed: {new Date(item.created_at || item.createdAt).toLocaleDateString()}
+                          Claimed: {new Date(claimDate).toLocaleDateString()}
                         </span>
                       </div>
                     </div>
