@@ -24,7 +24,7 @@ export function TelegramProvider({ children }) {
 
   const [user, setUser] = useState(initialUser);
   const [isReady, setIsReady] = useState(false); 
-  const [loadingProgress, setLoadingProgress] = useState(15);
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     if (tg) {
@@ -32,26 +32,26 @@ export function TelegramProvider({ children }) {
       tg.expand();
     }
 
-    // Simulate smooth progress increments while fetching
-    const interval = setInterval(() => {
-      setLoadingProgress(prev => {
-        if (prev >= 85) {
-          clearInterval(interval);
-          return 85;
+    // Elegant organic progress simulation
+    const progressInterval = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 90) {
+          clearInterval(progressInterval);
+          return 90;
         }
-        return prev + 20;
+        // Random fluid increments
+        return prev + (Math.random() * 10 + 2);
       });
-    }, 200);
+    }, 150);
 
     const tgIdStr = String(initialUser.telegramId);
-
     const localPts = parseInt(localStorage.getItem(`canva_pts_${tgIdStr}`)) || 0;
     const localStreak = parseInt(localStorage.getItem(`canva_streak_${tgIdStr}`)) || 0;
     const localDate = localStorage.getItem(`canva_date_${tgIdStr}`);
 
     syncUser(initialUser, startParam).then(dbUser => {
-      clearInterval(interval);
-      setLoadingProgress(100);
+      clearInterval(progressInterval);
+      setProgress(100); // Snap to 100% on complete
 
       setTimeout(() => {
         if (dbUser) {
@@ -73,7 +73,7 @@ export function TelegramProvider({ children }) {
           setUser(prev => ({ ...prev, points: localPts, streak: localStreak, last_checkin: localDate }));
         }
         setIsReady(true); 
-      }, 400); // Small delay for final progress bar flourish
+      }, 500); // Allow progress bar to visually finish before dismissing
     });
   }, []);
 
@@ -83,89 +83,81 @@ export function TelegramProvider({ children }) {
         {!isReady && (
           <motion.div 
             initial={{ opacity: 1 }}
-            exit={{ opacity: 0, scale: 1.05 }}
-            transition={{ duration: 0.5, ease: "easeInOut" }}
-            className="fixed inset-0 z-[9999] flex flex-col items-center justify-between bg-gradient-to-b from-[#0F0C29] via-[#302B63] to-[#24243E] text-white px-6 py-12 select-none overflow-hidden"
+            exit={{ opacity: 0, filter: "blur(10px)" }}
+            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#FAFAFA]"
           >
-            {/* Background Decorative Glows */}
-            <div className="absolute top-[-10%] left-[-20%] w-72 h-72 bg-purple-600/30 rounded-full blur-[100px] pointer-events-none"></div>
-            <div className="absolute bottom-[-10%] right-[-20%] w-72 h-72 bg-cyan-500/20 rounded-full blur-[100px] pointer-events-none"></div>
-
-            {/* Top Branding Section */}
-            <motion.div 
-              initial={{ y: -20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ duration: 0.6 }}
-              className="flex flex-col items-center mt-8 z-10"
-            >
-              <div className="w-16 h-16 bg-gradient-to-tr from-[#6200EA] to-[#00E5FF] rounded-3xl p-[2px] shadow-2xl mb-4 shadow-purple-500/30">
-                <div className="w-full h-full bg-[#1A1833] rounded-[22px] flex items-center justify-center text-3xl">
-                  🎨
-                </div>
-              </div>
-              <h1 className="text-2xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-purple-200 to-cyan-300">
-                Canva Pro App
-              </h1>
-              <p className="text-[11px] font-medium text-purple-300/70 tracking-widest uppercase mt-1">
-                Exclusive VIP Experience
-              </p>
-            </motion.div>
-
-            {/* Center Pulsing Loader / Ring Animation */}
-            <motion.div 
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.5 }}
-              className="relative flex flex-col items-center justify-center z-10 my-auto"
-            >
-              <div className="relative w-28 h-28 flex items-center justify-center">
-                {/* Outer Spinning Ring */}
-                <motion.div 
-                  animate={{ rotate: 360 }}
-                  transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
-                  className="absolute inset-0 rounded-full border-[3px] border-transparent border-t-cyan-400 border-l-purple-500 shadow-[0_0_20px_rgba(0,229,255,0.2)]"
-                />
-                
-                {/* Inner Pulse Ring */}
-                <div className="absolute inset-3 rounded-full border border-white/10 bg-white/[0.02] backdrop-blur-md flex items-center justify-center">
-                  <motion.span 
-                    animate={{ scale: [1, 1.2, 1] }}
-                    transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-                    className="text-3xl filter drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]"
-                  >
-                    💎
-                  </motion.span>
-                </div>
-              </div>
+            <div className="flex flex-col items-center justify-center flex-1 w-full max-w-sm px-8">
               
-              <div className="mt-6 text-center">
-                <span className="text-xs font-bold text-cyan-300 tracking-wider uppercase animate-pulse">
-                  Authenticating Session
-                </span>
-              </div>
-            </motion.div>
+              {/* Premium iOS-style Icon Mark */}
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.7, ease: "easeOut" }}
+                className="relative w-20 h-20 mb-8"
+              >
+                {/* Soft under-glow */}
+                <div className="absolute inset-0 bg-[#6200EA] rounded-[22px] blur-xl opacity-20"></div>
+                {/* Main Icon Container */}
+                <div className="absolute inset-0 bg-gradient-to-tr from-[#6200EA] to-[#00C4CC] rounded-[22px] shadow-sm flex items-center justify-center overflow-hidden">
+                   {/* Clean glass reflection overlay */}
+                   <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-white/30 to-transparent"></div>
+                   <span className="text-3xl font-black text-white tracking-tighter mix-blend-overlay">CP</span>
+                </div>
+              </motion.div>
 
-            {/* Bottom Progress Bar & Status */}
-            <motion.div 
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ duration: 0.6 }}
-              className="w-full max-w-[260px] z-10 mb-4"
-            >
-              <div className="flex justify-between items-center text-[10px] font-bold text-purple-300/80 mb-2 uppercase tracking-wider">
-                <span>Syncing Cloud</span>
-                <span>{loadingProgress}%</span>
-              </div>
-              <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden p-[1px] backdrop-blur-sm border border-white/5">
+              {/* Clean Corporate Typography */}
+              <motion.h1 
+                initial={{ y: 10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.7, delay: 0.1, ease: "easeOut" }}
+                className="text-[19px] font-bold text-gray-900 tracking-tight mb-1"
+              >
+                Canva Pro App
+              </motion.div>
+              
+              <motion.div 
+                initial={{ y: 10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.7, delay: 0.2, ease: "easeOut" }}
+                className="flex items-center gap-2 mb-12"
+              >
                 <motion.div 
-                  className="bg-gradient-to-r from-purple-500 to-cyan-400 h-full rounded-full shadow-[0_0_10px_rgba(0,229,255,0.5)]"
-                  animate={{ width: `${loadingProgress}%` }}
-                  transition={{ type: "spring", stiffness: 50, damping: 15 }}
+                  animate={{ opacity: [0.3, 1, 0.3] }} 
+                  transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }} 
+                  className="w-1.5 h-1.5 rounded-full bg-[#6200EA]" 
                 />
-              </div>
-              <p className="text-[9px] text-center text-white/30 font-medium mt-4">
-                Secured by Telegram & Supabase
-              </p>
+                <span className="text-[11px] font-medium text-gray-400 uppercase tracking-[0.2em]">
+                  Authenticating
+                </span>
+              </motion.div>
+
+              {/* Ultra-thin Elegant Progress Line */}
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3, duration: 0.5 }}
+                className="w-full max-w-[200px]"
+              >
+                <div className="h-[2px] w-full bg-gray-200/60 rounded-full overflow-hidden">
+                  <motion.div 
+                    className="h-full bg-gradient-to-r from-[#6200EA] to-[#00C4CC] rounded-full"
+                    animate={{ width: `${progress}%` }}
+                    transition={{ ease: "circOut", duration: 0.3 }}
+                  />
+                </div>
+              </motion.div>
+
+            </div>
+
+            {/* Minimalist Footer */}
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5, duration: 0.5 }}
+              className="pb-8 text-[9px] font-bold text-gray-300 uppercase tracking-widest"
+            >
+              Secured Connection
             </motion.div>
           </motion.div>
         )}
