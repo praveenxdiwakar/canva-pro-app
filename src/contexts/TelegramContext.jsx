@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { syncUser } from '../api/tasks';
 import { supabase } from '../api/supabase';
 
@@ -66,9 +67,34 @@ export function TelegramProvider({ children }) {
   return (
     <TelegramContext.Provider value={{ user, setUser }}>
       {!isReady ? (
-        <div className="min-h-[100dvh] bg-[#f5f5f5] flex flex-col items-center justify-center text-gray-400 font-bold">
-           <span className="text-4xl mb-4 animate-spin">⏳</span>
-           Loading your profile...
+        <div className="flex flex-col items-center justify-center min-h-[100dvh] bg-[#F9FAFB] relative overflow-hidden">
+          
+          {/* Subtle Background Glow */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-[#6200EA]/10 rounded-full blur-[60px]"></div>
+          
+          <div className="relative flex flex-col items-center z-10">
+            {/* Modern Gradient Spinner */}
+            <div className="relative w-16 h-16 mb-6">
+              <motion.div 
+                animate={{ rotate: 360 }}
+                transition={{ repeat: Infinity, duration: 1.2, ease: "linear" }}
+                className="absolute inset-0 rounded-full border-[4px] border-gray-200/50 border-t-[#6200EA] border-r-[#00E5FF] shadow-lg"
+              />
+              {/* Inner Sparkle Icon */}
+              <div className="absolute inset-0 flex items-center justify-center text-xl drop-shadow-sm">
+                ✨
+              </div>
+            </div>
+            
+            {/* Professional Typography */}
+            <h2 className="text-[17px] font-black text-gray-800 mb-1.5 tracking-tight">
+              Loading Profile
+            </h2>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] animate-pulse">
+              Securely syncing...
+            </p>
+          </div>
+          
         </div>
       ) : (
         children
