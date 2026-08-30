@@ -269,15 +269,15 @@ export default function FreeCanva() {
 
         {/* Stacked Social / Join Buttons */}
         <div className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100 flex flex-col gap-3">
-          <button onClick={() => openExternalLink('https://t.me/yourchannel')} className="w-full bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white font-bold py-4 rounded-[16px] flex justify-center items-center gap-2 active:scale-95 transition-transform text-[14px]">
+          <button onClick={() => openExternalLink('https://t.me/CanvaProMiniApp')} className="w-full bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white font-bold py-4 rounded-[16px] flex justify-center items-center gap-2 active:scale-95 transition-transform text-[14px]">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
             Join Channel
           </button>
-          <button onClick={() => openExternalLink('https://t.me/yourgroup')} className="w-full bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white font-bold py-4 rounded-[16px] flex justify-center items-center gap-2 active:scale-95 transition-transform text-[14px]">
+          <button onClick={() => openExternalLink('https://t.me/CanvaProLinkCommunity')} className="w-full bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white font-bold py-4 rounded-[16px] flex justify-center items-center gap-2 active:scale-95 transition-transform text-[14px]">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
             Join Group
           </button>
-          <button className="w-full bg-[#F3F4F6] text-gray-700 font-bold py-4 rounded-[16px] text-[14px] flex justify-center items-center gap-1.5 active:bg-gray-200 transition-colors">
+          <button onClick={() => openExternalLink('https://t.me/CanvaProLinkCommunity/2')} className="w-full bg-[#F3F4F6] text-gray-700 font-bold py-4 rounded-[16px] text-[14px] flex justify-center items-center gap-1.5 active:bg-gray-200 transition-colors">
             How to join Canva Pro <span className="text-[16px]">🌿</span>
           </button>
         </div>
@@ -306,8 +306,8 @@ export default function FreeCanva() {
 
         {/* Footer Credit */}
         <div className="text-center pt-2 pb-6">
-          <p className="text-[13px] font-black text-[#6200EA] mb-0.5">by H2N</p>
-          <p className="text-[11px] text-gray-400 font-medium">@ShareCanvaProFree_Bot</p>
+          <p className="text-[13px] font-black text-[#6200EA] mb-0.5">Made with ❤️ by Frager</p>
+          <p className="text-[11px] text-gray-400 font-medium">v2.0.0</p>
         </div>
 
       </div>
