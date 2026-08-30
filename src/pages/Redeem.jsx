@@ -31,7 +31,7 @@ export default function Redeem() {
   const firstRewardCost = 20;
   const mainProgress = Math.min(100, Math.round((currentPoints / firstRewardCost) * 100));
 
-  // 1. Fetch Active Subscription on Load (WITH INSTANT LOCAL BACKUP)
+  // 1. Fetch Active Subscription on Load (WITH LOCAL BACKUP)
   useEffect(() => {
     if (user?.telegramId) {
       const tgIdStr = String(user.telegramId);
@@ -40,7 +40,6 @@ export default function Redeem() {
       const localPremium = localStorage.getItem(`canva_premium_${tgIdStr}`);
       if (localPremium) {
         const parsed = JSON.parse(localPremium);
-        // Only load if it hasn't expired
         if (new Date(parsed.expires_at) > new Date()) {
           setActiveSub(parsed);
           setLoadingSub(false);
@@ -57,10 +56,10 @@ export default function Redeem() {
         .then(({ data, error }) => {
           if (data && data.length > 0) {
             setActiveSub(data[0]);
-            localStorage.setItem(`canva_premium_${tgIdStr}`, JSON.stringify(data[0])); // Update backup
+            localStorage.setItem(`canva_premium_${tgIdStr}`, JSON.stringify(data[0]));
           } else if (!error && data?.length === 0) {
             setActiveSub(null);
-            localStorage.removeItem(`canva_premium_${tgIdStr}`); // Clear backup if expired
+            localStorage.removeItem(`canva_premium_${tgIdStr}`);
           }
           setLoadingSub(false);
         });
@@ -76,7 +75,7 @@ export default function Redeem() {
       const difference = new Date(activeSub.expires_at) - new Date();
       if (difference <= 0) {
         clearInterval(interval);
-        setActiveSub(null); // Subscription expired! Show tiers again.
+        setActiveSub(null); // Sub expired, revert to free version!
         if (user?.telegramId) localStorage.removeItem(`canva_premium_${String(user.telegramId)}`);
         setTimeLeft("");
       } else {
@@ -110,7 +109,7 @@ export default function Redeem() {
       }
 
       const { data: links, error: linkErr } = await supabase.from('canva_links').select('*');
-      if (linkErr) throw linkErr;
+      if (linkErr) throw new Error(`DB Error (Links): ${linkErr.message}`);
       
       const availableLink = links?.find(l => l.used_slots < l.total_slots);
 
@@ -134,32 +133,31 @@ export default function Redeem() {
         expires_at: expiresAt.toISOString()
       };
 
+      // 1. Save Redemption
       const { error: insertError } = await supabase.from('redemptions').insert([newRedemption]);
-      
-      if (insertError) {
-        console.error("DB Insert Error:", insertError);
-        throw new Error("Failed to save redemption to cloud. Please try again.");
-      }
+      if (insertError) throw new Error(`DB Error (redemptions): ${insertError.message || insertError.details}`);
 
-      // Deduct Points
-      await supabase.from('users').update({ points: newPoints }).eq('telegram_id', tgIdStr);
+      // 2. Deduct Points
+      const { error: userError } = await supabase.from('users').update({ points: newPoints }).eq('telegram_id', tgIdStr);
+      if (userError) throw new Error(`DB Error (users): ${userError.message}`);
       localStorage.setItem(`canva_pts_${tgIdStr}`, newPoints);
-
-      // INSTANT PREMIUM LOCAL BACKUP
       localStorage.setItem(`canva_premium_${tgIdStr}`, JSON.stringify(newRedemption));
 
-      // Increment Used Slots
-      await supabase.from('canva_links').update({ used_slots: availableLink.used_slots + 1 }).eq('id', availableLink.id);
+      // 3. Increment Used Slots
+      const { error: slotsError } = await supabase.from('canva_links').update({ used_slots: availableLink.used_slots + 1 }).eq('id', availableLink.id);
+      if (slotsError) throw new Error(`DB Error (canva_links): ${slotsError.message}`);
 
-      // Log to Task History
-      await supabase.from('task_history').insert([{ telegram_id: tgIdStr, task_name: `Redeemed ${days} Days Pro`, points_earned: -cost, icon: '💎' }]);
+      // 4. Log to Task History
+      const { error: histError } = await supabase.from('task_history').insert([{ telegram_id: tgIdStr, task_name: `Redeemed ${days} Days Pro`, points_earned: -cost, icon: '💎' }]);
+      if (histError) throw new Error(`DB Error (task_history): ${histError.message}`);
 
-      // Update UI
+      // Update UI & Celebrate
       setUser({ ...user, points: newPoints });
       setActiveSub(newRedemption); 
       setCelebration({ isOpen: true, message: `You successfully unlocked Canva Pro for ${days} Days!`, link: finalUrl, days });
 
     } catch (err) {
+      console.error(err);
       setErrorModal({ isOpen: true, message: err.message || "A network error occurred. Please try again." });
     }
     setLoading(false);
