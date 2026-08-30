@@ -140,70 +140,38 @@ export default function FreeCanva() {
     <div className="flex flex-col min-h-[calc(100dvh-5rem)] bg-[#f5f5f5] pb-24 relative overflow-hidden">
       
       {/* ========================================================= */}
-      {/* 🌟 ULTRA-PREMIUM "AURORA" HEADER BANNER 🌟                  */}
+      {/* 🌟 UPGRADED PREMIUM HEADER BANNER 🌟                        */}
       {/* ========================================================= */}
-      <div className="relative w-full h-[180px] bg-[#0A0A14] flex items-center justify-center overflow-hidden">
+      <div className="relative w-full h-[160px] bg-gradient-to-br from-[#00C4CC] via-[#7B2CBF] to-[#6200EA] flex items-center justify-center overflow-hidden">
         
-        {/* Animated Mesh / Aurora Background */}
-        <div className="absolute inset-0">
-          <motion.div 
-            animate={{ scale: [1, 1.2, 1], rotate: [0, 90, 0], opacity: [0.3, 0.6, 0.3] }} 
-            transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-            className="absolute top-[-50px] left-[-20%] w-[250px] h-[250px] bg-[#00C4CC] rounded-full mix-blend-screen filter blur-[70px] pointer-events-none"
-          />
-          <motion.div 
-            animate={{ scale: [1, 1.5, 1], rotate: [0, -90, 0], opacity: [0.2, 0.7, 0.2] }} 
-            transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
-            className="absolute bottom-[-50px] right-[-20%] w-[300px] h-[300px] bg-[#7B2CBF] rounded-full mix-blend-screen filter blur-[80px] pointer-events-none"
-          />
-        </div>
+        {/* Ambient Glows */}
+        <div className="absolute top-[-20px] left-[-20px] w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+        <div className="absolute bottom-[-30px] right-[-10px] w-40 h-40 bg-[#00E5FF]/20 rounded-full blur-[40px] pointer-events-none"></div>
+        
+        {/* Animated Floating Particles */}
+        <motion.div animate={{ y: [0, -10, 0], opacity: [0.3, 0.8, 0.3] }} transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }} className="absolute top-6 left-10 text-white/50 text-[10px] select-none">✨</motion.div>
+        <motion.div animate={{ y: [0, 10, 0], opacity: [0.2, 0.6, 0.2] }} transition={{ repeat: Infinity, duration: 5, ease: "easeInOut", delay: 1 }} className="absolute bottom-10 right-12 text-white/40 text-[14px] select-none">✦</motion.div>
 
-        {/* Tech Dot Grid Overlay for Texture */}
-        <div className="absolute inset-0 opacity-30 pointer-events-none" 
-             style={{ backgroundImage: "radial-gradient(rgba(255, 255, 255, 0.2) 1px, transparent 1px)", backgroundSize: "16px 16px" }}>
-        </div>
-
-        {/* Main Content Area */}
-        <div className="relative z-10 flex flex-col items-center justify-center mt-[-10px]">
-          
-          {/* Shimmering Status Pill */}
+        {/* Canva Logo + PRO Badge */}
+        <div className="relative z-10 flex items-center justify-center gap-1.5 drop-shadow-xl mt-[-10px]">
+          <h1 className="text-[52px] font-bold text-white tracking-tighter" style={{ fontFamily: 'Georgia, serif' }}>
+            Canva
+          </h1>
           <motion.div 
-            initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.6, ease: "easeOut" }}
-            className="mb-3 px-3 py-1 rounded-full bg-white/5 border border-white/10 backdrop-blur-md flex items-center gap-1.5 shadow-[0_0_15px_rgba(255,255,255,0.05)]"
+            initial={{ scale: 0.8, rotate: 0 }}
+            animate={{ scale: 1, rotate: 3 }}
+            transition={{ type: "spring", bounce: 0.5, delay: 0.2 }}
+            className="bg-gradient-to-tr from-[#FFD700] via-[#F59E0B] to-[#FFD700] text-[#5B3A00] font-black text-[11px] px-2 py-0.5 rounded-[6px] uppercase tracking-widest shadow-[0_4px_10px_rgba(245,158,11,0.4)] -mt-8 border border-yellow-200/50"
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-[#00E5FF] animate-pulse shadow-[0_0_8px_#00E5FF]"></span>
-            <span className="text-[9px] font-black text-white/90 tracking-[0.2em] uppercase">Premium VIP</span>
+            Pro
           </motion.div>
-
-          {/* Canva Pro Typography */}
-          <div className="flex items-start gap-1.5">
-            <motion.h1 
-              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.5, delay: 0.1 }}
-              className="text-[48px] font-bold text-white tracking-tight leading-none drop-shadow-2xl" 
-              style={{ fontFamily: 'Georgia, serif' }}
-            >
-              Canva
-            </motion.h1>
-            
-            <motion.div 
-              initial={{ x: -10, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ type: "spring", stiffness: 200, delay: 0.3 }}
-              className="relative mt-2"
-            >
-              {/* Multi-layered Premium Pro Badge */}
-              <div className="bg-gradient-to-br from-[#FFDF00] via-[#D4AF37] to-[#996515] p-[1.5px] rounded-[8px] shadow-[0_4px_15px_rgba(212,175,55,0.4)]">
-                <div className="bg-gradient-to-b from-[#FFFDF2] to-[#FEF3C7] px-2.5 py-0.5 rounded-[6px] border border-white/60">
-                  <span className="text-[11px] font-black text-[#785200] tracking-widest uppercase">Pro</span>
-                </div>
-              </div>
-            </motion.div>
-          </div>
         </div>
         
-        {/* Seamless Bottom Fade (Blends flawlessly into the app's #f5f5f5 background) */}
-        <div className="absolute bottom-0 left-0 w-full h-12 bg-gradient-to-t from-[#f5f5f5] to-transparent z-10 pointer-events-none"></div>
+        {/* Seamless Bottom Fade (Blends banner smoothly into the gray app background) */}
+        <div className="absolute bottom-0 left-0 w-full h-8 bg-gradient-to-t from-[#f5f5f5] to-transparent z-10"></div>
       </div>
 
-      <div className="px-4 pt-6 pb-4 space-y-5 relative z-30">
+      <div className="px-4 pt-4 pb-4 space-y-5 relative z-30">
         
         {loadingSub ? (
           <div className="bg-white rounded-[24px] p-6 text-center text-gray-400 font-bold shadow-sm">Loading Access...</div>
