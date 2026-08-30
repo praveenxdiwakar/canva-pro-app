@@ -144,7 +144,8 @@ export default function FreeCanva() {
          <h1 className="text-6xl font-bold text-white italic tracking-tighter" style={{ fontFamily: 'Georgia, serif' }}>Canva</h1>
       </div>
 
-      <div className="px-4 pt-4 pb-4 space-y-4 -mt-4 relative z-30">
+      {/* CHANGED: Removed the negative margin (-mt-4) and added padding (pt-6) to create a perfect gap */}
+      <div className="px-4 pt-6 pb-4 space-y-5 relative z-30">
         
         {loadingSub ? (
           <div className="bg-white rounded-[24px] p-6 text-center text-gray-400 font-bold shadow-sm">Loading Access...</div>
@@ -171,20 +172,22 @@ export default function FreeCanva() {
         ) : (
 
           /* ========================================================= */
-          /* 📺 FREE USER CARD (Matches new screenshot design exactly) */
+          /* 📺 FREE USER CARD                                         */
           /* ========================================================= */
           <>
-            {/* Instruction Alert */}
-            <div className="bg-white border border-gray-100 rounded-2xl px-4 py-3 flex items-center gap-3 shadow-sm">
-              <span className="text-2xl">📢</span>
-              <p className="text-[12px] text-gray-600 leading-tight font-medium">Complete 4 Step, the Canva Pro button will be unlocked. Then click again to open Canva Pro.</p>
+            {/* Instruction Alert - Now has a perfect gap from the banner */}
+            <div className="bg-white border border-gray-100 rounded-2xl px-4 py-3.5 flex items-center gap-3 shadow-sm">
+              <span className="text-2xl drop-shadow-sm">📢</span>
+              <p className="text-[12px] text-gray-700 leading-snug font-medium">
+                Complete 4 steps, the Canva Pro button will be unlocked. Then click again to open Canva Pro.
+              </p>
             </div>
 
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl px-5 py-6 border border-gray-100 shadow-sm">
               
               {currentStep > 4 ? (
                 
-                /* 🎉 INLINE WOO HOO ANIMATION (NO POPUP!) 🎉 */
+                /* 🎉 INLINE WOO HOO ANIMATION 🎉 */
                 <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center py-4 relative">
                   <motion.div animate={{ y: [0, -15, 0] }} transition={{ repeat: Infinity, duration: 1.5 }} className="text-6xl mb-4">🎉</motion.div>
                   <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#6200EA] to-[#00E5FF] mb-2 uppercase tracking-wide">Woo Hoo!</h2>
@@ -238,7 +241,7 @@ export default function FreeCanva() {
           </>
         )}
 
-        {/* Stacked Social / Join Buttons (Matching Screenshot) */}
+        {/* Stacked Social / Join Buttons */}
         <div className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100 flex flex-col gap-3">
           <button onClick={() => openExternalLink('https://t.me/yourchannel')} className="w-full bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white font-bold py-4 rounded-[16px] flex justify-center items-center gap-2 active:scale-95 transition-transform text-[14px]">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
@@ -253,7 +256,7 @@ export default function FreeCanva() {
           </button>
         </div>
 
-        {/* Features / Benefits Card (Matching Screenshot colors) */}
+        {/* Features / Benefits Card */}
         <div className="bg-white rounded-3xl px-4 py-6 border border-gray-100 shadow-sm text-center">
           <h3 className="text-[11px] font-black text-gray-400 tracking-[0.15em] mb-5 uppercase">What You Get</h3>
           <div className="grid grid-cols-3 gap-3">
