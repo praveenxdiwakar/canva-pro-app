@@ -460,7 +460,7 @@ export default function Tasks() {
             {/* Beautiful Link Display Box */}
             <div className="bg-white/70 backdrop-blur-md border border-white rounded-xl p-1.5 flex items-center gap-2 shadow-inner">
               <div className="flex-1 truncate px-3 text-[11px] font-bold text-gray-500 select-none">
-                https://t.me/CanvaProMiniApp?startapp={user?.telegramId || '123'}
+                https://t.me/CanvaProMiniAppBot?startapp={user?.telegramId || '123'}
               </div>
               <button 
                 onClick={() => {
