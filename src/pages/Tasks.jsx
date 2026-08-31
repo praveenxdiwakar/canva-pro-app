@@ -464,7 +464,7 @@ export default function Tasks() {
               </div>
               <button 
                 onClick={() => {
-                  navigator.clipboard.writeText(`https://t.me/CanvaProMiniApp?startapp=${user?.telegramId}`);
+                  navigator.clipboard.writeText(`https://t.me/CanvaProMiniAppBot?startapp=${user?.telegramId}`);
                   alert("✅ Invite link copied! Share it to earn +5 pts automatically when they join.");
                 }} 
                 className="bg-white hover:bg-gray-50 text-[#6200EA] font-black px-4 py-2.5 rounded-lg text-[10px] shadow-sm transition-colors border border-gray-100 active:scale-95 flex items-center gap-1.5"
@@ -477,7 +477,7 @@ export default function Tasks() {
             {/* Giant Share Button */}
             <button 
               onClick={() => {
-                const inviteLink = `https://t.me/CanvaProMiniApp?startapp=${user?.telegramId}`;
+                const inviteLink = `https://t.me/CanvaProMiniAppBot?startapp=${user?.telegramId}`;
                 // This payload directly injects the link into the exact location
                 const shareText = `🌟 Unlock Canva Pro for FREE! 🎨✨\n\nI just got premium access, and you can too! Complete simple tasks, spin the wheel, and claim your Canva Pro invite link instantly. 🎁\n\n👇 Click my link below to start earning:\n${inviteLink}\n\nLet's earn together! 🚀`;
                 
