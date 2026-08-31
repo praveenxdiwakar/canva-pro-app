@@ -438,39 +438,57 @@ export default function Tasks() {
         </div>
 
         {/* ========================================================= */}
-        {/* 👥 UPDATED: INVITE FRIENDS (BEAUTIFUL SHARE MESSAGE)      */}
+        {/* 🎁 UPGRADED: PREMIUM INVITE FRIENDS CARD                  */}
         {/* ========================================================= */}
-        <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-4 w-full md:w-auto">
-            <div className="w-[50px] h-[50px] rounded-full bg-yellow-50 flex items-center justify-center text-2xl shadow-sm border border-yellow-100">👥</div>
-            <div>
-              <h3 className="font-black text-gray-900 text-[15px] mb-0.5">Invite Friends</h3>
-              <p className="text-[11px] text-gray-500 font-medium">+5 pts / referral</p>
-            </div>
-          </div>
+        <div className="bg-gradient-to-br from-[#EEF2FF] to-[#F3E8FF] rounded-[24px] p-6 shadow-sm border border-[#E0E7FF] relative overflow-hidden mt-2">
+          {/* Decorative Blur Background */}
+          <div className="absolute top-0 right-0 w-32 h-32 bg-[#C7D2FE] rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none opacity-60"></div>
           
-          <div className="flex gap-2 w-full md:w-auto">
-            {/* Copy Button */}
-            <button onClick={() => {
-              navigator.clipboard.writeText(`https://t.me/CanvaProMiniAppBot?startapp=${user?.telegramId}`);
-              alert("✅ Invite link copied! Share it to earn +5 pts automatically when they join.");
-            }} className="flex-1 md:flex-none bg-gray-100 text-gray-700 hover:bg-gray-200 font-black px-4 py-2.5 rounded-xl text-[11px] shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-              COPY
-            </button>
+          <div className="relative z-10 flex flex-col gap-4">
             
-            {/* Native Telegram Share Button */}
-            <button onClick={() => {
-              const inviteLink = `https://t.me/CanvaProMiniAppBot?startapp=${user?.telegramId}`;
-              
-              // New Beautiful Share Message
-              const shareText = `🌟 Unlock Canva Pro for FREE! 🎨✨\n\nI just got premium access, and you can too! Complete simple tasks, spin the wheel, and claim your Canva Pro invite link instantly. 🎁\n\n👇 Click my link below to start earning:`;
-              
-              openExternalLink(`https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(shareText)}`);
-            }} className="flex-1 md:flex-none bg-[#24A1DE] text-white font-black px-4 py-2.5 rounded-xl text-[11px] shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-transform">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-              SHARE
+            {/* Header section */}
+            <div className="flex items-center gap-4">
+              <div className="w-[54px] h-[54px] rounded-[16px] bg-white flex items-center justify-center text-3xl shadow-sm border border-white">
+                🎁
+              </div>
+              <div>
+                <h3 className="font-black text-gray-900 text-[17px] mb-0.5 tracking-tight">Invite & Earn Big!</h3>
+                <p className="text-[12px] text-gray-600 font-medium">Get <span className="font-black text-[#6200EA]">+5 Points</span> for every friend who joins.</p>
+              </div>
+            </div>
+
+            {/* Beautiful Link Display Box */}
+            <div className="bg-white/70 backdrop-blur-md border border-white rounded-xl p-1.5 flex items-center gap-2 shadow-inner">
+              <div className="flex-1 truncate px-3 text-[11px] font-bold text-gray-500 select-none">
+                https://t.me/CanvaProMiniApp?startapp={user?.telegramId || '123'}
+              </div>
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(`https://t.me/CanvaProMiniApp?startapp=${user?.telegramId}`);
+                  alert("✅ Invite link copied! Share it to earn +5 pts automatically when they join.");
+                }} 
+                className="bg-white hover:bg-gray-50 text-[#6200EA] font-black px-4 py-2.5 rounded-lg text-[10px] shadow-sm transition-colors border border-gray-100 active:scale-95 flex items-center gap-1.5"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                COPY
+              </button>
+            </div>
+
+            {/* Giant Share Button */}
+            <button 
+              onClick={() => {
+                const inviteLink = `https://t.me/CanvaProMiniApp?startapp=${user?.telegramId}`;
+                // This payload directly injects the link into the exact location
+                const shareText = `🌟 Unlock Canva Pro for FREE! 🎨✨\n\nI just got premium access, and you can too! Complete simple tasks, spin the wheel, and claim your Canva Pro invite link instantly. 🎁\n\n👇 Click my link below to start earning:\n${inviteLink}\n\nLet's earn together! 🚀`;
+                
+                openExternalLink(`https://t.me/share/url?text=${encodeURIComponent(shareText)}`);
+              }} 
+              className="w-full bg-gradient-to-r from-[#24A1DE] to-[#1C8ACB] text-white font-black py-3.5 rounded-xl text-[14px] shadow-[0_4px_15px_rgba(36,161,222,0.3)] active:scale-95 transition-transform flex justify-center items-center gap-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+              SHARE TO TELEGRAM
             </button>
+
           </div>
         </div>
 
