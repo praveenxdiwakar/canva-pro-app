@@ -452,7 +452,7 @@ export default function Tasks() {
           <div className="flex gap-2 w-full md:w-auto">
             {/* Copy Button */}
             <button onClick={() => {
-              navigator.clipboard.writeText(`https://t.me/CanvaProMiniApp?startapp=${user?.telegramId}`);
+              navigator.clipboard.writeText(`https://t.me/CanvaProMiniAppBot?startapp=${user?.telegramId}`);
               alert("✅ Invite link copied! Share it to earn +5 pts automatically when they join.");
             }} className="flex-1 md:flex-none bg-gray-100 text-gray-700 hover:bg-gray-200 font-black px-4 py-2.5 rounded-xl text-[11px] shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
@@ -461,7 +461,7 @@ export default function Tasks() {
             
             {/* Native Telegram Share Button */}
             <button onClick={() => {
-              const inviteLink = `https://t.me/CanvaProMiniApp?startapp=${user?.telegramId}`;
+              const inviteLink = `https://t.me/CanvaProMiniAppBot?startapp=${user?.telegramId}`;
               
               // New Beautiful Share Message
               const shareText = `🌟 Unlock Canva Pro for FREE! 🎨✨\n\nI just got premium access, and you can too! Complete simple tasks, spin the wheel, and claim your Canva Pro invite link instantly. 🎁\n\n👇 Click my link below to start earning:`;
