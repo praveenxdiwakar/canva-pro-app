@@ -69,13 +69,25 @@ export default function Admin() {
   }, []);
 
   const fetchInitialData = async () => {
-    // Get exact count of users
-    const { count: uCount } = await supabase.from('users').select('id', { count: 'exact', head: true });
-    if (uCount !== null) setTotalUsers(uCount);
+    // ✅ FIXED: Bulletproof method to get exact user count
+    try {
+      const { data: userData, error: uError } = await supabase.from('users').select('id');
+      if (userData && !uError) {
+        setTotalUsers(userData.length);
+      }
+    } catch(err) {
+      console.error("Error fetching users count:", err);
+    }
 
     // Get exact count of redemptions
-    const { count: rCount } = await supabase.from('redemptions').select('id', { count: 'exact', head: true });
-    if (rCount !== null) setTotalRedemptions(rCount);
+    try {
+      const { data: rData, error: rError } = await supabase.from('redemptions').select('id');
+      if (rData && !rError) {
+        setTotalRedemptions(rData.length);
+      }
+    } catch(err) {
+      console.error("Error fetching redemptions count:", err);
+    }
 
     // Get Ad Zone Setting
     const { data: adData } = await supabase.from('app_settings').select('value').eq('key', 'MONETAG_ZONE_ID').maybeSingle();
@@ -221,23 +233,30 @@ export default function Admin() {
         {/* Monetag Settings */}
         <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100">
           <h2 className="font-black text-[14px] text-gray-800 flex items-center gap-2 mb-4">📡 Monetag Ad Settings</h2>
-          <div className="flex gap-2">
+          
+          <div className="relative flex items-center">
+            {/* Inline Edit Icon */}
+            <span className="absolute left-4 text-gray-400 text-lg">✏️</span>
+            
             <input 
               type="text" 
               value={zoneId}
               onChange={(e) => setZoneId(e.target.value)}
               placeholder="Enter Zone ID (e.g. 9773650)" 
-              className="flex-1 bg-gray-50 border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-400 transition-colors"
+              className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm font-bold rounded-xl pl-11 pr-24 py-3.5 outline-none focus:border-purple-400 focus:bg-white transition-all shadow-inner"
             />
+            
+            {/* Inline Save Button */}
             <button 
               onClick={handleSaveZone}
               disabled={savingZone}
-              className="bg-[#E65100] text-white font-black px-5 py-3 rounded-xl shadow-sm active:scale-95 transition-transform"
+              className="absolute right-2 bg-gradient-to-r from-[#E65100] to-[#FF9800] text-white font-black px-4 py-2 rounded-lg shadow-sm active:scale-95 transition-transform text-xs"
             >
               {savingZone ? '...' : 'Save'}
             </button>
           </div>
-          <p className="text-[10px] text-gray-400 font-medium mt-2 ml-1">This Zone ID activates the ads across the entire app dynamically.</p>
+          
+          <p className="text-[10px] text-gray-400 font-medium mt-3 ml-1">This Zone ID activates the ads across the entire app dynamically.</p>
         </div>
 
         {/* 🚀 DYNAMIC TASK GENERATOR */}
