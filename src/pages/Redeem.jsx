@@ -337,7 +337,7 @@ export default function Redeem() {
             {/* CONTACT SUPPORT LINK */}
             <div className="text-center mt-6 mb-2">
               <p className="text-[11px] text-gray-400 font-medium">
-                Need help? <span className="text-gray-500 cursor-pointer hover:underline font-bold" onClick={() => openExternalLink('https://t.me/your_support_bot')}>🎧 Contact Support</span>
+                Need help? <span className="text-gray-500 cursor-pointer hover:underline font-bold" onClick={() => openExternalLink('https://t.me/noobfrager')}>🎧 Contact Support</span>
               </p>
             </div>
           </>
