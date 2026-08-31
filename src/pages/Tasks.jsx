@@ -109,8 +109,20 @@ export default function Tasks() {
 
   const openExternalLink = (url) => {
     const tg = window.Telegram?.WebApp;
-    if (tg && tg.openLink) { tg.openLink(url); } 
-    else { const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; document.body.appendChild(a); a.click(); document.body.removeChild(a); }
+    // tg.openTelegramLink is better for t.me links if available
+    if (url.includes('t.me') && tg && tg.openTelegramLink) {
+      tg.openTelegramLink(url);
+    } else if (tg && tg.openLink) { 
+      tg.openLink(url); 
+    } else { 
+      const a = document.createElement('a'); 
+      a.href = url; 
+      a.target = '_blank'; 
+      a.rel = 'noopener noreferrer'; 
+      document.body.appendChild(a); 
+      a.click(); 
+      document.body.removeChild(a); 
+    }
   };
 
   const triggerAd = (onSuccess, onFail) => {
@@ -288,11 +300,11 @@ export default function Tasks() {
         <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100 mt-2">
           <div className="flex justify-between items-center mb-2.5">
             <div className="flex items-center gap-2"><span className="text-xl">🏆</span><h2 className="font-black text-[15px] text-gray-900">Next Canva Reward</h2></div>
-            <span className="bg-purple-50 text-purple-600 font-black px-3 py-1 rounded-lg text-[11px] shadow-sm">{user?.points || 0} / 20 pts</span>
+            <span className="bg-purple-50 text-purple-600 font-black px-3 py-1 rounded-lg text-[11px] shadow-sm">{user?.points || 0} / 49 pts</span>
           </div>
           <p className="text-[12px] text-gray-500 font-medium mb-3">Canva Pro • 7 Days</p>
-          <div className="w-full bg-gray-100 rounded-full h-2 mb-2.5 overflow-hidden"><div className="bg-gray-200 h-2 rounded-full transition-all duration-500" style={{ width: `${Math.min(100, ((user?.points || 0) / 20) * 100)}%` }}></div></div>
-          <p className="text-[11px] text-gray-400 font-medium">{Math.max(0, 20 - (user?.points || 0))} more points needed</p>
+          <div className="w-full bg-gray-100 rounded-full h-2 mb-2.5 overflow-hidden"><div className="bg-gray-200 h-2 rounded-full transition-all duration-500" style={{ width: `${Math.min(100, ((user?.points || 0) / 49) * 100)}%` }}></div></div>
+          <p className="text-[11px] text-gray-400 font-medium">{Math.max(0, 49 - (user?.points || 0))} more points needed</p>
         </div>
 
         {/* ================================================= */}
@@ -425,22 +437,41 @@ export default function Tasks() {
           </div>
         </div>
 
-        {/* Invite Friends (Referrals) */}
-        <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100 flex justify-between items-center">
-          <div className="flex items-center gap-4">
+        {/* ========================================================= */}
+        {/* 👥 UPDATED: INVITE FRIENDS (BEAUTIFUL SHARE MESSAGE)      */}
+        {/* ========================================================= */}
+        <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="flex items-center gap-4 w-full md:w-auto">
             <div className="w-[50px] h-[50px] rounded-full bg-yellow-50 flex items-center justify-center text-2xl shadow-sm border border-yellow-100">👥</div>
             <div>
               <h3 className="font-black text-gray-900 text-[15px] mb-0.5">Invite Friends</h3>
               <p className="text-[11px] text-gray-500 font-medium">+5 pts / referral</p>
             </div>
           </div>
-          <button onClick={() => {
-            navigator.clipboard.writeText(`https://t.me/CanvaProMiniApp?startapp=${user?.telegramId}`);
-            alert("✅ Invite link copied! Share it to earn +5 pts automatically when they join.");
-          }} className="bg-[#06B6D4] text-white font-black px-4 py-2.5 rounded-xl text-[11px] shadow-sm flex items-center gap-1.5 active:scale-95">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-            COPY
-          </button>
+          
+          <div className="flex gap-2 w-full md:w-auto">
+            {/* Copy Button */}
+            <button onClick={() => {
+              navigator.clipboard.writeText(`https://t.me/CanvaProMiniApp?startapp=${user?.telegramId}`);
+              alert("✅ Invite link copied! Share it to earn +5 pts automatically when they join.");
+            }} className="flex-1 md:flex-none bg-gray-100 text-gray-700 hover:bg-gray-200 font-black px-4 py-2.5 rounded-xl text-[11px] shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              COPY
+            </button>
+            
+            {/* Native Telegram Share Button */}
+            <button onClick={() => {
+              const inviteLink = `https://t.me/CanvaProMiniApp?startapp=${user?.telegramId}`;
+              
+              // New Beautiful Share Message
+              const shareText = `🌟 Unlock Canva Pro for FREE! 🎨✨\n\nI just got premium access, and you can too! Complete simple tasks, spin the wheel, and claim your Canva Pro invite link instantly. 🎁\n\n👇 Click my link below to start earning:`;
+              
+              openExternalLink(`https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(shareText)}`);
+            }} className="flex-1 md:flex-none bg-[#24A1DE] text-white font-black px-4 py-2.5 rounded-xl text-[11px] shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-transform">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+              SHARE
+            </button>
+          </div>
         </div>
 
       </div>
