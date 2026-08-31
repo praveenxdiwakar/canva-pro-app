@@ -16,6 +16,10 @@ export default function Admin() {
   const [links, setLinks] = useState([]);
   const [savingZone, setSavingZone] = useState(false);
   
+  // Accordion / Dropdown States (NEW)
+  const [isTasksOpen, setIsTasksOpen] = useState(false);
+  const [isLinksOpen, setIsLinksOpen] = useState(false);
+  
   // New Link Form State
   const [newLink, setNewLink] = useState({ name: '', url: '', totalSlots: 100 });
   const [addingLink, setAddingLink] = useState(false);
@@ -66,8 +70,6 @@ export default function Admin() {
   }, []);
 
   const fetchInitialData = async () => {
-    // ✅ BULLETPROOF COUNT FETCHING (Bypasses exact count errors)
-    // NOTE: If this returns 0, you MUST disable RLS on the 'users' and 'redemptions' tables in Supabase!
     try {
       const { data: usersData, error: uError } = await supabase.from('users').select('id');
       if (usersData && !uError) {
@@ -214,7 +216,7 @@ export default function Admin() {
         </div>
 
         {/* ========================================================= */}
-        {/* 📡 INTERACTIVE MONETAG SETTINGS WITH EDIT LOCK (RIGHT SIDE)*/}
+        {/* 📡 INTERACTIVE MONETAG SETTINGS WITH EDIT LOCK            */}
         {/* ========================================================= */}
         <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100">
           <h2 className="font-black text-[14px] text-gray-800 flex items-center gap-2 mb-4">📡 Monetag Ad Settings</h2>
@@ -273,192 +275,224 @@ export default function Admin() {
                 )}
               </AnimatePresence>
             </div>
-
           </div>
-          
           <p className="text-[10px] text-gray-400 font-medium mt-3 ml-1">
             {isEditingZone ? '🔓 Editing unlocked. Click Save when done.' : '🔒 Click the pencil icon on the right to edit your Zone ID.'}
           </p>
         </div>
 
-        {/* 🚀 DYNAMIC TASK GENERATOR */}
-        <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100">
-          <h2 className="font-black text-[14px] text-gray-800 flex items-center gap-2 mb-4">🚀 Custom Task Generator</h2>
+        {/* ========================================================= */}
+        {/* 🚀 DYNAMIC TASK GENERATOR (DROPDOWN ACCORDION)            */}
+        {/* ========================================================= */}
+        <div className={`bg-white rounded-[24px] p-5 shadow-sm border-2 transition-all ${isTasksOpen ? 'border-blue-100' : 'border-gray-100'} overflow-hidden`}>
           
-          {/* Add Task Form */}
-          <div className="bg-blue-50/50 rounded-2xl p-4 border border-blue-100 mb-5 space-y-3">
-            <div className="flex gap-2">
-              <input 
-                type="text" 
-                placeholder="Emoji (📱)" 
-                value={newTask.icon}
-                onChange={(e) => setNewTask({...newTask, icon: e.target.value})}
-                className="w-16 text-center bg-white border border-gray-200 text-gray-900 rounded-xl px-2 py-3 text-lg outline-none focus:border-blue-400"
-              />
-              <input 
-                type="text" 
-                placeholder="Task Title (e.g. Download App)" 
-                value={newTask.title}
-                onChange={(e) => setNewTask({...newTask, title: e.target.value})}
-                className="flex-1 bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400"
-              />
+          <div className="flex justify-between items-center cursor-pointer select-none" onClick={() => setIsTasksOpen(!isTasksOpen)}>
+            <div>
+              <h2 className="font-black text-[14px] text-gray-800 flex items-center gap-2">🚀 Custom Tasks</h2>
+              <p className="text-[10px] text-gray-400 font-medium mt-0.5">{customTasks.length} active tasks</p>
             </div>
-            
-            <input 
-              type="text" 
-              placeholder="Description (e.g. Install & Open the app)" 
-              value={newTask.description}
-              onChange={(e) => setNewTask({...newTask, description: e.target.value})}
-              className="w-full bg-white border border-gray-200 text-gray-900 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400"
-            />
-            
-            <input 
-              type="text" 
-              placeholder="Action URL (e.g. https://play.google.com/...)" 
-              value={newTask.action_url}
-              onChange={(e) => setNewTask({...newTask, action_url: e.target.value})}
-              className="w-full bg-white border border-gray-200 text-gray-900 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400"
-            />
-            
-            <div className="flex gap-3 items-end">
-              <div className="flex-1">
-                <label className="text-[10px] font-bold text-gray-500 ml-1 block mb-1">Points Reward</label>
-                <input 
-                  type="number" 
-                  value={newTask.points_reward}
-                  onChange={(e) => setNewTask({...newTask, points_reward: parseInt(e.target.value) || 0})}
-                  className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400"
-                />
-              </div>
-              <div className="flex flex-col gap-1.5 flex-1 pb-1">
-                <label className="flex items-center gap-2 text-[10px] font-bold text-gray-600 cursor-pointer">
-                  <input type="checkbox" checked={newTask.requires_ad} onChange={(e) => setNewTask({...newTask, requires_ad: e.target.checked})} className="accent-blue-600 w-4 h-4" /> 
-                  Require Ad
-                </label>
-                <label className="flex items-center gap-2 text-[10px] font-bold text-gray-600 cursor-pointer">
-                  <input type="checkbox" checked={newTask.is_daily} onChange={(e) => setNewTask({...newTask, is_daily: e.target.checked})} className="accent-blue-600 w-4 h-4" /> 
-                  Daily Task
-                </label>
-              </div>
-            </div>
-            
-            <button 
-              onClick={handleAddCustomTask}
-              disabled={addingTask}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded-xl shadow-md active:scale-95 transition-all mt-2"
-            >
-              {addingTask ? 'Saving...' : '➕ Create Custom Task'}
-            </button>
-          </div>
-
-          {/* Active Tasks List */}
-          <div className="space-y-3">
-            {customTasks.length === 0 ? (
-              <div className="text-center py-4 border-2 border-dashed border-gray-100 rounded-xl">
-                <p className="text-[12px] text-gray-400 font-medium">No custom tasks yet.</p>
-              </div>
+            {!isTasksOpen ? (
+              <span className="text-[#3B82F6] font-black text-[11px] bg-blue-50 px-3 py-1.5 rounded-full">Tap to Expand ➔</span>
             ) : (
-              customTasks.map(task => (
-                <div key={task.id} className="bg-white border border-gray-200 rounded-xl p-3 flex justify-between items-center relative overflow-hidden">
-                  <div className="flex gap-3 items-center">
-                    <div className="text-xl bg-gray-50 p-2 rounded-lg border border-gray-100">
-                      {task.icon}
-                    </div>
-                    <div>
-                      <h3 className="font-black text-[13px] text-gray-900 leading-tight">{task.title}</h3>
-                      <p className="text-[10px] text-gray-400 font-medium mt-0.5">
-                        <span className="text-yellow-500 font-bold">+{task.points_reward} pts</span> • {task.is_daily ? 'Daily' : 'One-time'} • {task.requires_ad ? 'Ads On' : 'No Ads'}
-                      </p>
-                    </div>
-                  </div>
-                  <button onClick={() => deleteRecord('dynamic_tasks', task.id)} className="w-8 h-8 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-xs hover:bg-red-100 transition-colors">
-                    ✕
-                  </button>
-                </div>
-              ))
+              <button className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 font-black hover:bg-gray-200">✕</button>
             )}
           </div>
-        </div>
 
-        {/* Canva Links Management */}
-        <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100">
-          <h2 className="font-black text-[14px] text-gray-800 flex items-center gap-2 mb-4">🔗 Manage Canva Links</h2>
-          
-          {/* Add Link Form */}
-          <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 mb-5 space-y-3">
-            <input 
-              type="text" 
-              placeholder="Link Name (e.g. Team Alpha - August)" 
-              value={newLink.name}
-              onChange={(e) => setNewLink({...newLink, name: e.target.value})}
-              className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-400"
-            />
-            <input 
-              type="text" 
-              placeholder="https://canva.com/brand/join/..." 
-              value={newLink.url}
-              onChange={(e) => setNewLink({...newLink, url: e.target.value})}
-              className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-400"
-            />
-            <div className="flex gap-3 items-end">
-              <div className="flex-1">
-                <label className="text-[10px] font-bold text-gray-500 ml-1 mb-1 block">Max Slots</label>
+          {isTasksOpen && (
+            <div className="animate-in fade-in slide-in-from-top-4 duration-300 mt-5 pt-5 border-t border-gray-100">
+              {/* Add Task Form */}
+              <div className="bg-blue-50/50 rounded-2xl p-4 border border-blue-100 mb-5 space-y-3">
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    placeholder="Emoji (📱)" 
+                    value={newTask.icon}
+                    onChange={(e) => setNewTask({...newTask, icon: e.target.value})}
+                    className="w-16 text-center bg-white border border-gray-200 text-gray-900 rounded-xl px-2 py-3 text-lg outline-none focus:border-blue-400"
+                  />
+                  <input 
+                    type="text" 
+                    placeholder="Task Title (e.g. Download App)" 
+                    value={newTask.title}
+                    onChange={(e) => setNewTask({...newTask, title: e.target.value})}
+                    className="flex-1 bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400"
+                  />
+                </div>
+                
                 <input 
-                  type="number" 
-                  value={newLink.totalSlots}
-                  onChange={(e) => setNewLink({...newLink, totalSlots: e.target.value})}
-                  className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-400"
+                  type="text" 
+                  placeholder="Description (e.g. Install & Open the app)" 
+                  value={newTask.description}
+                  onChange={(e) => setNewTask({...newTask, description: e.target.value})}
+                  className="w-full bg-white border border-gray-200 text-gray-900 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400"
                 />
+                
+                <input 
+                  type="text" 
+                  placeholder="Action URL (e.g. https://play.google.com/...)" 
+                  value={newTask.action_url}
+                  onChange={(e) => setNewTask({...newTask, action_url: e.target.value})}
+                  className="w-full bg-white border border-gray-200 text-gray-900 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400"
+                />
+                
+                <div className="flex gap-3 items-end">
+                  <div className="flex-1">
+                    <label className="text-[10px] font-bold text-gray-500 ml-1 block mb-1">Points Reward</label>
+                    <input 
+                      type="number" 
+                      value={newTask.points_reward}
+                      onChange={(e) => setNewTask({...newTask, points_reward: parseInt(e.target.value) || 0})}
+                      className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5 flex-1 pb-1">
+                    <label className="flex items-center gap-2 text-[10px] font-bold text-gray-600 cursor-pointer">
+                      <input type="checkbox" checked={newTask.requires_ad} onChange={(e) => setNewTask({...newTask, requires_ad: e.target.checked})} className="accent-blue-600 w-4 h-4" /> 
+                      Require Ad
+                    </label>
+                    <label className="flex items-center gap-2 text-[10px] font-bold text-gray-600 cursor-pointer">
+                      <input type="checkbox" checked={newTask.is_daily} onChange={(e) => setNewTask({...newTask, is_daily: e.target.checked})} className="accent-blue-600 w-4 h-4" /> 
+                      Daily Task
+                    </label>
+                  </div>
+                </div>
+                
+                <button 
+                  onClick={handleAddCustomTask}
+                  disabled={addingTask}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded-xl shadow-md active:scale-95 transition-all mt-2"
+                >
+                  {addingTask ? 'Saving...' : '➕ Create Custom Task'}
+                </button>
               </div>
-              <button 
-                onClick={handleAddLink}
-                disabled={addingLink}
-                className="flex-[2] bg-[#6200EA] text-white font-black py-3 rounded-xl shadow-md active:scale-95 transition-transform"
-              >
-                {addingLink ? 'Saving...' : 'Save Link'}
-              </button>
-            </div>
-          </div>
 
-          {/* Active Links List */}
-          <div className="space-y-3">
-            {links.length === 0 ? (
-              <div className="text-center py-4 border-2 border-dashed border-gray-100 rounded-xl">
-                <p className="text-[12px] text-gray-400 font-medium">No active links found.</p>
-              </div>
-            ) : (
-              links.map(link => {
-                const percentage = Math.min(100, Math.round((link.used_slots / link.total_slots) * 100));
-                const isFull = link.used_slots >= link.total_slots;
-
-                return (
-                  <div key={link.id} className="bg-white border border-gray-200 rounded-2xl p-4 relative overflow-hidden">
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="pr-8">
-                        <h3 className="font-black text-[13px] text-gray-900 leading-tight mb-0.5">{link.name}</h3>
-                        <p className="text-[10px] text-gray-400 font-medium truncate max-w-[200px]">{link.url}</p>
+              {/* Active Tasks List */}
+              <div className="space-y-3">
+                {customTasks.length === 0 ? (
+                  <div className="text-center py-4 border-2 border-dashed border-gray-100 rounded-xl">
+                    <p className="text-[12px] text-gray-400 font-medium">No custom tasks yet.</p>
+                  </div>
+                ) : (
+                  customTasks.map(task => (
+                    <div key={task.id} className="bg-white border border-gray-200 rounded-xl p-3 flex justify-between items-center relative overflow-hidden">
+                      <div className="flex gap-3 items-center">
+                        <div className="text-xl bg-gray-50 p-2 rounded-lg border border-gray-100">
+                          {task.icon}
+                        </div>
+                        <div>
+                          <h3 className="font-black text-[13px] text-gray-900 leading-tight">{task.title}</h3>
+                          <p className="text-[10px] text-gray-400 font-medium mt-0.5">
+                            <span className="text-yellow-500 font-bold">+{task.points_reward} pts</span> • {task.is_daily ? 'Daily' : 'One-time'} • {task.requires_ad ? 'Ads On' : 'No Ads'}
+                          </p>
+                        </div>
                       </div>
-                      <button onClick={() => deleteRecord('canva_links', link.id)} className="w-7 h-7 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-xs absolute top-3 right-3 hover:bg-red-100">
+                      <button onClick={() => deleteRecord('dynamic_tasks', task.id)} className="w-8 h-8 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-xs hover:bg-red-100 transition-colors">
                         ✕
                       </button>
                     </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
 
-                    <div className="flex justify-between items-center mb-1.5 mt-3">
-                      <span className={`text-[10px] font-bold ${isFull ? 'text-red-500' : 'text-gray-600'}`}>
-                        {link.used_slots} / {link.total_slots} slots used
-                      </span>
-                      <span className="text-[10px] font-black text-[#6200EA]">{percentage}%</span>
-                    </div>
-                    <div className="w-full bg-gray-100 rounded-full h-1.5">
-                      <div className={`h-1.5 rounded-full transition-all ${isFull ? 'bg-red-500' : 'bg-[#6200EA]'}`} style={{ width: `${percentage}%` }}></div>
-                    </div>
-                  </div>
-                )
-              })
+        {/* ========================================================= */}
+        {/* 🔗 MANAGE CANVA LINKS (DROPDOWN ACCORDION)                */}
+        {/* ========================================================= */}
+        <div className={`bg-white rounded-[24px] p-5 shadow-sm border-2 transition-all ${isLinksOpen ? 'border-purple-100' : 'border-gray-100'} overflow-hidden`}>
+          
+          <div className="flex justify-between items-center cursor-pointer select-none" onClick={() => setIsLinksOpen(!isLinksOpen)}>
+            <div>
+              <h2 className="font-black text-[14px] text-gray-800 flex items-center gap-2">🔗 Canva Links</h2>
+              <p className="text-[10px] text-gray-400 font-medium mt-0.5">{links.length} active links</p>
+            </div>
+            {!isLinksOpen ? (
+              <span className="text-[#6200EA] font-black text-[11px] bg-purple-50 px-3 py-1.5 rounded-full">Tap to Expand ➔</span>
+            ) : (
+              <button className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 font-black hover:bg-gray-200">✕</button>
             )}
           </div>
 
+          {isLinksOpen && (
+            <div className="animate-in fade-in slide-in-from-top-4 duration-300 mt-5 pt-5 border-t border-gray-100">
+              {/* Add Link Form */}
+              <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 mb-5 space-y-3">
+                <input 
+                  type="text" 
+                  placeholder="Link Name (e.g. Team Alpha - August)" 
+                  value={newLink.name}
+                  onChange={(e) => setNewLink({...newLink, name: e.target.value})}
+                  className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-400"
+                />
+                <input 
+                  type="text" 
+                  placeholder="https://canva.com/brand/join/..." 
+                  value={newLink.url}
+                  onChange={(e) => setNewLink({...newLink, url: e.target.value})}
+                  className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-400"
+                />
+                <div className="flex gap-3 items-end">
+                  <div className="flex-1">
+                    <label className="text-[10px] font-bold text-gray-500 ml-1 mb-1 block">Max Slots</label>
+                    <input 
+                      type="number" 
+                      value={newLink.totalSlots}
+                      onChange={(e) => setNewLink({...newLink, totalSlots: e.target.value})}
+                      className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-400"
+                    />
+                  </div>
+                  <button 
+                    onClick={handleAddLink}
+                    disabled={addingLink}
+                    className="flex-[2] bg-[#6200EA] text-white font-black py-3 rounded-xl shadow-md active:scale-95 transition-transform"
+                  >
+                    {addingLink ? 'Saving...' : 'Save Link'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Active Links List */}
+              <div className="space-y-3">
+                {links.length === 0 ? (
+                  <div className="text-center py-4 border-2 border-dashed border-gray-100 rounded-xl">
+                    <p className="text-[12px] text-gray-400 font-medium">No active links found.</p>
+                  </div>
+                ) : (
+                  links.map(link => {
+                    const percentage = Math.min(100, Math.round((link.used_slots / link.total_slots) * 100));
+                    const isFull = link.used_slots >= link.total_slots;
+
+                    return (
+                      <div key={link.id} className="bg-white border border-gray-200 rounded-2xl p-4 relative overflow-hidden">
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="pr-8">
+                            <h3 className="font-black text-[13px] text-gray-900 leading-tight mb-0.5">{link.name}</h3>
+                            <p className="text-[10px] text-gray-400 font-medium truncate max-w-[200px]">{link.url}</p>
+                          </div>
+                          <button onClick={() => deleteRecord('canva_links', link.id)} className="w-7 h-7 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-xs absolute top-3 right-3 hover:bg-red-100">
+                            ✕
+                          </button>
+                        </div>
+
+                        <div className="flex justify-between items-center mb-1.5 mt-3">
+                          <span className={`text-[10px] font-bold ${isFull ? 'text-red-500' : 'text-gray-600'}`}>
+                            {link.used_slots} / {link.total_slots} slots used
+                          </span>
+                          <span className="text-[10px] font-black text-[#6200EA]">{percentage}%</span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-1.5">
+                          <div className={`h-1.5 rounded-full transition-all ${isFull ? 'bg-red-500' : 'bg-[#6200EA]'}`} style={{ width: `${percentage}%` }}></div>
+                        </div>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+            </div>
+          )}
         </div>
+
       </div>
     </div>
   );
