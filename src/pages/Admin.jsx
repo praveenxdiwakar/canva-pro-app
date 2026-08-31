@@ -12,6 +12,7 @@ export default function Admin() {
   
   // Settings & Links State
   const [zoneId, setZoneId] = useState("");
+  const [isEditingZone, setIsEditingZone] = useState(false); // NEW: Toggle edit mode
   const [links, setLinks] = useState([]);
   const [savingZone, setSavingZone] = useState(false);
   
@@ -69,29 +70,32 @@ export default function Admin() {
   }, []);
 
   const fetchInitialData = async () => {
-    // ✅ FIXED: Bulletproof method to get exact user count
+    // ✅ BULLETPROOF COUNT FETCHING
     try {
-      const { data: userData, error: uError } = await supabase.from('users').select('id');
-      if (userData && !uError) {
-        setTotalUsers(userData.length);
+      const { data, count, error } = await supabase.from('users').select('*', { count: 'exact' });
+      if (!error) {
+        setTotalUsers(count !== null ? count : (data?.length || 0));
+      } else {
+        console.error("Error fetching users:", error);
       }
-    } catch(err) {
-      console.error("Error fetching users count:", err);
+    } catch (err) {
+      console.error(err);
     }
 
-    // Get exact count of redemptions
     try {
-      const { data: rData, error: rError } = await supabase.from('redemptions').select('id');
-      if (rData && !rError) {
-        setTotalRedemptions(rData.length);
+      const { data, count, error } = await supabase.from('redemptions').select('*', { count: 'exact' });
+      if (!error) {
+        setTotalRedemptions(count !== null ? count : (data?.length || 0));
       }
-    } catch(err) {
-      console.error("Error fetching redemptions count:", err);
+    } catch (err) {
+      console.error(err);
     }
 
     // Get Ad Zone Setting
-    const { data: adData } = await supabase.from('app_settings').select('value').eq('key', 'MONETAG_ZONE_ID').maybeSingle();
-    if (adData) setZoneId(adData.value);
+    try {
+      const { data: adData } = await supabase.from('app_settings').select('value').eq('key', 'MONETAG_ZONE_ID').maybeSingle();
+      if (adData) setZoneId(adData.value);
+    } catch (err) {}
 
     fetchLinks();
     fetchTasks();
@@ -110,6 +114,7 @@ export default function Admin() {
   // --- ACTIONS ---
 
   const handleSaveZone = async () => {
+    if (!zoneId) return alert("Please enter a valid Zone ID.");
     setSavingZone(true);
     try {
       const { error } = await supabase
@@ -118,6 +123,7 @@ export default function Admin() {
       
       if (error) throw error;
       alert("✅ Monetag Ad Zone saved successfully!");
+      setIsEditingZone(false); // Lock the input again after saving!
     } catch (err) {
       alert(`❌ Error saving Ad Zone: ${err.message}`);
     }
@@ -160,7 +166,6 @@ export default function Admin() {
     setAddingTask(false);
   };
 
-  // Unified Delete Function for both Links and Tasks
   const deleteRecord = async (table, id) => {
     if (!window.confirm("Are you sure you want to delete this item?")) return;
     try {
@@ -230,33 +235,54 @@ export default function Admin() {
           </div>
         </div>
 
-        {/* Monetag Settings */}
+        {/* ========================================================= */}
+        {/* 📡 INTERACTIVE MONETAG SETTINGS WITH EDIT LOCK            */}
+        {/* ========================================================= */}
         <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100">
           <h2 className="font-black text-[14px] text-gray-800 flex items-center gap-2 mb-4">📡 Monetag Ad Settings</h2>
           
           <div className="relative flex items-center">
             {/* Inline Edit Icon */}
-            <span className="absolute left-4 text-gray-400 text-lg">✏️</span>
+            <button 
+              onClick={() => setIsEditingZone(!isEditingZone)}
+              className={`absolute left-3 w-8 h-8 rounded-full flex items-center justify-center transition-all z-10 ${isEditingZone ? 'bg-purple-100 text-purple-600' : 'bg-transparent text-gray-400 hover:bg-gray-100'}`}
+            >
+              ✏️
+            </button>
             
             <input 
               type="text" 
               value={zoneId}
               onChange={(e) => setZoneId(e.target.value)}
+              disabled={!isEditingZone}
               placeholder="Enter Zone ID (e.g. 9773650)" 
-              className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm font-bold rounded-xl pl-11 pr-24 py-3.5 outline-none focus:border-purple-400 focus:bg-white transition-all shadow-inner"
+              className={`w-full border text-sm font-bold rounded-xl pl-12 py-3.5 outline-none transition-all ${
+                isEditingZone 
+                  ? 'bg-white border-purple-400 shadow-[0_0_0_4px_rgba(167,139,250,0.1)] text-gray-900 pr-24' 
+                  : 'bg-gray-50 border-gray-200 text-gray-500 shadow-inner pr-4'
+              }`}
             />
             
-            {/* Inline Save Button */}
-            <button 
-              onClick={handleSaveZone}
-              disabled={savingZone}
-              className="absolute right-2 bg-gradient-to-r from-[#E65100] to-[#FF9800] text-white font-black px-4 py-2 rounded-lg shadow-sm active:scale-95 transition-transform text-xs"
-            >
-              {savingZone ? '...' : 'Save'}
-            </button>
+            {/* Save Button only shows when editing */}
+            <AnimatePresence>
+              {isEditingZone && (
+                <motion.button 
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  onClick={handleSaveZone}
+                  disabled={savingZone}
+                  className="absolute right-2 bg-gradient-to-r from-[#E65100] to-[#FF9800] text-white font-black px-4 py-2 rounded-lg shadow-sm active:scale-95 transition-transform text-xs"
+                >
+                  {savingZone ? 'Saving...' : 'Save'}
+                </motion.button>
+              )}
+            </AnimatePresence>
           </div>
           
-          <p className="text-[10px] text-gray-400 font-medium mt-3 ml-1">This Zone ID activates the ads across the entire app dynamically.</p>
+          <p className="text-[10px] text-gray-400 font-medium mt-3 ml-1">
+            {isEditingZone ? '🔓 Editing unlocked. Click Save when done.' : '🔒 Click the pencil icon to edit your Zone ID.'}
+          </p>
         </div>
 
         {/* 🚀 DYNAMIC TASK GENERATOR */}
