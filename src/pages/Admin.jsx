@@ -10,17 +10,17 @@ export default function Admin() {
   const [totalUsers, setTotalUsers] = useState(0);
   const [totalRedemptions, setTotalRedemptions] = useState(0);
   
-  // Settings & Links State
+  // Settings State
   const [zoneId, setZoneId] = useState("");
   const [isEditingZone, setIsEditingZone] = useState(false);
-  const [links, setLinks] = useState([]);
   const [savingZone, setSavingZone] = useState(false);
-  
-  // Accordion / Dropdown States (NEW)
+
+  // Accordion / Dropdown States
   const [isTasksOpen, setIsTasksOpen] = useState(false);
   const [isLinksOpen, setIsLinksOpen] = useState(false);
   
-  // New Link Form State
+  // Links State
+  const [links, setLinks] = useState([]);
   const [newLink, setNewLink] = useState({ name: '', url: '', totalSlots: 100 });
   const [addingLink, setAddingLink] = useState(false);
 
@@ -70,20 +70,24 @@ export default function Admin() {
   }, []);
 
   const fetchInitialData = async () => {
+    // ✅ User's confirmed working count fetch
     try {
-      const { data: usersData, error: uError } = await supabase.from('users').select('id');
-      if (usersData && !uError) {
-        setTotalUsers(usersData.length);
+      const { data, count, error } = await supabase.from('users').select('*', { count: 'exact' });
+      if (!error) {
+        setTotalUsers(count !== null ? count : (data?.length || 0));
+      } else {
+        console.error("Error fetching users:", error);
       }
     } catch (err) { console.error(err); }
 
     try {
-      const { data: redempData, error: rError } = await supabase.from('redemptions').select('id');
-      if (redempData && !rError) {
-        setTotalRedemptions(redempData.length);
+      const { data, count, error } = await supabase.from('redemptions').select('*', { count: 'exact' });
+      if (!error) {
+        setTotalRedemptions(count !== null ? count : (data?.length || 0));
       }
     } catch (err) { console.error(err); }
 
+    // Get Ad Zone Setting
     try {
       const { data: adData } = await supabase.from('app_settings').select('value').eq('key', 'MONETAG_ZONE_ID').maybeSingle();
       if (adData) setZoneId(adData.value);
@@ -102,6 +106,8 @@ export default function Admin() {
     const { data } = await supabase.from('dynamic_tasks').select('*').order('created_at', { ascending: false });
     if (data) setCustomTasks(data);
   };
+
+  // --- ACTIONS ---
 
   const handleSaveZone = async () => {
     if (!zoneId) return alert("Please enter a valid Zone ID.");
@@ -216,28 +222,15 @@ export default function Admin() {
         </div>
 
         {/* ========================================================= */}
-        {/* 📡 INTERACTIVE MONETAG SETTINGS WITH EDIT LOCK            */}
+        {/* 📡 INTERACTIVE MONETAG SETTINGS (EDIT ON LEFT, SAVE ON RIGHT) */}
         {/* ========================================================= */}
         <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100">
           <h2 className="font-black text-[14px] text-gray-800 flex items-center gap-2 mb-4">📡 Monetag Ad Settings</h2>
           
           <div className="relative flex items-center">
             
-            <input 
-              type="text" 
-              value={zoneId}
-              onChange={(e) => setZoneId(e.target.value)}
-              disabled={!isEditingZone}
-              placeholder="Enter Zone ID (e.g. 9773650)" 
-              className={`w-full border text-sm font-bold rounded-xl pl-4 py-3.5 outline-none transition-all ${
-                isEditingZone 
-                  ? 'bg-white border-purple-400 shadow-[0_0_0_4px_rgba(167,139,250,0.1)] text-gray-900 pr-[100px]' 
-                  : 'bg-gray-50 border-gray-200 text-gray-500 shadow-inner pr-12'
-              }`}
-            />
-            
-            {/* Inline Action Buttons (Positioned on the RIGHT) */}
-            <div className="absolute right-2 flex items-center gap-1">
+            {/* Inline Action Button (Positioned on the LEFT) */}
+            <div className="absolute left-2 flex items-center gap-1 z-10">
               <AnimatePresence mode="wait">
                 {!isEditingZone ? (
                   <motion.button 
@@ -246,38 +239,61 @@ export default function Admin() {
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.8 }}
                     onClick={() => setIsEditingZone(true)}
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-200 transition-colors z-10"
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-200 transition-colors"
                   >
                     ✏️
                   </motion.button>
                 ) : (
-                  <motion.div 
-                    key="saveGroup"
+                  <motion.button 
+                    key="cancelBtn"
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.8 }}
-                    className="flex items-center gap-1 z-10"
+                    onClick={() => {
+                      setIsEditingZone(false);
+                      fetchInitialData(); // Reset value on cancel
+                    }}
+                    className="w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors text-[10px]"
                   >
-                    <button 
-                      onClick={() => setIsEditingZone(false)}
-                      className="w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors text-[10px]"
-                    >
-                      ❌
-                    </button>
-                    <button 
-                      onClick={handleSaveZone}
-                      disabled={savingZone}
-                      className="bg-gradient-to-r from-[#E65100] to-[#FF9800] text-white font-black px-4 py-2 rounded-lg shadow-sm active:scale-95 transition-transform text-xs"
-                    >
-                      {savingZone ? '...' : 'Save'}
-                    </button>
-                  </motion.div>
+                    ❌
+                  </motion.button>
                 )}
               </AnimatePresence>
             </div>
+
+            <input 
+              type="text" 
+              value={zoneId}
+              onChange={(e) => setZoneId(e.target.value)}
+              disabled={!isEditingZone}
+              placeholder="Enter Zone ID (e.g. 9773650)" 
+              className={`w-full border text-sm font-bold rounded-xl pl-12 py-3.5 outline-none transition-all ${
+                isEditingZone 
+                  ? 'bg-white border-purple-400 shadow-[0_0_0_4px_rgba(167,139,250,0.1)] text-gray-900 pr-20' 
+                  : 'bg-gray-50 border-gray-200 text-gray-500 shadow-inner pr-4'
+              }`}
+            />
+
+            {/* Save Button (Positioned on the RIGHT, only when editing) */}
+            <AnimatePresence>
+              {isEditingZone && (
+                <motion.button 
+                  key="saveBtn"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  onClick={handleSaveZone}
+                  disabled={savingZone}
+                  className="absolute right-2 bg-gradient-to-r from-[#E65100] to-[#FF9800] text-white font-black px-4 py-2 rounded-lg shadow-sm active:scale-95 transition-transform text-xs z-10"
+                >
+                  {savingZone ? '...' : 'Save'}
+                </motion.button>
+              )}
+            </AnimatePresence>
           </div>
+          
           <p className="text-[10px] text-gray-400 font-medium mt-3 ml-1">
-            {isEditingZone ? '🔓 Editing unlocked. Click Save when done.' : '🔒 Click the pencil icon on the right to edit your Zone ID.'}
+            {isEditingZone ? '🔓 Editing unlocked. Click Save when done.' : '🔒 Click the pencil icon on the left to edit your Zone ID.'}
           </p>
         </div>
 
@@ -294,107 +310,114 @@ export default function Admin() {
             {!isTasksOpen ? (
               <span className="text-[#3B82F6] font-black text-[11px] bg-blue-50 px-3 py-1.5 rounded-full">Tap to Expand ➔</span>
             ) : (
-              <button className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 font-black hover:bg-gray-200">✕</button>
+              <button className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 font-black hover:bg-gray-200 transition-colors">✕</button>
             )}
           </div>
 
-          {isTasksOpen && (
-            <div className="animate-in fade-in slide-in-from-top-4 duration-300 mt-5 pt-5 border-t border-gray-100">
-              {/* Add Task Form */}
-              <div className="bg-blue-50/50 rounded-2xl p-4 border border-blue-100 mb-5 space-y-3">
-                <div className="flex gap-2">
-                  <input 
-                    type="text" 
-                    placeholder="Emoji (📱)" 
-                    value={newTask.icon}
-                    onChange={(e) => setNewTask({...newTask, icon: e.target.value})}
-                    className="w-16 text-center bg-white border border-gray-200 text-gray-900 rounded-xl px-2 py-3 text-lg outline-none focus:border-blue-400"
-                  />
-                  <input 
-                    type="text" 
-                    placeholder="Task Title (e.g. Download App)" 
-                    value={newTask.title}
-                    onChange={(e) => setNewTask({...newTask, title: e.target.value})}
-                    className="flex-1 bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400"
-                  />
-                </div>
-                
-                <input 
-                  type="text" 
-                  placeholder="Description (e.g. Install & Open the app)" 
-                  value={newTask.description}
-                  onChange={(e) => setNewTask({...newTask, description: e.target.value})}
-                  className="w-full bg-white border border-gray-200 text-gray-900 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400"
-                />
-                
-                <input 
-                  type="text" 
-                  placeholder="Action URL (e.g. https://play.google.com/...)" 
-                  value={newTask.action_url}
-                  onChange={(e) => setNewTask({...newTask, action_url: e.target.value})}
-                  className="w-full bg-white border border-gray-200 text-gray-900 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400"
-                />
-                
-                <div className="flex gap-3 items-end">
-                  <div className="flex-1">
-                    <label className="text-[10px] font-bold text-gray-500 ml-1 block mb-1">Points Reward</label>
+          <AnimatePresence>
+            {isTasksOpen && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mt-5 pt-5 border-t border-gray-100"
+              >
+                {/* Add Task Form */}
+                <div className="bg-blue-50/50 rounded-2xl p-4 border border-blue-100 mb-5 space-y-3">
+                  <div className="flex gap-2">
                     <input 
-                      type="number" 
-                      value={newTask.points_reward}
-                      onChange={(e) => setNewTask({...newTask, points_reward: parseInt(e.target.value) || 0})}
-                      className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400"
+                      type="text" 
+                      placeholder="Emoji (📱)" 
+                      value={newTask.icon}
+                      onChange={(e) => setNewTask({...newTask, icon: e.target.value})}
+                      className="w-16 text-center bg-white border border-gray-200 text-gray-900 rounded-xl px-2 py-3 text-lg outline-none focus:border-blue-400"
+                    />
+                    <input 
+                      type="text" 
+                      placeholder="Task Title (e.g. Download App)" 
+                      value={newTask.title}
+                      onChange={(e) => setNewTask({...newTask, title: e.target.value})}
+                      className="flex-1 bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400"
                     />
                   </div>
-                  <div className="flex flex-col gap-1.5 flex-1 pb-1">
-                    <label className="flex items-center gap-2 text-[10px] font-bold text-gray-600 cursor-pointer">
-                      <input type="checkbox" checked={newTask.requires_ad} onChange={(e) => setNewTask({...newTask, requires_ad: e.target.checked})} className="accent-blue-600 w-4 h-4" /> 
-                      Require Ad
-                    </label>
-                    <label className="flex items-center gap-2 text-[10px] font-bold text-gray-600 cursor-pointer">
-                      <input type="checkbox" checked={newTask.is_daily} onChange={(e) => setNewTask({...newTask, is_daily: e.target.checked})} className="accent-blue-600 w-4 h-4" /> 
-                      Daily Task
-                    </label>
-                  </div>
-                </div>
-                
-                <button 
-                  onClick={handleAddCustomTask}
-                  disabled={addingTask}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded-xl shadow-md active:scale-95 transition-all mt-2"
-                >
-                  {addingTask ? 'Saving...' : '➕ Create Custom Task'}
-                </button>
-              </div>
-
-              {/* Active Tasks List */}
-              <div className="space-y-3">
-                {customTasks.length === 0 ? (
-                  <div className="text-center py-4 border-2 border-dashed border-gray-100 rounded-xl">
-                    <p className="text-[12px] text-gray-400 font-medium">No custom tasks yet.</p>
-                  </div>
-                ) : (
-                  customTasks.map(task => (
-                    <div key={task.id} className="bg-white border border-gray-200 rounded-xl p-3 flex justify-between items-center relative overflow-hidden">
-                      <div className="flex gap-3 items-center">
-                        <div className="text-xl bg-gray-50 p-2 rounded-lg border border-gray-100">
-                          {task.icon}
-                        </div>
-                        <div>
-                          <h3 className="font-black text-[13px] text-gray-900 leading-tight">{task.title}</h3>
-                          <p className="text-[10px] text-gray-400 font-medium mt-0.5">
-                            <span className="text-yellow-500 font-bold">+{task.points_reward} pts</span> • {task.is_daily ? 'Daily' : 'One-time'} • {task.requires_ad ? 'Ads On' : 'No Ads'}
-                          </p>
-                        </div>
-                      </div>
-                      <button onClick={() => deleteRecord('dynamic_tasks', task.id)} className="w-8 h-8 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-xs hover:bg-red-100 transition-colors">
-                        ✕
-                      </button>
+                  
+                  <input 
+                    type="text" 
+                    placeholder="Description (e.g. Install & Open the app)" 
+                    value={newTask.description}
+                    onChange={(e) => setNewTask({...newTask, description: e.target.value})}
+                    className="w-full bg-white border border-gray-200 text-gray-900 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400"
+                  />
+                  
+                  <input 
+                    type="text" 
+                    placeholder="Action URL (e.g. https://play.google.com/...)" 
+                    value={newTask.action_url}
+                    onChange={(e) => setNewTask({...newTask, action_url: e.target.value})}
+                    className="w-full bg-white border border-gray-200 text-gray-900 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400"
+                  />
+                  
+                  <div className="flex gap-3 items-end">
+                    <div className="flex-1">
+                      <label className="text-[10px] font-bold text-gray-500 ml-1 block mb-1">Points Reward</label>
+                      <input 
+                        type="number" 
+                        value={newTask.points_reward}
+                        onChange={(e) => setNewTask({...newTask, points_reward: parseInt(e.target.value) || 0})}
+                        className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400"
+                      />
                     </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
+                    <div className="flex flex-col gap-1.5 flex-1 pb-1">
+                      <label className="flex items-center gap-2 text-[10px] font-bold text-gray-600 cursor-pointer">
+                        <input type="checkbox" checked={newTask.requires_ad} onChange={(e) => setNewTask({...newTask, requires_ad: e.target.checked})} className="accent-blue-600 w-4 h-4" /> 
+                        Require Ad
+                      </label>
+                      <label className="flex items-center gap-2 text-[10px] font-bold text-gray-600 cursor-pointer">
+                        <input type="checkbox" checked={newTask.is_daily} onChange={(e) => setNewTask({...newTask, is_daily: e.target.checked})} className="accent-blue-600 w-4 h-4" /> 
+                        Daily Task
+                      </label>
+                    </div>
+                  </div>
+                  
+                  <button 
+                    onClick={handleAddCustomTask}
+                    disabled={addingTask}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded-xl shadow-md active:scale-95 transition-all mt-2"
+                  >
+                    {addingTask ? 'Saving...' : '➕ Create Custom Task'}
+                  </button>
+                </div>
+
+                {/* Active Tasks List */}
+                <div className="space-y-3">
+                  {customTasks.length === 0 ? (
+                    <div className="text-center py-4 border-2 border-dashed border-gray-100 rounded-xl">
+                      <p className="text-[12px] text-gray-400 font-medium">No custom tasks yet.</p>
+                    </div>
+                  ) : (
+                    customTasks.map(task => (
+                      <div key={task.id} className="bg-white border border-gray-200 rounded-xl p-3 flex justify-between items-center relative overflow-hidden">
+                        <div className="flex gap-3 items-center">
+                          <div className="text-xl bg-gray-50 p-2 rounded-lg border border-gray-100">
+                            {task.icon}
+                          </div>
+                          <div>
+                            <h3 className="font-black text-[13px] text-gray-900 leading-tight">{task.title}</h3>
+                            <p className="text-[10px] text-gray-400 font-medium mt-0.5">
+                              <span className="text-yellow-500 font-bold">+{task.points_reward} pts</span> • {task.is_daily ? 'Daily' : 'One-time'} • {task.requires_ad ? 'Ads On' : 'No Ads'}
+                            </p>
+                          </div>
+                        </div>
+                        <button onClick={() => deleteRecord('dynamic_tasks', task.id)} className="w-8 h-8 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-xs hover:bg-red-100 transition-colors">
+                          ✕
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* ========================================================= */}
@@ -410,87 +433,94 @@ export default function Admin() {
             {!isLinksOpen ? (
               <span className="text-[#6200EA] font-black text-[11px] bg-purple-50 px-3 py-1.5 rounded-full">Tap to Expand ➔</span>
             ) : (
-              <button className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 font-black hover:bg-gray-200">✕</button>
+              <button className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 font-black hover:bg-gray-200 transition-colors">✕</button>
             )}
           </div>
 
-          {isLinksOpen && (
-            <div className="animate-in fade-in slide-in-from-top-4 duration-300 mt-5 pt-5 border-t border-gray-100">
-              {/* Add Link Form */}
-              <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 mb-5 space-y-3">
-                <input 
-                  type="text" 
-                  placeholder="Link Name (e.g. Team Alpha - August)" 
-                  value={newLink.name}
-                  onChange={(e) => setNewLink({...newLink, name: e.target.value})}
-                  className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-400"
-                />
-                <input 
-                  type="text" 
-                  placeholder="https://canva.com/brand/join/..." 
-                  value={newLink.url}
-                  onChange={(e) => setNewLink({...newLink, url: e.target.value})}
-                  className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-400"
-                />
-                <div className="flex gap-3 items-end">
-                  <div className="flex-1">
-                    <label className="text-[10px] font-bold text-gray-500 ml-1 mb-1 block">Max Slots</label>
-                    <input 
-                      type="number" 
-                      value={newLink.totalSlots}
-                      onChange={(e) => setNewLink({...newLink, totalSlots: e.target.value})}
-                      className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-400"
-                    />
+          <AnimatePresence>
+            {isLinksOpen && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mt-5 pt-5 border-t border-gray-100"
+              >
+                {/* Add Link Form */}
+                <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 mb-5 space-y-3">
+                  <input 
+                    type="text" 
+                    placeholder="Link Name (e.g. Team Alpha - August)" 
+                    value={newLink.name}
+                    onChange={(e) => setNewLink({...newLink, name: e.target.value})}
+                    className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-400"
+                  />
+                  <input 
+                    type="text" 
+                    placeholder="https://canva.com/brand/join/..." 
+                    value={newLink.url}
+                    onChange={(e) => setNewLink({...newLink, url: e.target.value})}
+                    className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-400"
+                  />
+                  <div className="flex gap-3 items-end">
+                    <div className="flex-1">
+                      <label className="text-[10px] font-bold text-gray-500 ml-1 mb-1 block">Max Slots</label>
+                      <input 
+                        type="number" 
+                        value={newLink.totalSlots}
+                        onChange={(e) => setNewLink({...newLink, totalSlots: e.target.value})}
+                        className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-400"
+                      />
+                    </div>
+                    <button 
+                      onClick={handleAddLink}
+                      disabled={addingLink}
+                      className="flex-[2] bg-[#6200EA] text-white font-black py-3 rounded-xl shadow-md active:scale-95 transition-transform"
+                    >
+                      {addingLink ? 'Saving...' : 'Save Link'}
+                    </button>
                   </div>
-                  <button 
-                    onClick={handleAddLink}
-                    disabled={addingLink}
-                    className="flex-[2] bg-[#6200EA] text-white font-black py-3 rounded-xl shadow-md active:scale-95 transition-transform"
-                  >
-                    {addingLink ? 'Saving...' : 'Save Link'}
-                  </button>
                 </div>
-              </div>
 
-              {/* Active Links List */}
-              <div className="space-y-3">
-                {links.length === 0 ? (
-                  <div className="text-center py-4 border-2 border-dashed border-gray-100 rounded-xl">
-                    <p className="text-[12px] text-gray-400 font-medium">No active links found.</p>
-                  </div>
-                ) : (
-                  links.map(link => {
-                    const percentage = Math.min(100, Math.round((link.used_slots / link.total_slots) * 100));
-                    const isFull = link.used_slots >= link.total_slots;
+                {/* Active Links List */}
+                <div className="space-y-3">
+                  {links.length === 0 ? (
+                    <div className="text-center py-4 border-2 border-dashed border-gray-100 rounded-xl">
+                      <p className="text-[12px] text-gray-400 font-medium">No active links found.</p>
+                    </div>
+                  ) : (
+                    links.map(link => {
+                      const percentage = Math.min(100, Math.round((link.used_slots / link.total_slots) * 100));
+                      const isFull = link.used_slots >= link.total_slots;
 
-                    return (
-                      <div key={link.id} className="bg-white border border-gray-200 rounded-2xl p-4 relative overflow-hidden">
-                        <div className="flex justify-between items-start mb-2">
-                          <div className="pr-8">
-                            <h3 className="font-black text-[13px] text-gray-900 leading-tight mb-0.5">{link.name}</h3>
-                            <p className="text-[10px] text-gray-400 font-medium truncate max-w-[200px]">{link.url}</p>
+                      return (
+                        <div key={link.id} className="bg-white border border-gray-200 rounded-2xl p-4 relative overflow-hidden">
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="pr-8">
+                              <h3 className="font-black text-[13px] text-gray-900 leading-tight mb-0.5">{link.name}</h3>
+                              <p className="text-[10px] text-gray-400 font-medium truncate max-w-[200px]">{link.url}</p>
+                            </div>
+                            <button onClick={() => deleteRecord('canva_links', link.id)} className="w-7 h-7 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-xs absolute top-3 right-3 hover:bg-red-100 transition-colors">
+                              ✕
+                            </button>
                           </div>
-                          <button onClick={() => deleteRecord('canva_links', link.id)} className="w-7 h-7 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-xs absolute top-3 right-3 hover:bg-red-100">
-                            ✕
-                          </button>
-                        </div>
 
-                        <div className="flex justify-between items-center mb-1.5 mt-3">
-                          <span className={`text-[10px] font-bold ${isFull ? 'text-red-500' : 'text-gray-600'}`}>
-                            {link.used_slots} / {link.total_slots} slots used
-                          </span>
-                          <span className="text-[10px] font-black text-[#6200EA]">{percentage}%</span>
+                          <div className="flex justify-between items-center mb-1.5 mt-3">
+                            <span className={`text-[10px] font-bold ${isFull ? 'text-red-500' : 'text-gray-600'}`}>
+                              {link.used_slots} / {link.total_slots} slots used
+                            </span>
+                            <span className="text-[10px] font-black text-[#6200EA]">{percentage}%</span>
+                          </div>
+                          <div className="w-full bg-gray-100 rounded-full h-1.5">
+                            <div className={`h-1.5 rounded-full transition-all ${isFull ? 'bg-red-500' : 'bg-[#6200EA]'}`} style={{ width: `${percentage}%` }}></div>
+                          </div>
                         </div>
-                        <div className="w-full bg-gray-100 rounded-full h-1.5">
-                          <div className={`h-1.5 rounded-full transition-all ${isFull ? 'bg-red-500' : 'bg-[#6200EA]'}`} style={{ width: `${percentage}%` }}></div>
-                        </div>
-                      </div>
-                    )
-                  })
-                )}
-              </div>
-            </div>
-          )}
+                      )
+                    })
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
       </div>
