@@ -103,8 +103,8 @@ export default function Tasks() {
 
   useEffect(() => { if (user?.telegramId) localStorage.setItem(`tasks_${user.telegramId}`, JSON.stringify(taskState)); }, [taskState, user?.telegramId]);
 
-  const prizes = [20, 0, 1, 0, 2, 0, 5, 1];
-  const labels = ['+20', '0', '+1', '0', '+2', '0', '+5', '+1'];
+  const prizes = [10, 0, 1, 0, 2, 0, 5, 1];
+  const labels = ['+10', '0', '+1', '0', '+2', '0', '+5', '+1'];
   const currentStreak = user?.streak || 0;
 
   const openExternalLink = (url) => {

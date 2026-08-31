@@ -20,15 +20,16 @@ export default function Redeem() {
   const [errorModal, setErrorModal] = useState({ isOpen: false, message: "" });
   const [celebration, setCelebration] = useState({ isOpen: false, message: "", link: "", days: 0 });
 
-  // Hardcoded Static Tiers
+  // ✅ UPDATED: Hardcoded Static Tiers with new pricing
   const tiers = [
-    { id: 1, durationDays: 7, pointsCost: 20, title: "Starter", subtitle: "7 Days Full Access" },
-    { id: 2, durationDays: 15, pointsCost: 45, title: "Quick Access", subtitle: "15 Days Full Access" },
-    { id: 3, durationDays: 30, pointsCost: 80, title: "Most Popular", subtitle: "30 Days Full Access", badge: "🔥 BEST VALUE" }
+    { id: 1, durationDays: 7, pointsCost: 49, title: "Starter", subtitle: "7 Days Full Access" },
+    { id: 2, durationDays: 15, pointsCost: 89, title: "Quick Access", subtitle: "15 Days Full Access" },
+    { id: 3, durationDays: 30, pointsCost: 179, title: "Most Popular", subtitle: "30 Days Full Access", badge: "🔥 BEST VALUE" }
   ];
 
   const currentPoints = user?.points || 0;
-  const firstRewardCost = 20;
+  // ✅ UPDATED: First reward cost matches the new Starter tier
+  const firstRewardCost = 49;
   const mainProgress = Math.min(100, Math.round((currentPoints / firstRewardCost) * 100));
 
   // 1. Fetch Active Subscription on Load (WITH LOCAL BACKUP)
@@ -211,7 +212,6 @@ export default function Redeem() {
             </div>
           </div>
           
-          {/* ✅ UPDATED EARN BUTTON WITH SVG ICON ✅ */}
           <button onClick={() => navigate('/tasks')} className="border border-purple-200 text-[#6200EA] bg-purple-50 font-black px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 shadow-sm active:scale-95 transition-transform">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
