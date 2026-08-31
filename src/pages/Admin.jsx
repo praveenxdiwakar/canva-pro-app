@@ -12,7 +12,7 @@ export default function Admin() {
   
   // Settings & Links State
   const [zoneId, setZoneId] = useState("");
-  const [isEditingZone, setIsEditingZone] = useState(false); // NEW: Toggle edit mode
+  const [isEditingZone, setIsEditingZone] = useState(false);
   const [links, setLinks] = useState([]);
   const [savingZone, setSavingZone] = useState(false);
   
@@ -32,29 +32,25 @@ export default function Admin() {
     // REAL-TIME DATABASE SUBSCRIPTIONS
     // ==========================================
     
-    // 1. Listen for new Users joining
     const usersSubscription = supabase.channel('users-channel')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'users' }, () => {
         setTotalUsers(prev => prev + 1);
       })
       .subscribe();
 
-    // 2. Listen for new Redemptions
     const redemptionsSubscription = supabase.channel('redemptions-channel')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'redemptions' }, () => {
         setTotalRedemptions(prev => prev + 1);
-        fetchLinks(); // Refresh links to show updated used_slots
+        fetchLinks();
       })
       .subscribe();
 
-    // 3. Listen for Canva Links updates
     const linksSubscription = supabase.channel('links-channel')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'canva_links' }, () => {
         fetchLinks();
       })
       .subscribe();
 
-    // 4. Listen for Dynamic Tasks updates
     const tasksSubscription = supabase.channel('tasks-channel')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'dynamic_tasks' }, () => {
         fetchTasks();
@@ -70,28 +66,22 @@ export default function Admin() {
   }, []);
 
   const fetchInitialData = async () => {
-    // ✅ BULLETPROOF COUNT FETCHING
+    // ✅ BULLETPROOF COUNT FETCHING (Bypasses exact count errors)
+    // NOTE: If this returns 0, you MUST disable RLS on the 'users' and 'redemptions' tables in Supabase!
     try {
-      const { data, count, error } = await supabase.from('users').select('*', { count: 'exact' });
-      if (!error) {
-        setTotalUsers(count !== null ? count : (data?.length || 0));
-      } else {
-        console.error("Error fetching users:", error);
+      const { data: usersData, error: uError } = await supabase.from('users').select('id');
+      if (usersData && !uError) {
+        setTotalUsers(usersData.length);
       }
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) { console.error(err); }
 
     try {
-      const { data, count, error } = await supabase.from('redemptions').select('*', { count: 'exact' });
-      if (!error) {
-        setTotalRedemptions(count !== null ? count : (data?.length || 0));
+      const { data: redempData, error: rError } = await supabase.from('redemptions').select('id');
+      if (redempData && !rError) {
+        setTotalRedemptions(redempData.length);
       }
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) { console.error(err); }
 
-    // Get Ad Zone Setting
     try {
       const { data: adData } = await supabase.from('app_settings').select('value').eq('key', 'MONETAG_ZONE_ID').maybeSingle();
       if (adData) setZoneId(adData.value);
@@ -111,19 +101,14 @@ export default function Admin() {
     if (data) setCustomTasks(data);
   };
 
-  // --- ACTIONS ---
-
   const handleSaveZone = async () => {
     if (!zoneId) return alert("Please enter a valid Zone ID.");
     setSavingZone(true);
     try {
-      const { error } = await supabase
-        .from('app_settings')
-        .upsert({ key: 'MONETAG_ZONE_ID', value: zoneId });
-      
+      const { error } = await supabase.from('app_settings').upsert({ key: 'MONETAG_ZONE_ID', value: zoneId });
       if (error) throw error;
       alert("✅ Monetag Ad Zone saved successfully!");
-      setIsEditingZone(false); // Lock the input again after saving!
+      setIsEditingZone(false); // Lock it back after saving
     } catch (err) {
       alert(`❌ Error saving Ad Zone: ${err.message}`);
     }
@@ -137,14 +122,12 @@ export default function Admin() {
       const { error } = await supabase.from('canva_links').insert([{
         name: newLink.name,
         url: newLink.url,
-        invitelink: newLink.url, // Keep in sync for older code versions
+        invitelink: newLink.url,
         total_slots: parseInt(newLink.totalSlots) || 100,
         used_slots: 0
       }]);
-      
       if (error) throw error;
-      
-      setNewLink({ name: '', url: '', totalSlots: 100 }); // Reset form
+      setNewLink({ name: '', url: '', totalSlots: 100 });
     } catch (err) {
       alert(`❌ Error saving link: ${err.message}`);
     }
@@ -157,7 +140,6 @@ export default function Admin() {
     try {
       const { error } = await supabase.from('dynamic_tasks').insert([newTask]);
       if (error) throw error;
-      
       setNewTask({ title: '', description: '', icon: '📱', action_url: '', points_reward: 5, requires_ad: true, is_daily: false });
       alert("✅ Custom task added instantly!");
     } catch (err) {
@@ -182,16 +164,12 @@ export default function Admin() {
       {/* 🌟 UPGRADED PREMIUM HEADER BANNER 🌟                        */}
       {/* ========================================================= */}
       <div className="relative w-full h-[150px] bg-gradient-to-br from-[#00C4CC] via-[#7B2CBF] to-[#6200EA] flex items-center justify-center overflow-hidden">
-        
-        {/* Ambient Glows */}
         <div className="absolute top-[-20px] left-[-20px] w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none z-0"></div>
         <div className="absolute bottom-[-30px] right-[-10px] w-40 h-40 bg-[#00E5FF]/20 rounded-full blur-[40px] pointer-events-none z-0"></div>
         
-        {/* Animated Floating Particles */}
         <motion.div animate={{ y: [0, -10, 0], opacity: [0.3, 0.8, 0.3] }} transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }} className="absolute top-6 left-10 text-white/50 text-[10px] select-none z-10">✨</motion.div>
         <motion.div animate={{ y: [0, 10, 0], opacity: [0.2, 0.6, 0.2] }} transition={{ repeat: Infinity, duration: 5, ease: "easeInOut", delay: 1 }} className="absolute bottom-8 right-12 text-white/40 text-[14px] select-none z-10">✦</motion.div>
 
-        {/* Canva Logo + PRO Badge */}
         <div className="relative z-20 flex items-center justify-center gap-1.5 drop-shadow-xl mt-2">
           <h1 className="text-[52px] font-bold text-white tracking-tighter" style={{ fontFamily: 'Georgia, serif' }}>
             Canva
@@ -236,19 +214,12 @@ export default function Admin() {
         </div>
 
         {/* ========================================================= */}
-        {/* 📡 INTERACTIVE MONETAG SETTINGS WITH EDIT LOCK            */}
+        {/* 📡 INTERACTIVE MONETAG SETTINGS WITH EDIT LOCK (RIGHT SIDE)*/}
         {/* ========================================================= */}
         <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100">
           <h2 className="font-black text-[14px] text-gray-800 flex items-center gap-2 mb-4">📡 Monetag Ad Settings</h2>
           
           <div className="relative flex items-center">
-            {/* Inline Edit Icon */}
-            <button 
-              onClick={() => setIsEditingZone(!isEditingZone)}
-              className={`absolute left-3 w-8 h-8 rounded-full flex items-center justify-center transition-all z-10 ${isEditingZone ? 'bg-purple-100 text-purple-600' : 'bg-transparent text-gray-400 hover:bg-gray-100'}`}
-            >
-              ✏️
-            </button>
             
             <input 
               type="text" 
@@ -256,32 +227,57 @@ export default function Admin() {
               onChange={(e) => setZoneId(e.target.value)}
               disabled={!isEditingZone}
               placeholder="Enter Zone ID (e.g. 9773650)" 
-              className={`w-full border text-sm font-bold rounded-xl pl-12 py-3.5 outline-none transition-all ${
+              className={`w-full border text-sm font-bold rounded-xl pl-4 py-3.5 outline-none transition-all ${
                 isEditingZone 
-                  ? 'bg-white border-purple-400 shadow-[0_0_0_4px_rgba(167,139,250,0.1)] text-gray-900 pr-24' 
-                  : 'bg-gray-50 border-gray-200 text-gray-500 shadow-inner pr-4'
+                  ? 'bg-white border-purple-400 shadow-[0_0_0_4px_rgba(167,139,250,0.1)] text-gray-900 pr-[100px]' 
+                  : 'bg-gray-50 border-gray-200 text-gray-500 shadow-inner pr-12'
               }`}
             />
             
-            {/* Save Button only shows when editing */}
-            <AnimatePresence>
-              {isEditingZone && (
-                <motion.button 
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                  onClick={handleSaveZone}
-                  disabled={savingZone}
-                  className="absolute right-2 bg-gradient-to-r from-[#E65100] to-[#FF9800] text-white font-black px-4 py-2 rounded-lg shadow-sm active:scale-95 transition-transform text-xs"
-                >
-                  {savingZone ? 'Saving...' : 'Save'}
-                </motion.button>
-              )}
-            </AnimatePresence>
+            {/* Inline Action Buttons (Positioned on the RIGHT) */}
+            <div className="absolute right-2 flex items-center gap-1">
+              <AnimatePresence mode="wait">
+                {!isEditingZone ? (
+                  <motion.button 
+                    key="editBtn"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    onClick={() => setIsEditingZone(true)}
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-200 transition-colors z-10"
+                  >
+                    ✏️
+                  </motion.button>
+                ) : (
+                  <motion.div 
+                    key="saveGroup"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    className="flex items-center gap-1 z-10"
+                  >
+                    <button 
+                      onClick={() => setIsEditingZone(false)}
+                      className="w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors text-[10px]"
+                    >
+                      ❌
+                    </button>
+                    <button 
+                      onClick={handleSaveZone}
+                      disabled={savingZone}
+                      className="bg-gradient-to-r from-[#E65100] to-[#FF9800] text-white font-black px-4 py-2 rounded-lg shadow-sm active:scale-95 transition-transform text-xs"
+                    >
+                      {savingZone ? '...' : 'Save'}
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
           </div>
           
           <p className="text-[10px] text-gray-400 font-medium mt-3 ml-1">
-            {isEditingZone ? '🔓 Editing unlocked. Click Save when done.' : '🔒 Click the pencil icon to edit your Zone ID.'}
+            {isEditingZone ? '🔓 Editing unlocked. Click Save when done.' : '🔒 Click the pencil icon on the right to edit your Zone ID.'}
           </p>
         </div>
 
