@@ -4,16 +4,56 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import LeaderboardModal from '../components/LeaderboardModal';
 import { fetchUserHistory } from '../api/users';
+import { supabase } from '../api/supabase'; // ✅ Added Supabase Import for Referrals
 
 export default function Profile() {
   const { user } = useTelegram();
   const navigate = useNavigate();
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [history, setHistory] = useState([]);
+  
+  // ✅ ADDED: States for Live Stats
+  const [taskStats, setTaskStats] = useState({ ads: 0, spins: 0 });
+  const [referralsCount, setReferralsCount] = useState(0);
 
   useEffect(() => {
     if (user?.telegramId) {
+      // 1. Fetch History
       fetchUserHistory(user.telegramId).then(setHistory);
+
+      // 2. ✅ Fetch Local Tasks (Today's Ads & Spins)
+      const savedTasks = localStorage.getItem(`tasks_${user.telegramId}`);
+      if (savedTasks) {
+        try {
+          const parsed = JSON.parse(savedTasks);
+          // Only show stats if they belong to today
+          if (parsed.lastDate === new Date().toDateString()) {
+            setTaskStats({
+              ads: (parsed.ads1 || 0) + (parsed.ads2 || 0),
+              spins: parsed.spins || 0
+            });
+          }
+        } catch (err) {
+          console.error("Error parsing tasks", err);
+        }
+      }
+
+      // 3. ✅ Fetch Invites (Referrals) from Database
+      const fetchReferrals = async () => {
+        try {
+          const { count, error } = await supabase
+            .from('users')
+            .select('id', { count: 'exact', head: true })
+            .eq('referred_by', String(user.telegramId));
+          
+          if (!error && count !== null) {
+            setReferralsCount(count);
+          }
+        } catch (err) {
+          console.error("Error fetching referrals:", err);
+        }
+      };
+      fetchReferrals();
     }
   }, [user]);
 
@@ -24,7 +64,6 @@ export default function Profile() {
   const userIdStr = String(user?.telegramId).trim();
   const isAdmin = adminIdStr === userIdStr;
 
-  // ✅ ADDED: The helper function to properly open Telegram links!
   const openExternalLink = (url) => {
     const tg = window.Telegram?.WebApp;
     if (tg && tg.openLink) { tg.openLink(url); } 
@@ -77,7 +116,6 @@ export default function Profile() {
         
         {/* Real User Card */}
         <div className="bg-white rounded-[24px] p-6 shadow-sm text-center border border-gray-100 relative overflow-hidden">
-          {/* Subtle background flair for user card */}
           <div className="absolute top-0 right-0 w-32 h-32 bg-purple-50 rounded-full blur-3xl -mr-10 -mt-10 z-0"></div>
           
           <div className="relative z-10">
@@ -121,7 +159,6 @@ export default function Profile() {
                 <span className="text-lg leading-none">🏆</span> Leaderboard
               </button>
               
-              {/* ✅ SUPPORT BUTTON FIXED HERE */}
               <button onClick={() => openExternalLink('https://t.me/noobfrager')} className="bg-[#3B82F6] hover:bg-blue-600 active:scale-95 transition-transform text-white font-bold py-3.5 rounded-xl shadow-md flex justify-center items-center gap-2 text-[13px]">
                 <span className="text-lg leading-none">🎧</span> Support
               </button>
@@ -137,11 +174,12 @@ export default function Profile() {
           </div>
           
           <div className="grid grid-cols-3 gap-2.5">
+            {/* ✅ FIXED: Inserted real data variables instead of hardcoded strings */}
             {[
-              { val: "0", label: "Today's Ads", icon: "📺" },
-              { val: "0", label: "Today's Spins", icon: "🎡" },
+              { val: taskStats.ads, label: "Today's Ads", icon: "📺" },
+              { val: taskStats.spins, label: "Today's Spins", icon: "🎡" },
               { val: user?.streak || 0, label: "Streak", icon: "🔥" },
-              { val: "0", label: "Invited", icon: "👥" },
+              { val: referralsCount, label: "Invited", icon: "👥" },
               { val: user?.points || 0, label: "Current Pts", icon: "⭐" },
               { val: history.length, label: "Redeemed", icon: "👑" },
             ].map((stat, i) => (
