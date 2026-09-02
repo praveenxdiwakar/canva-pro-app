@@ -25,18 +25,18 @@ export default function Tasks() {
   // Dynamic Admin Tasks State
   const [dynamicTasks, setDynamicTasks] = useState([]);
 
-  // Task Completion Tracker (Upgraded with Lock Timers)
+  // ✅ Task Completion Tracker (Upgraded with Math Lock Timer)
   const [taskState, setTaskState] = useState({
     ads1: 0, ads1LockUntil: null,
     ads2: 0, ads2LockUntil: null,
     spins: 0, spinsLockUntil: null,
-    math: 0,
+    math: 0, mathLockUntil: null,
     channel1: false, channel2: false,
     lastDate: new Date().toDateString()
   });
   
-  // Live Timers for the UI
-  const [timers, setTimers] = useState({ spins: "", ads1: "", ads2: "" });
+  // ✅ Live Timers for the UI
+  const [timers, setTimers] = useState({ spins: "", ads1: "", ads2: "", math: "" });
   const [verifying, setVerifying] = useState(null);
 
   const generateMath = () => {
@@ -79,8 +79,8 @@ export default function Tasks() {
           // Smart Reset: Keep locks if active, otherwise reset daily count
           Object.keys(parsed).forEach(key => {
             if (key === 'lastDate' || typeof parsed[key] === 'boolean' || key.includes('LockUntil')) return;
-            // Prevent resetting count if a lock timer is currently running
-            if (['spins', 'ads1', 'ads2'].includes(key) && parsed[`${key}LockUntil`] && parsed[`${key}LockUntil`] > Date.now()) {
+            // Prevent resetting count if a lock timer is currently running (ADDED MATH)
+            if (['spins', 'ads1', 'ads2', 'math'].includes(key) && parsed[`${key}LockUntil`] && parsed[`${key}LockUntil`] > Date.now()) {
                return; 
             }
             parsed[key] = 0; 
@@ -93,7 +93,7 @@ export default function Tasks() {
     }
   }, [user?.telegramId]);
 
-  // 🚀 LIVE 5-HOUR COUNTDOWN TIMERS 🚀
+  // 🚀 LIVE 5-HOUR COUNTDOWN TIMERS (Added Math) 🚀
   useEffect(() => {
     const interval = setInterval(() => {
       const now = Date.now();
@@ -101,7 +101,7 @@ export default function Tasks() {
       let stateChanged = false;
       let newTaskState = { ...taskState };
 
-      ['spins', 'ads1', 'ads2'].forEach(key => {
+      ['spins', 'ads1', 'ads2', 'math'].forEach(key => {
         const lockKey = `${key}LockUntil`;
         if (taskState[lockKey]) {
           const diff = taskState[lockKey] - now;
@@ -188,16 +188,30 @@ export default function Tasks() {
     });
   };
 
+  // ✅ UPDATED MATH HANDLER
   const handleMathSubmit = () => {
-    if (taskState.math >= 5) return alert("✅ Daily math limit reached! Come back tomorrow.");
+    if (taskState.mathLockUntil) return alert(`⏳ Please wait ${timers.math} before solving again!`);
+    if (taskState.math >= 5) return alert("✅ Limit reached! Wait for the timer.");
+    
     const correctAns = mathOp === '+' ? mathA + mathB : mathA - mathB;
     if (parseInt(mathAns) !== correctAns) return alert("❌ Incorrect answer! Please try again.");
+    
     triggerAd(async () => {
       const newTotal = (user?.points || 0) + 1;
       await updatePoints(newTotal, 'Solve & Earn', 1, '🧮');
       setUser({ ...user, points: newTotal });
-      setTaskState(prev => ({ ...prev, math: (prev.math || 0) + 1 }));
+      
+      setTaskState(prev => {
+        const newCount = (prev.math || 0) + 1;
+        const updates = { math: newCount };
+        if (newCount >= 5) {
+          updates.mathLockUntil = Date.now() + 5 * 60 * 60 * 1000; // Lock for 5 Hours
+        }
+        return { ...prev, ...updates };
+      });
+      
       generateMath();
+      setMathAns(''); // Clear the input field automatically
       alert("✅ Correct! +1 Point added.");
     });
   };
@@ -366,9 +380,7 @@ export default function Tasks() {
           </>
         )}
 
-        {/* ========================================================= */}
-        {/* 🎡 SPIN & EARN (WITH LIVE 5-HOUR TIMER)                   */}
-        {/* ========================================================= */}
+        {/* 🎡 SPIN & EARN (LIVE 5-HOUR TIMER) */}
         <div className={`bg-white rounded-[24px] p-5 shadow-sm border-2 transition-all ${isSpinOpen ? 'border-pink-100' : 'border-gray-100'} overflow-hidden`}>
           <div className="flex justify-between items-start cursor-pointer select-none" onClick={() => !isSpinning && setIsSpinOpen(!isSpinOpen)}>
             <div>
@@ -416,22 +428,47 @@ export default function Tasks() {
           </button>
         </div>
 
-        {/* 🧮 Solve & Earn */}
+        {/* ========================================================= */}
+        {/* 🧮 SOLVE & EARN (UPDATED WITH 5-HOUR TIMER)               */}
+        {/* ========================================================= */}
         <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100">
           <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center gap-4"><div className="w-[50px] h-[50px] rounded-full bg-indigo-50 flex items-center justify-center text-2xl shadow-sm border border-indigo-100">🧮</div><div><h3 className="font-black text-gray-900 text-[15px] mb-0.5">Solve & Earn</h3><p className="text-[11px] text-gray-500 font-medium">+1 Point / Correct Answer</p></div></div>
-            <div className="flex gap-1.5 items-center">{[1,2,3,4,5].map(i => <div key={i} className={`w-2 h-2 rounded-full ${i <= (taskState.math || 0) ? 'bg-indigo-400' : 'bg-gray-200'}`}></div>)}</div>
+            <div className="flex items-center gap-4">
+              <div className="w-[50px] h-[50px] rounded-full bg-indigo-50 flex items-center justify-center text-2xl shadow-sm border border-indigo-100">🧮</div>
+              <div>
+                <h3 className="font-black text-gray-900 text-[15px] mb-0.5">Solve & Earn</h3>
+                <p className={`text-[11px] font-bold ${taskState.mathLockUntil ? 'text-red-500' : 'text-gray-500'}`}>
+                  {taskState.mathLockUntil ? `⏳ Cooldown: ${timers.math}` : '+1 Point / Correct Answer'}
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-1.5 items-center">
+              {[1,2,3,4,5].map(i => <div key={i} className={`w-2 h-2 rounded-full ${i <= (taskState.math || 0) ? 'bg-indigo-400' : 'bg-gray-200'}`}></div>)}
+            </div>
           </div>
           <div className="flex gap-2 items-center">
-            <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-black text-gray-800 text-[18px] tracking-widest text-center flex-1 shadow-inner">{mathA} {mathOp} {mathB} = ?</div>
-            <input type="number" value={mathAns} onChange={(e) => setMathAns(e.target.value)} placeholder="Ans" className="w-16 bg-white border border-gray-200 rounded-xl px-2 py-3 font-bold text-center outline-none focus:border-indigo-400"/>
-            <button onClick={handleMathSubmit} className="bg-[#6366F1] text-white font-black px-4 py-3 rounded-xl text-[12px] shadow-sm active:scale-95">SOLVE</button>
+            <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-black text-gray-800 text-[18px] tracking-widest text-center flex-1 shadow-inner">
+              {mathA} {mathOp} {mathB} = ?
+            </div>
+            <input 
+              type="number" 
+              value={mathAns} 
+              onChange={(e) => setMathAns(e.target.value)} 
+              disabled={!!taskState.mathLockUntil}
+              placeholder="Ans" 
+              className={`w-16 border rounded-xl px-2 py-3 font-bold text-center outline-none transition-colors ${taskState.mathLockUntil ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white border-gray-200 text-gray-900 focus:border-indigo-400'}`}
+            />
+            <button 
+              onClick={handleMathSubmit} 
+              disabled={!!taskState.mathLockUntil}
+              className={`text-white font-black px-4 py-3 rounded-xl text-[12px] shadow-sm transition-all ${taskState.mathLockUntil ? 'bg-gray-300 shadow-none text-gray-500 cursor-not-allowed' : 'bg-[#6366F1] active:scale-95'}`}
+            >
+              SOLVE
+            </button>
           </div>
         </div>
 
-        {/* ========================================================= */}
-        {/* 📺 WATCH ADS 01 (WITH LIVE 5-HOUR TIMER)                  */}
-        {/* ========================================================= */}
+        {/* 📺 WATCH ADS 01 */}
         <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100 flex justify-between items-center">
           <div className="flex items-center gap-4">
             <div className="w-[50px] h-[50px] rounded-full bg-red-50 flex items-center justify-center text-2xl shadow-sm border border-red-100">📺</div>
@@ -449,9 +486,7 @@ export default function Tasks() {
           </button>
         </div>
 
-        {/* ========================================================= */}
-        {/* 📺 WATCH ADS 02 (WITH LIVE 5-HOUR TIMER)                  */}
-        {/* ========================================================= */}
+        {/* 📺 WATCH ADS 02 */}
         <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100 flex justify-between items-center">
           <div className="flex items-center gap-4">
             <div className="w-[50px] h-[50px] rounded-full bg-orange-50 flex items-center justify-center text-2xl shadow-sm border border-orange-100">📺</div>
@@ -478,9 +513,7 @@ export default function Tasks() {
           </div>
         </div>
 
-        {/* ========================================================= */}
-        {/* 📢 NEW: JOIN CHANNEL 02                                   */}
-        {/* ========================================================= */}
+        {/* 🚀 Join Channel 02 */}
         <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100 flex justify-between items-center">
           <div className="flex items-center gap-4"><div className="w-[50px] h-[50px] rounded-full bg-teal-50 flex items-center justify-center text-2xl shadow-sm border border-teal-100">🚀</div><div><h3 className="font-black text-gray-900 text-[15px] mb-0.5">Join Channel 02</h3><p className="text-[11px] text-gray-500 font-medium">+2 pts · One time</p></div></div>
           <div className="flex gap-2">
