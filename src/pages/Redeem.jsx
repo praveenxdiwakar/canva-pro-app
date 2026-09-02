@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTelegram } from '../contexts/TelegramContext';
 import { supabase } from '../api/supabase';
-import { useSwipeNavigation } from '../hooks/useSwipeNavigation'; // ✅ Added Swipe Hook
+import { useSwipeNavigation } from '../hooks/useSwipeNavigation';
 
 export default function Redeem() {
   const { user, setUser } = useTelegram();
@@ -168,8 +168,7 @@ export default function Redeem() {
   };
 
   return (
-        // In Redeem.jsx, make sure this matches your App.jsx route exactly:
-const swipeHandlers = useSwipeNavigation('/tasks', '/pro-users'); // or '/prousers'
+    <div {...swipeHandlers} className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24 relative overflow-x-hidden">
       
       {/* ========================================================= */}
       {/* 🌟 UPGRADED PREMIUM HEADER BANNER 🌟                        */}
