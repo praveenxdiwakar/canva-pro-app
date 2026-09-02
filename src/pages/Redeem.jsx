@@ -168,7 +168,8 @@ export default function Redeem() {
   };
 
   return (
-    <div {...swipeHandlers} className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24 relative overflow-x-hidden">
+        // In Redeem.jsx, make sure this matches your App.jsx route exactly:
+const swipeHandlers = useSwipeNavigation('/tasks', '/pro-users'); // or '/prousers'
       
       {/* ========================================================= */}
       {/* 🌟 UPGRADED PREMIUM HEADER BANNER 🌟                        */}
