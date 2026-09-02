@@ -4,77 +4,53 @@ import { useNavigate } from 'react-router-dom';
 export function useSwipeNavigation(prevPath, nextPath) {
   const navigate = useNavigate();
   
-  // 🔥 useRef is INSTANT. It captures lightning-fast swipes without waiting for React to re-render.
   const startX = useRef(null);
   const startY = useRef(null);
+  const isNavigating = useRef(false); // 🛡️ Prevents double-firing and white screen crashes
 
   const minSwipeDistance = 50; // pixels
 
-  // --- MOBILE TOUCH SUPPORT ---
-  const onTouchStart = (e) => {
-    startX.current = e.touches[0].clientX;
-    startY.current = e.touches[0].clientY;
+  const handleStart = (x, y) => {
+    if (isNavigating.current) return;
+    startX.current = x;
+    startY.current = y;
   };
 
-  const onTouchEnd = (e) => {
-    if (!startX.current || !startY.current) return;
+  const handleEnd = (x, y, target) => {
+    if (!startX.current || !startY.current || isNavigating.current) return;
     
-    // Grab the exact pixel where the finger left the screen
-    const endX = e.changedTouches[0].clientX;
-    const endY = e.changedTouches[0].clientY;
+    const distanceX = startX.current - x;
+    const distanceY = startY.current - y;
     
-    handleSwipe(startX.current, startY.current, endX, endY, e.target);
-  };
-
-  // --- DESKTOP MOUSE SUPPORT (For testing on PC) ---
-  const onMouseDown = (e) => {
-    startX.current = e.clientX;
-    startY.current = e.clientY;
-  };
-
-  const onMouseUp = (e) => {
-    if (!startX.current || !startY.current) return;
+    startX.current = null;
+    startY.current = null;
     
-    const endX = e.clientX;
-    const endY = e.clientY;
-    
-    handleSwipe(startX.current, startY.current, endX, endY, e.target);
-  };
-
-  // --- THE BRAIN OF THE ENGINE ---
-  const handleSwipe = (sx, sy, ex, ey, target) => {
-    const distanceX = sx - ex;
-    const distanceY = sy - ey;
-    
-    // Check if the swipe was mostly left/right instead of up/down
     const isHorizontal = Math.abs(distanceX) > Math.abs(distanceY);
 
     if (isHorizontal && Math.abs(distanceX) > minSwipeDistance) {
       
-      // 🛡️ CRITICAL: Ignore the page swipe if the user is scrolling our internal sliders!
-      if (target.closest('.no-page-swipe')) {
-        startX.current = null;
-        startY.current = null;
-        return;
-      }
+      // 🛡️ Ignore page swipe if inside a horizontal carousel or slider
+      if (target.closest('.no-page-swipe')) return;
 
       if (distanceX > minSwipeDistance && nextPath) {
-        navigate(nextPath); // Swiped Left -> Next Page
+        isNavigating.current = true;
+        navigate(nextPath);
+        // Release the navigation lock after 500ms
+        setTimeout(() => { isNavigating.current = false; }, 500);
       } else if (distanceX < -minSwipeDistance && prevPath) {
-        navigate(prevPath); // Swiped Right -> Previous Page
+        isNavigating.current = true;
+        navigate(prevPath);
+        // Release the navigation lock after 500ms
+        setTimeout(() => { isNavigating.current = false; }, 500);
       }
     }
-    
-    // Reset memory for the next swipe
-    startX.current = null;
-    startY.current = null;
   };
 
   return {
-    onTouchStart,
-    onTouchEnd,
-    onMouseDown,
-    onMouseUp,
-    onMouseLeave: onMouseUp // Failsafe if mouse gets dragged off screen
+    onTouchStart: (e) => handleStart(e.targetTouches[0].clientX, e.targetTouches[0].clientY),
+    onTouchEnd: (e) => handleEnd(e.changedTouches[0].clientX, e.changedTouches[0].clientY, e.target),
+    onMouseDown: (e) => handleStart(e.clientX, e.clientY),
+    onMouseUp: (e) => handleEnd(e.clientX, e.clientY, e.target),
+    onMouseLeave: () => { startX.current = null; startY.current = null; }
   };
 }

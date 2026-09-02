@@ -2,17 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../api/supabase';
 import { useTelegram } from '../contexts/TelegramContext';
-import { useSwipeNavigation } from '../hooks/useSwipeNavigation'; 
+import { useSwipeNavigation } from '../hooks/useSwipeNavigation'; // ✅ ADDED SWIPE HOOK
 
 export default function ProUsers() {
-  const { user: currentUser } = useTelegram(); 
+  const { user: currentUser } = useTelegram(); // Pulls live profile from Telegram
   
-  // Swipe Right -> Redeem (/redeem) | Swipe Left -> Profile (/profile)
+  // ✅ ADDED: Swipe Right -> Redeem (/redeem) | Swipe Left -> Profile (/profile)
   const swipeHandlers = useSwipeNavigation('/redeem', '/profile'); 
 
   const [loading, setLoading] = useState(true);
   const [proUsers, setProUsers] = useState([]);
-  const [filter, setFilter] = useState('all'); 
+  const [filter, setFilter] = useState('all'); // 'all', 'active', 'expiring', 'expired'
 
   useEffect(() => {
     fetchProUsers();
@@ -21,24 +21,29 @@ export default function ProUsers() {
   const fetchProUsers = async () => {
     setLoading(true);
     try {
+      // 1. Fetch all redemptions
       const { data: redemptions } = await supabase
         .from('redemptions')
         .select('*')
         .order('created_at', { ascending: false });
 
+      // 2. Fetch all users safely
       const { data: users } = await supabase.from('users').select('*');
 
       if (redemptions) {
         const safeUsers = users || [];
 
+        // 3. Merge data
         const mergedData = redemptions.map(redemption => {
           const rId = String(redemption.telegram_id || redemption.telegramid || redemption.telegramId || redemption.id || "").trim();
 
+          // Find the user by checking ALL possible ID columns
           let userProfile = safeUsers.find(u => {
             const uId = String(u.telegram_id || u.telegramid || u.telegramId || u.id || "").trim();
             return uId === rId && rId !== "";
           }) || {};
           
+          // ✨ MAGIC FIX: If this redemption belongs to the current user, inject live Telegram data! ✨
           if (currentUser && String(currentUser.telegramId) === rId) {
              userProfile = {
                 first_name: currentUser.firstName,
@@ -64,6 +69,7 @@ export default function ProUsers() {
     setLoading(false);
   };
 
+  // Helper to determine status & time left
   const calculateStatus = (expiresAtStr) => {
     if (!expiresAtStr) return { status: 'expired', label: 'Expired', color: 'bg-red-50 text-red-600 border-red-200', timeText: 'Access Ended' };
 
@@ -107,10 +113,8 @@ export default function ProUsers() {
     { id: 'expired', icon: '❌', label: 'Expired' }
   ];
 
-  // ✅ FIX: Comment is now safely inside the div!
   return (
     <div {...swipeHandlers} className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24 relative overflow-x-hidden">
-      {/* Swipe handlers attached to the background container */}
       
       {/* ========================================================= */}
       {/* 🌟 UPGRADED PREMIUM HEADER BANNER 🌟                        */}
@@ -152,7 +156,7 @@ export default function ProUsers() {
           View all members who have successfully redeemed Canva Pro using their points.
         </p>
 
-        {/* Filter Tabs - no-page-swipe class */}
+        {/* Filter Tabs - Added no-page-swipe class */}
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide -mx-1 px-1 no-page-swipe">
           {tabs.map(tab => {
             const isActive = filter === tab.id;

@@ -5,13 +5,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import LeaderboardModal from '../components/LeaderboardModal';
 import { fetchUserHistory } from '../api/users';
 import { supabase } from '../api/supabase';
-import { useSwipeNavigation } from '../hooks/useSwipeNavigation'; // ✅ ADDED SWIPE HOOK
+import { useSwipeNavigation } from '../hooks/useSwipeNavigation';
 
 export default function Profile() {
   const { user } = useTelegram();
   const navigate = useNavigate();
   
-  // ✅ ADDED: Swipe Right -> Pro Users (/prousers) | Swipe Left -> Nowhere (null)
+  // ✅ Swipe Right -> Pro Users (/prousers) | Swipe Left -> Nowhere (null)
   const swipeHandlers = useSwipeNavigation('/prousers', null);
 
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
@@ -77,7 +77,6 @@ export default function Profile() {
 
   return (
     <div {...swipeHandlers} className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24 relative overflow-x-hidden">
-      {/* ✅ ADDED: {...swipeHandlers} attached to the background container */}
       
       {/* ========================================================= */}
       {/* 🌟 UPGRADED PREMIUM HEADER BANNER 🌟                        */}
@@ -181,7 +180,7 @@ export default function Profile() {
             <span onClick={() => navigate('/reward-history')} className="text-[11px] text-[#6200EA] font-black cursor-pointer active:scale-95 transition-transform">View History ➔</span>
           </div>
           
-          {/* ✅ ADDED: Horizontal scroll wrapper with 'no-page-swipe' class */}
+          {/* Horizontal scroll wrapper with 'no-page-swipe' class */}
           <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory px-5 pb-2 scrollbar-hide no-page-swipe" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             {[
               { val: taskStats.ads, label: "Today's Ads", icon: "📺" },

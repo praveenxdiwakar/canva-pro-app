@@ -3,13 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTelegram } from '../contexts/TelegramContext';
 import { supabase } from '../api/supabase';
-import { useSwipeNavigation } from '../hooks/useSwipeNavigation'; // ✅ ADDED SWIPE HOOK
+import { useSwipeNavigation } from '../hooks/useSwipeNavigation'; // ✅ Added Swipe Hook
 
 export default function Redeem() {
   const { user, setUser } = useTelegram();
   const navigate = useNavigate();
   
-  // ✅ ADDED: Swipe Right -> Tasks (/tasks) | Swipe Left -> Pro Users (/prousers)
+  // ✅ Swipe Right -> Tasks (/tasks) | Swipe Left -> Pro Users (/prousers)
   const swipeHandlers = useSwipeNavigation('/tasks', '/prousers'); 
   
   const [loading, setLoading] = useState(false);
@@ -169,7 +169,6 @@ export default function Redeem() {
 
   return (
     <div {...swipeHandlers} className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24 relative overflow-x-hidden">
-      {/* ✅ ADDED: {...swipeHandlers} attached to the background container */}
       
       {/* ========================================================= */}
       {/* 🌟 UPGRADED PREMIUM HEADER BANNER 🌟                        */}
@@ -266,7 +265,7 @@ export default function Redeem() {
         ) : (
 
           /* ========================================================= */
-          /* 💎 TIERS LIST (NOW A PREMIUM HORIZONTAL SLIDER)           */
+          /* 💎 TIERS LIST (HORIZONTAL SLIDER WITH no-page-swipe)       */
           /* ========================================================= */
           <>
             <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 -mx-4 px-4 no-page-swipe" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>

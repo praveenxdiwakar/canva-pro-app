@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../api/supabase';
 import { useTelegram } from '../contexts/TelegramContext';
-import { useSwipeNavigation } from '../hooks/useSwipeNavigation'; // ✅ ADDED
+import { useSwipeNavigation } from '../hooks/useSwipeNavigation'; // ✅ Added Swipe Hook
 
 export default function FreeCanva() {
   const { user } = useTelegram();
   
-  // ✅ ADDED: Swipe Right goes nowhere (null), Swipe Left goes to Tasks
+  // ✅ Swipe Left -> Tasks (/tasks). Swipe Right goes nowhere (null).
   const swipeHandlers = useSwipeNavigation(null, '/tasks'); 
   
   const [currentStep, setCurrentStep] = useState(1);
@@ -142,7 +142,6 @@ export default function FreeCanva() {
 
   return (
     <div {...swipeHandlers} className="flex flex-col min-h-[calc(100dvh-5rem)] bg-[#f5f5f5] pb-24 relative overflow-hidden">
-      {/* ✅ ADDED: {...swipeHandlers} attached to the background container */}
       
       {/* ========================================================= */}
       {/* 🌟 UPGRADED PREMIUM HEADER BANNER 🌟                        */}
@@ -172,7 +171,7 @@ export default function FreeCanva() {
           </motion.div>
         </div>
         
-        {/* Seamless Bottom Fade (Blends banner smoothly into the gray app background) */}
+        {/* Seamless Bottom Fade */}
         <div className="absolute bottom-0 left-0 w-full h-8 bg-gradient-to-t from-[#f5f5f5] to-transparent z-10"></div>
       </div>
 
