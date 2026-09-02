@@ -4,15 +4,20 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import LeaderboardModal from '../components/LeaderboardModal';
 import { fetchUserHistory } from '../api/users';
-import { supabase } from '../api/supabase'; // ✅ Added Supabase Import for Referrals
+import { supabase } from '../api/supabase';
+import { useSwipeNavigation } from '../hooks/useSwipeNavigation'; // ✅ ADDED SWIPE HOOK
 
 export default function Profile() {
   const { user } = useTelegram();
   const navigate = useNavigate();
+  
+  // ✅ ADDED: Swipe Right -> Pro Users (/prousers) | Swipe Left -> Nowhere (null)
+  const swipeHandlers = useSwipeNavigation('/prousers', null);
+
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [history, setHistory] = useState([]);
   
-  // ✅ ADDED: States for Live Stats
+  // States for Live Stats
   const [taskStats, setTaskStats] = useState({ ads: 0, spins: 0 });
   const [referralsCount, setReferralsCount] = useState(0);
 
@@ -21,7 +26,7 @@ export default function Profile() {
       // 1. Fetch History
       fetchUserHistory(user.telegramId).then(setHistory);
 
-      // 2. ✅ Fetch Local Tasks (Today's Ads & Spins)
+      // 2. Fetch Local Tasks (Today's Ads & Spins)
       const savedTasks = localStorage.getItem(`tasks_${user.telegramId}`);
       if (savedTasks) {
         try {
@@ -38,7 +43,7 @@ export default function Profile() {
         }
       }
 
-      // 3. ✅ Fetch Invites (Referrals) from Database
+      // 3. Fetch Invites (Referrals) from Database
       const fetchReferrals = async () => {
         try {
           const { count, error } = await supabase
@@ -71,7 +76,8 @@ export default function Profile() {
   };
 
   return (
-    <div className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24 relative overflow-x-hidden">
+    {/* ✅ ADDED: {...swipeHandlers} attached to the background container */}
+    <div {...swipeHandlers} className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24 relative overflow-x-hidden">
       
       {/* ========================================================= */}
       {/* 🌟 UPGRADED PREMIUM HEADER BANNER 🌟                        */}
@@ -166,15 +172,17 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* Real Activity Stats */}
-        <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100">
-          <div className="flex justify-between items-center mb-4">
+        {/* ========================================================= */}
+        {/* 📊 REAL ACTIVITY STATS (NOW A PREMIUM CAROUSEL SLIDER)    */}
+        {/* ========================================================= */}
+        <div className="bg-white rounded-[24px] py-5 shadow-sm border border-gray-100 overflow-hidden">
+          <div className="flex justify-between items-center mb-4 px-5">
             <h3 className="font-black text-[15px] text-gray-900 flex items-center gap-2">📊 Activity Stats</h3>
             <span onClick={() => navigate('/reward-history')} className="text-[11px] text-[#6200EA] font-black cursor-pointer active:scale-95 transition-transform">View History ➔</span>
           </div>
           
-          <div className="grid grid-cols-3 gap-2.5">
-            {/* ✅ FIXED: Inserted real data variables instead of hardcoded strings */}
+          {/* ✅ ADDED: Horizontal scroll wrapper with 'no-page-swipe' class */}
+          <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory px-5 pb-2 scrollbar-hide no-page-swipe" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             {[
               { val: taskStats.ads, label: "Today's Ads", icon: "📺" },
               { val: taskStats.spins, label: "Today's Spins", icon: "🎡" },
@@ -183,9 +191,9 @@ export default function Profile() {
               { val: user?.points || 0, label: "Current Pts", icon: "⭐" },
               { val: history.length, label: "Redeemed", icon: "👑" },
             ].map((stat, i) => (
-              <div key={i} className="bg-gray-50 border border-gray-100 rounded-[16px] p-3 flex flex-col items-center justify-center">
-                <div className="font-black text-xl text-gray-900 leading-tight">{stat.val}</div>
-                <div className="text-[9px] font-bold text-gray-500 mt-1 flex items-center gap-1 text-center uppercase tracking-wider">
+              <div key={i} className="snap-start shrink-0 w-[100px] bg-gray-50 border border-gray-100 rounded-[16px] p-3 flex flex-col items-center justify-center shadow-sm">
+                <div className="font-black text-2xl text-gray-900 leading-tight mb-1">{stat.val}</div>
+                <div className="text-[9px] font-bold text-gray-500 flex items-center gap-1 text-center uppercase tracking-wider">
                   {stat.icon} {stat.label}
                 </div>
               </div>
@@ -219,6 +227,12 @@ export default function Profile() {
       </div>
 
       <LeaderboardModal isOpen={isLeaderboardOpen} onClose={() => setIsLeaderboardOpen(false)} />
+      
+      {/* Hide Scrollbar Styles */}
+      <style dangerouslySetInnerHTML={{__html: `
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+      `}} />
     </div>
   );
 }

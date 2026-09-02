@@ -4,11 +4,15 @@ import { useTelegram } from '../contexts/TelegramContext';
 import { useTasks } from '../hooks/useTasks';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../api/supabase';
+import { useSwipeNavigation } from '../hooks/useSwipeNavigation'; // ✅ ADDED SWIPE HOOK
 
 export default function Tasks() {
   const { user, setUser } = useTelegram();
   const { updatePoints, processCheckIn } = useTasks();
   const navigate = useNavigate();
+  
+  // ✅ ADDED: Swipe Right -> Free Canva (/) | Swipe Left -> Redeem (/redeem)
+  const swipeHandlers = useSwipeNavigation('/', '/redeem');
   
   // States
   const [isSpinOpen, setIsSpinOpen] = useState(false);
@@ -25,7 +29,7 @@ export default function Tasks() {
   // Dynamic Admin Tasks State
   const [dynamicTasks, setDynamicTasks] = useState([]);
 
-  // ✅ Task Completion Tracker (Upgraded with Math Lock Timer)
+  // Task Completion Tracker (Upgraded with Math Lock Timer)
   const [taskState, setTaskState] = useState({
     ads1: 0, ads1LockUntil: null,
     ads2: 0, ads2LockUntil: null,
@@ -35,7 +39,7 @@ export default function Tasks() {
     lastDate: new Date().toDateString()
   });
   
-  // ✅ Live Timers for the UI
+  // Live Timers for the UI
   const [timers, setTimers] = useState({ spins: "", ads1: "", ads2: "", math: "" });
   const [verifying, setVerifying] = useState(null);
 
@@ -79,7 +83,7 @@ export default function Tasks() {
           // Smart Reset: Keep locks if active, otherwise reset daily count
           Object.keys(parsed).forEach(key => {
             if (key === 'lastDate' || typeof parsed[key] === 'boolean' || key.includes('LockUntil')) return;
-            // Prevent resetting count if a lock timer is currently running (ADDED MATH)
+            // Prevent resetting count if a lock timer is currently running
             if (['spins', 'ads1', 'ads2', 'math'].includes(key) && parsed[`${key}LockUntil`] && parsed[`${key}LockUntil`] > Date.now()) {
                return; 
             }
@@ -93,7 +97,7 @@ export default function Tasks() {
     }
   }, [user?.telegramId]);
 
-  // 🚀 LIVE 5-HOUR COUNTDOWN TIMERS (Added Math) 🚀
+  // 🚀 LIVE 5-HOUR COUNTDOWN TIMERS 🚀
   useEffect(() => {
     const interval = setInterval(() => {
       const now = Date.now();
@@ -188,7 +192,6 @@ export default function Tasks() {
     });
   };
 
-  // ✅ UPDATED MATH HANDLER
   const handleMathSubmit = () => {
     if (taskState.mathLockUntil) return alert(`⏳ Please wait ${timers.math} before solving again!`);
     if (taskState.math >= 5) return alert("✅ Limit reached! Wait for the timer.");
@@ -307,7 +310,8 @@ export default function Tasks() {
   };
 
   return (
-    <div className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24 relative overflow-x-hidden">
+    {/* ✅ ADDED: {...swipeHandlers} attached to the background container */}
+    <div {...swipeHandlers} className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24 relative overflow-x-hidden">
       
       {/* ========================================================= */}
       {/* 🌟 UPGRADED PREMIUM HEADER BANNER 🌟                        */}
