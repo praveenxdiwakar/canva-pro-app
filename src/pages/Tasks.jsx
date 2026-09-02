@@ -310,8 +310,8 @@ export default function Tasks() {
   };
 
   return (
-    {/* ✅ ADDED: {...swipeHandlers} attached to the background container */}
     <div {...swipeHandlers} className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24 relative overflow-x-hidden">
+      {/* ✅ ADDED: {...swipeHandlers} attached to the background container */}
       
       {/* ========================================================= */}
       {/* 🌟 UPGRADED PREMIUM HEADER BANNER 🌟                        */}
