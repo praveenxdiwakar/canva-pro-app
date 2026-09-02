@@ -141,8 +141,8 @@ export default function FreeCanva() {
   };
 
   return (
-    {/* ✅ ADDED: {...swipeHandlers} attached to the background container */}
     <div {...swipeHandlers} className="flex flex-col min-h-[calc(100dvh-5rem)] bg-[#f5f5f5] pb-24 relative overflow-hidden">
+      {/* ✅ ADDED: {...swipeHandlers} attached to the background container */}
       
       {/* ========================================================= */}
       {/* 🌟 UPGRADED PREMIUM HEADER BANNER 🌟                        */}
