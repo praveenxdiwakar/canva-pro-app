@@ -3,42 +3,94 @@ import { useNavigate } from 'react-router-dom';
 
 export function useSwipeNavigation(prevPath, nextPath) {
   const navigate = useNavigate();
-  const [touchStartX, setTouchStartX] = useState(null);
-  const [touchStartY, setTouchStartY] = useState(null);
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
 
+  // Minimum distance (in pixels) required to trigger a swipe
+  const minSwipeDistance = 50;
+
+  // --- MOBILE TOUCH SUPPORT ---
   const onTouchStart = (e) => {
-    // Record the exact X and Y coordinates where the user's finger touches the screen
-    setTouchStartX(e.targetTouches[0].clientX);
-    setTouchStartY(e.targetTouches[0].clientY);
+    setTouchEnd(null); // Reset the end position
+    setTouchStart({
+      x: e.targetTouches[0].clientX,
+      y: e.targetTouches[0].clientY,
+      target: e.target, // Save the exact element the user touched
+    });
   };
 
-  const onTouchEnd = (e) => {
-    if (!touchStartX || !touchStartY) return;
-    
-    // Record the exact X and Y coordinates where the user's finger lifts off the screen
-    const touchEndX = e.changedTouches[0].clientX;
-    const touchEndY = e.changedTouches[0].clientY;
-    
-    // Calculate how far the finger moved horizontally and vertically
-    const distanceX = touchStartX - touchEndX;
-    const distanceY = touchStartY - touchEndY;
-    
-    // Check if it's a horizontal swipe (X distance > Y distance) AND long enough to be intentional (> 60px)
-    if (Math.abs(distanceX) > Math.abs(distanceY) && Math.abs(distanceX) > 60) {
-      
-      // 🛡️ CRITICAL: Ignore the page swipe if the user is swiping inside a horizontal carousel!
-      if (e.target.closest('.no-page-swipe')) return;
+  const onTouchMove = (e) => {
+    // Actively track the finger as it moves across the screen
+    setTouchEnd({
+      x: e.targetTouches[0].clientX,
+      y: e.targetTouches[0].clientY,
+    });
+  };
 
-      if (distanceX > 60 && nextPath) {
-        // Swiped Left -> Go to the Next Page
-        navigate(nextPath); 
-      } else if (distanceX < -60 && prevPath) {
-        // Swiped Right -> Go to the Previous Page
-        navigate(prevPath); 
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+
+    const distanceX = touchStart.x - touchEnd.x;
+    const distanceY = touchStart.y - touchEnd.y;
+    
+    // Check if the swipe is mostly horizontal
+    const isHorizontal = Math.abs(distanceX) > Math.abs(distanceY);
+
+    if (isHorizontal && Math.abs(distanceX) > minSwipeDistance) {
+      
+      // 🛡️ CRITICAL: Check if the original touch started inside our sliders
+      // We use optional chaining (?.) to be incredibly safe against text nodes
+      if (touchStart.target?.closest?.('.no-page-swipe')) {
+        // Reset states so they can just casually scroll the carousel
+        setTouchStart(null);
+        setTouchEnd(null);
+        return;
       }
+
+      if (distanceX > minSwipeDistance && nextPath) {
+        navigate(nextPath); // Swiped Left -> Next Page
+      } else if (distanceX < -minSwipeDistance && prevPath) {
+        navigate(prevPath); // Swiped Right -> Previous Page
+      }
+    }
+    
+    // Reset states after evaluating the swipe
+    setTouchStart(null);
+    setTouchEnd(null);
+  };
+
+  // --- DESKTOP MOUSE SUPPORT (For testing on PC) ---
+  const onMouseDown = (e) => {
+    setTouchEnd(null);
+    setTouchStart({
+      x: e.clientX,
+      y: e.clientY,
+      target: e.target,
+    });
+  };
+
+  const onMouseMove = (e) => {
+    // Only track movement if the mouse button is actively being held down
+    if (touchStart) {
+      setTouchEnd({
+        x: e.clientX,
+        y: e.clientY,
+      });
     }
   };
 
-  // Return the event handlers to be spread onto your page containers
-  return { onTouchStart, onTouchEnd };
+  const onMouseUp = () => {
+    onTouchEnd(); // Re-use the exact same logic from the Mobile Touch End!
+  };
+
+  // Return all handlers so the <div> can catch every type of movement
+  return {
+    onTouchStart,
+    onTouchMove,
+    onTouchEnd,
+    onMouseDown,
+    onMouseMove,
+    onMouseUp,
+    onMouseLeave: onMouseUp, // Failsafe: Triggers if the mouse gets dragged off the screen
+  };
 }
