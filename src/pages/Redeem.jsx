@@ -24,11 +24,11 @@ export default function Redeem() {
   const [errorModal, setErrorModal] = useState({ isOpen: false, message: "" });
   const [celebration, setCelebration] = useState({ isOpen: false, message: "", link: "", days: 0 });
 
-  // Hardcoded Static Tiers with new pricing
+  // Tiers definition with custom styling for active highlights
   const tiers = [
-    { id: 1, durationDays: 7, pointsCost: 49, title: "Starter", subtitle: "7 Days Full Access" },
-    { id: 2, durationDays: 15, pointsCost: 89, title: "Quick Access", subtitle: "15 Days Full Access" },
-    { id: 3, durationDays: 30, pointsCost: 179, title: "Most Popular", subtitle: "30 Days Full Access", badge: "🔥 BEST VALUE" }
+    { id: 1, durationDays: 7, pointsCost: 49, title: "Starter", subtitle: "7 Days Full Access", gradient: "from-purple-500 to-indigo-600", badgeColor: "bg-purple-100 text-purple-700" },
+    { id: 2, durationDays: 15, pointsCost: 89, title: "Quick Access", subtitle: "15 Days Full Access", gradient: "from-blue-500 to-cyan-600", badgeColor: "bg-blue-100 text-blue-700" },
+    { id: 3, durationDays: 30, pointsCost: 179, title: "Most Popular", subtitle: "30 Days Full Access", badge: "🔥 BEST VALUE", gradient: "from-amber-500 to-orange-600", badgeColor: "bg-orange-100 text-orange-700" }
   ];
 
   const currentPoints = user?.points || 0;
@@ -79,7 +79,7 @@ export default function Redeem() {
       const difference = new Date(activeSub.expires_at) - new Date();
       if (difference <= 0) {
         clearInterval(interval);
-        setActiveSub(null); // Sub expired, revert to free version!
+        setActiveSub(null); 
         if (user?.telegramId) localStorage.removeItem(`canva_premium_${String(user.telegramId)}`);
         setTimeLeft("");
       } else {
@@ -112,13 +112,14 @@ export default function Redeem() {
         setLoading(false); return;
       }
 
+      // Strictly fetch links matching this specific Tier ID (7, 15, or 30 days)
       const { data: links, error: linkErr } = await supabase.from('canva_links').select('*').eq('tier_id', tierId);
       if (linkErr) throw new Error(`DB Error (Links): ${linkErr.message}`);
       
       const availableLink = links?.find(l => l.used_slots < l.total_slots);
 
       if (!availableLink) {
-        setErrorModal({ isOpen: true, message: "All Canva Pro slots are currently full. Please try again later or contact the admin!" });
+        setErrorModal({ isOpen: true, message: `All Canva Pro slots for this ${days}-Day package are currently full. Please try another tier or contact admin!` });
         setLoading(false); return;
       }
 
@@ -167,41 +168,30 @@ export default function Redeem() {
     setLoading(false);
   };
 
+  // Find active tier info for highlighting the correct animated card
+  const activeTier = tiers.find(t => t.id === Number(activeSub?.tier_id)) || tiers[0];
+
   return (
     <div {...swipeHandlers} className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24 relative overflow-x-hidden">
-      {/* ✅ Attached {...swipeHandlers} safely to the main container */}
       
       {/* ========================================================= */}
       {/* 🌟 UPGRADED PREMIUM HEADER BANNER 🌟                        */}
       {/* ========================================================= */}
       <div className="relative w-full h-[150px] bg-gradient-to-br from-[#00C4CC] via-[#7B2CBF] to-[#6200EA] flex items-center justify-center overflow-hidden">
-        
-        {/* Ambient Glows */}
         <div className="absolute top-[-20px] left-[-20px] w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none z-0"></div>
         <div className="absolute bottom-[-30px] right-[-10px] w-40 h-40 bg-[#00E5FF]/20 rounded-full blur-[40px] pointer-events-none z-0"></div>
         
-        {/* Animated Floating Particles */}
         <motion.div animate={{ y: [0, -10, 0], opacity: [0.3, 0.8, 0.3] }} transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }} className="absolute top-6 left-10 text-white/50 text-[10px] select-none z-10">✨</motion.div>
         <motion.div animate={{ y: [0, 10, 0], opacity: [0.2, 0.6, 0.2] }} transition={{ repeat: Infinity, duration: 5, ease: "easeInOut", delay: 1 }} className="absolute bottom-8 right-12 text-white/40 text-[14px] select-none z-10">✦</motion.div>
 
-        {/* Canva Logo + PRO Badge */}
         <div className="relative z-20 flex items-center justify-center gap-1.5 drop-shadow-xl mt-2">
-          <h1 className="text-[52px] font-bold text-white tracking-tighter" style={{ fontFamily: 'Georgia, serif' }}>
-            Canva
-          </h1>
-          <motion.div 
-            initial={{ scale: 0.8, rotate: 0 }}
-            animate={{ scale: 1, rotate: 3 }}
-            transition={{ type: "spring", bounce: 0.5, delay: 0.2 }}
-            className="bg-gradient-to-tr from-[#FFD700] via-[#F59E0B] to-[#FFD700] text-[#5B3A00] font-black text-[11px] px-2 py-0.5 rounded-[6px] uppercase tracking-widest shadow-[0_4px_10px_rgba(245,158,11,0.4)] -mt-8 border border-yellow-200/50"
-          >
-            Pro
-          </motion.div>
+          <h1 className="text-[52px] font-bold text-white tracking-tighter" style={{ fontFamily: 'Georgia, serif' }}>Canva</h1>
+          <motion.div initial={{ scale: 0.8, rotate: 0 }} animate={{ scale: 1, rotate: 3 }} transition={{ type: "spring", bounce: 0.5, delay: 0.2 }} className="bg-gradient-to-tr from-[#FFD700] via-[#F59E0B] to-[#FFD700] text-[#5B3A00] font-black text-[11px] px-2 py-0.5 rounded-[6px] uppercase tracking-widest shadow-[0_4px_10px_rgba(245,158,11,0.4)] -mt-8 border border-yellow-200/50">Pro</motion.div>
         </div>
       </div>
 
       {/* ========================================================= */}
-      {/* 📍 BALANCE & PROGRESS SECTION (Header Bottom)             */}
+      {/* 📍 BALANCE & PROGRESS SECTION                             */}
       {/* ========================================================= */}
       <div className="bg-white px-5 py-5 shadow-sm border-b border-gray-100 relative z-30">
         <div className="flex justify-between items-center mb-5">
@@ -217,20 +207,13 @@ export default function Redeem() {
           </div>
           
           <button onClick={() => navigate('/tasks')} className="border border-purple-200 text-[#6200EA] bg-purple-50 font-black px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 shadow-sm active:scale-95 transition-transform">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
-              <polyline points="17 6 23 6 23 12"></polyline>
-            </svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
             Earn
           </button>
-
         </div>
 
-        {/* Global Progress */}
         <div className="flex justify-between items-end mb-1.5">
-          <span className="text-[11px] text-gray-500 font-medium">
-            {currentPoints >= firstRewardCost ? 'First reward unlocked! 🎉' : `${firstRewardCost} pts to first reward`}
-          </span>
+          <span className="text-[11px] text-gray-500 font-medium">{currentPoints >= firstRewardCost ? 'First reward unlocked! 🎉' : `${firstRewardCost} pts to first reward`}</span>
           <span className="text-[11px] font-black text-[#8B5CF6]">{mainProgress}%</span>
         </div>
         <div className="w-full bg-gray-100 rounded-full h-2">
@@ -244,30 +227,50 @@ export default function Redeem() {
           <div className="text-center py-10 text-gray-400 font-bold">Checking subscription status...</div>
         ) : activeSub ? (
           
-          /* VIP PREMIUM CARD */
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-gradient-to-br from-[#FFD700] to-[#F59E0B] rounded-[24px] px-5 py-8 border border-yellow-300 shadow-lg text-center relative overflow-hidden">
-            <div className="absolute top-0 right-0 -mt-2 -mr-2 text-7xl opacity-20">👑</div>
-            <h2 className="text-2xl font-black text-white mb-2 drop-shadow-sm relative z-10">Premium Active!</h2>
-            <p className="text-yellow-50 font-bold mb-6 text-xs relative z-10">You already have an active subscription. Enjoy!</p>
-            
-            <div className="bg-black/20 rounded-xl p-4 mb-6 inline-block mx-auto backdrop-blur-sm border border-white/20">
-               <div className="text-[10px] text-yellow-100 font-bold uppercase tracking-widest mb-1">Time Remaining</div>
-               <div className="text-white font-black text-2xl tracking-wider font-mono">{timeLeft || "Calculating..."}</div>
-            </div>
+          /* ========================================================= */
+          /* 🌟 HIGHLIGHTED PREMIUM ANIMATED ACTIVE TIER CARD          */
+          /* ========================================================= */
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }} 
+            animate={{ opacity: 1, scale: 1 }} 
+            className={`bg-gradient-to-br ${activeTier.gradient} rounded-[28px] p-6 shadow-xl text-center relative overflow-hidden border-2 border-white/40 text-white`}
+          >
+            {/* Background Glows */}
+            <div className="absolute top-0 right-0 w-36 h-36 bg-white/15 rounded-full blur-2xl pointer-events-none -mr-10 -mt-10"></div>
+            <div className="absolute bottom-0 left-0 w-36 h-36 bg-black/10 rounded-full blur-2xl pointer-events-none -ml-10 -mb-10"></div>
 
-            <button onClick={() => openExternalLink(activeSub.invite_link)} className="w-full bg-white text-orange-600 font-black text-[15px] py-4 rounded-2xl shadow-xl active:scale-95 transition-transform flex justify-center items-center gap-2 relative z-10">
-              <span className="text-xl">✨</span> OPEN CANVA PRO
-            </button>
-            <p className="text-[10px] text-yellow-100 font-bold mt-4 relative z-10">
-              You can redeem a new package once this timer expires.
-            </p>
+            <div className="relative z-10">
+              <div className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-md px-3.5 py-1.5 rounded-full text-[11px] font-black uppercase tracking-wider mb-3 shadow-inner">
+                <span>👑</span> {activeTier.durationDays} Days Pro Active
+              </div>
+
+              <h2 className="text-2xl font-black mb-1 drop-shadow-sm">{activeTier.title} Plan Unlocked</h2>
+              <p className="text-white/80 text-xs font-medium mb-6">Enjoy uninterrupted access to premium Canva features.</p>
+              
+              <div className="bg-black/25 backdrop-blur-md rounded-2xl p-4 mb-6 inline-block mx-auto border border-white/20 shadow-inner">
+                <div className="text-[10px] text-white/70 font-bold uppercase tracking-widest mb-1">Time Remaining</div>
+                <div className="text-white font-black text-2xl tracking-wider font-mono drop-shadow">{timeLeft || "Calculating..."}</div>
+              </div>
+
+              <button 
+                onClick={() => openExternalLink(activeSub.invite_link)} 
+                className="w-full bg-white text-gray-900 font-black text-[15px] py-4 rounded-2xl shadow-xl active:scale-95 transition-transform flex justify-center items-center gap-2 hover:bg-gray-50"
+              >
+                <span className="text-xl">✨</span> OPEN CANVA PRO
+              </button>
+              
+              <p className="text-[10px] text-white/70 font-medium mt-4">
+                You can redeem a new package once this countdown expires.
+              </p>
+            </div>
           </motion.div>
 
         ) : (
 
-          /* TIERS LIST */
+          /* ========================================================= */
+          /* TIERS LIST (7, 15, 30 Days Selection)                     */
+          /* ========================================================= */
           <>
-            {/* Added the no-page-swipe class to protect horizontal scrolling inside the slider! */}
             <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 -mx-4 px-4 no-page-swipe" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
               {tiers.map(tier => {
                 const progress = Math.min(100, Math.round((currentPoints / tier.pointsCost) * 100));
