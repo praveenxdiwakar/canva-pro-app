@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 
 export default function FreeCanva() {
   const { user } = useTelegram();
-  const navigate = useNavigate(); // Added for the backup navigation button
+  const navigate = useNavigate(); 
   
   // Swipe Right -> Nowhere (null) | Swipe Left -> Tasks (/tasks)
   const swipeHandlers = useSwipeNavigation(null, '/tasks'); 
@@ -16,9 +16,47 @@ export default function FreeCanva() {
   const [canvaLink, setCanvaLink] = useState(null);
   const [adZone, setAdZone] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // Premium Subscription Status
+  const [activeSub, setActiveSub] = useState(null);
+  const [loadingSub, setLoadingSub] = useState(true);
+  const [timeLeft, setTimeLeft] = useState("");
 
   useEffect(() => {
-    // 1. Fetch available Free Canva link
+    // 1. Check for Active Premium Subscriptions
+    if (user?.telegramId) {
+      const tgIdStr = String(user.telegramId);
+
+      const localPremium = localStorage.getItem(`canva_premium_${tgIdStr}`);
+      if (localPremium) {
+        const parsed = JSON.parse(localPremium);
+        if (new Date(parsed.expires_at) > new Date()) {
+          setActiveSub(parsed);
+          setLoadingSub(false);
+        }
+      }
+
+      supabase
+        .from('redemptions')
+        .select('*')
+        .eq('telegram_id', tgIdStr)
+        .gte('expires_at', new Date().toISOString())
+        .order('expires_at', { ascending: false })
+        .then(({ data, error }) => {
+          if (data && data.length > 0) {
+            setActiveSub(data[0]);
+            localStorage.setItem(`canva_premium_${tgIdStr}`, JSON.stringify(data[0]));
+          } else if (!error && data?.length === 0) {
+            setActiveSub(null);
+            localStorage.removeItem(`canva_premium_${tgIdStr}`);
+          }
+          setLoadingSub(false);
+        });
+    } else {
+      setLoadingSub(false);
+    }
+
+    // 2. Fetch available Free Canva link
     supabase.from('canva_links').select('*').then(({ data }) => {
       if (data && data.length > 0) {
         const available = data.find(l => l.used_slots < l.total_slots);
@@ -26,7 +64,7 @@ export default function FreeCanva() {
       }
     });
 
-    // 2. Fetch Ad Zone & Inject Monetag SDK
+    // 3. Fetch Ad Zone & Inject Monetag SDK
     supabase.from('app_settings').select('value').eq('key', 'MONETAG_ZONE_ID').maybeSingle().then(({data}) => {
       if (data && data.value) {
         const zoneId = data.value;
@@ -43,7 +81,7 @@ export default function FreeCanva() {
       }
     });
 
-    // 3. Inject Confetti Script for the "Woo Hoo" step
+    // 4. Inject Confetti Script for the "Woo Hoo" step
     if (!document.getElementById('confetti-script')) {
       const script = document.createElement('script');
       script.id = 'confetti-script';
@@ -51,7 +89,7 @@ export default function FreeCanva() {
       script.async = true;
       document.body.appendChild(script);
     }
-  }, []);
+  }, [user?.telegramId]);
 
   // Trigger confetti when hitting step 5
   useEffect(() => {
@@ -64,6 +102,26 @@ export default function FreeCanva() {
       });
     }
   }, [currentStep]);
+
+  useEffect(() => {
+    if (!activeSub) return;
+    const interval = setInterval(() => {
+      const difference = new Date(activeSub.expires_at) - new Date();
+      if (difference <= 0) {
+        clearInterval(interval);
+        setActiveSub(null); 
+        if (user?.telegramId) localStorage.removeItem(`canva_premium_${String(user.telegramId)}`);
+        setTimeLeft("");
+      } else {
+        const d = Math.floor(difference / (1000 * 60 * 60 * 24));
+        const h = Math.floor((difference / (1000 * 60 * 60)) % 24);
+        const m = Math.floor((difference / 1000 / 60) % 60);
+        const s = Math.floor((difference / 1000) % 60);
+        setTimeLeft(`${d}d ${h}h ${m}m ${s}s`);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [activeSub, user?.telegramId]);
 
   const openExternalLink = (url) => {
     const tg = window.Telegram?.WebApp;
@@ -138,103 +196,133 @@ export default function FreeCanva() {
 
       <div className="px-4 pt-4 pb-4 space-y-5 relative z-30">
         
-        {/* ========================================================= */}
-        {/* 📺 FREE USER CARD (Always visible now)                    */}
-        {/* ========================================================= */}
-        <>
-          {/* Instruction Alert */}
-          <div className="bg-white border border-gray-100 rounded-2xl px-4 py-3.5 flex items-center gap-3 shadow-sm">
-            <span className="text-2xl drop-shadow-sm">📢</span>
-            <p className="text-[12px] text-gray-700 leading-snug font-medium">
-              Complete 4 steps, the Canva Pro button will be unlocked. Then click again to open Canva Pro.
-            </p>
-          </div>
-
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl px-5 py-6 border border-gray-100 shadow-sm">
+        {loadingSub ? (
+          <div className="bg-white rounded-[24px] p-6 text-center text-gray-400 font-bold shadow-sm">Loading Access...</div>
+        ) : activeSub ? (
+          
+          /* ========================================================= */
+          /* 💎 VIP PREMIUM CARD (With Live Countdown)                 */
+          /* ========================================================= */
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-gradient-to-br from-[#FFD700] to-[#F59E0B] rounded-[24px] px-5 py-8 border border-yellow-300 shadow-lg text-center relative overflow-hidden">
+            <div className="absolute top-0 right-0 -mt-2 -mr-2 text-7xl opacity-20">👑</div>
+            <h2 className="text-2xl font-black text-white mb-1 drop-shadow-sm relative z-10">Premium Unlocked!</h2>
+            <p className="text-yellow-50 font-bold mb-4 text-xs relative z-10">Ad-Free VIP Access</p>
             
-            {currentStep > 4 ? (
-              
-              /* 🎉 INLINE WOO HOO ANIMATION 🎉 */
-              <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center py-4 relative">
-                <motion.div animate={{ y: [0, -15, 0] }} transition={{ repeat: Infinity, duration: 1.5 }} className="text-6xl mb-4">🎉</motion.div>
-                <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#6200EA] to-[#00E5FF] mb-2 uppercase tracking-wide">Woo Hoo!</h2>
-                <p className="text-gray-500 font-bold mb-6 text-sm">You completed all steps! Here is your link.</p>
-                <button 
-                  onClick={() => {
-                    if (canvaLink) openExternalLink(canvaLink);
-                    else alert("All slots full!");
-                  }} 
-                  className="w-full bg-[#6200EA] text-white font-black text-[16px] py-4 rounded-2xl shadow-lg active:scale-95 transition-transform flex justify-center items-center gap-2"
-                >
-                  Open Canva Pro
-                </button>
-              </motion.div>
+            <div className="bg-black/20 rounded-xl p-3 mb-6 inline-block mx-auto backdrop-blur-sm border border-white/20">
+               <div className="text-[10px] text-yellow-100 font-bold uppercase tracking-widest mb-0.5">Access Expires In</div>
+               <div className="text-white font-black text-xl tracking-wider font-mono">{timeLeft || "Calculating..."}</div>
+            </div>
 
-            ) : (
-
-              /* 🟢 4-STEP PROGRESS UI */
-              <div className="space-y-6">
-                
-                {/* Custom Step Indicator */}
-                <div className="flex justify-between items-center relative w-full mb-6 mt-2 px-2">
-                  <div className="absolute top-[18px] left-6 right-6 h-[2px] bg-gray-200 z-0"></div>
-                  {[1, 2, 3, 4].map((stepNum) => {
-                    const isActive = currentStep === stepNum;
-                    const isCompleted = currentStep > stepNum;
-                    
-                    return (
-                      <div key={stepNum} className="flex flex-col items-center relative z-10 bg-white px-1">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-[15px] mb-1.5 transition-all
-                          ${isCompleted ? "bg-[#6200EA] text-white border-2 border-[#6200EA]" : 
-                            isActive ? "bg-white border-[2px] border-red-500 text-red-500" : 
-                            "bg-white border-[2px] border-gray-200 text-gray-300"}`}>
-                          {isCompleted ? "✓" : stepNum}
-                        </div>
-                        <span className={`text-[10px] font-bold text-center 
-                          ${isActive ? "text-gray-900" : isCompleted ? "text-[#6200EA]" : "text-gray-400"}`}>
-                          Step {stepNum}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <button onClick={handleMainAction} disabled={isProcessing} className={`w-full text-white font-bold text-[16px] py-4.5 rounded-[18px] shadow-sm transition-all active:scale-95 flex justify-center items-center gap-2 ${isProcessing ? "bg-gray-400 cursor-not-allowed" : "bg-[#6200EA] hover:bg-[#5000c9]"}`} style={{ minHeight: '56px' }}>
-                  {isProcessing ? "Waiting for Ad..." : "Watch Ads to Unlock Canva Pro"}
-                </button>
-              </div>
-            )}
+            <button onClick={() => openExternalLink(activeSub.invite_link)} className="w-full bg-white text-orange-600 font-black text-[15px] py-4 rounded-2xl shadow-xl active:scale-95 transition-transform flex justify-center items-center gap-2 relative z-10">
+              <span className="text-xl">✨</span> OPEN CANVA PRO
+            </button>
           </motion.div>
 
-          {/* ========================================================= */}
-          {/* 🛡️ BACKUP OPTION BANNER (Only shows after completing steps) */}
-          {/* ========================================================= */}
-          <AnimatePresence>
-            {currentStep > 4 && (
-              <motion.div 
-                initial={{ opacity: 0, height: 0, marginTop: 0 }} 
-                animate={{ opacity: 1, height: 'auto', marginTop: 20 }} 
-                className="bg-red-50 rounded-3xl p-5 border border-red-100 shadow-sm relative overflow-hidden"
-              >
-                <div className="flex items-start gap-3 relative z-10">
-                  <div className="text-2xl mt-0.5">⚠️</div>
-                  <div>
-                    <h3 className="font-black text-red-800 text-[14px] mb-1 uppercase tracking-wide">Backup Option</h3>
-                    <p className="text-[11px] text-red-600 font-medium mb-4 leading-relaxed">
-                      If the Canva Pro link limit is reached, you can still get Canva Pro 100% by watching Ads from Earn Points.
-                    </p>
-                    <button 
-                      onClick={() => navigate('/tasks')} 
-                      className="bg-red-600 text-white font-black text-[12px] px-4 py-2.5 rounded-xl shadow-sm active:scale-95 transition-transform flex items-center gap-2"
-                    >
-                      Go to Earn Points ➔
-                    </button>
+        ) : (
+
+          /* ========================================================= */
+          /* 📺 FREE USER CARD                                         */
+          /* ========================================================= */
+          <>
+            {/* Instruction Alert */}
+            <div className="bg-white border border-gray-100 rounded-2xl px-4 py-3.5 flex items-center gap-3 shadow-sm">
+              <span className="text-2xl drop-shadow-sm">📢</span>
+              <p className="text-[12px] text-gray-700 leading-snug font-medium">
+                Complete 4 steps, the Canva Pro button will be unlocked. Then click again to open Canva Pro.
+              </p>
+            </div>
+
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl px-5 py-6 border border-gray-100 shadow-sm">
+              
+              {currentStep > 4 ? (
+                
+                /* 🎉 INLINE WOO HOO ANIMATION 🎉 */
+                <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center py-4 relative">
+                  <motion.div animate={{ y: [0, -15, 0] }} transition={{ repeat: Infinity, duration: 1.5 }} className="text-6xl mb-4">🎉</motion.div>
+                  <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#6200EA] to-[#00E5FF] mb-2 uppercase tracking-wide">Woo Hoo!</h2>
+                  <p className="text-gray-500 font-bold mb-6 text-sm">You completed all steps! Here is your link.</p>
+                  <button 
+                    onClick={() => {
+                      if (canvaLink) openExternalLink(canvaLink);
+                      else alert("All slots full!");
+                    }} 
+                    className="w-full bg-[#6200EA] text-white font-black text-[16px] py-4 rounded-2xl shadow-lg active:scale-95 transition-transform flex justify-center items-center gap-2"
+                  >
+                    Open Canva Pro
+                  </button>
+                </motion.div>
+
+              ) : (
+
+                /* 🟢 4-STEP PROGRESS UI */
+                <div className="space-y-6">
+                  
+                  {/* Custom Step Indicator */}
+                  <div className="flex justify-between items-center relative w-full mb-6 mt-2 px-2">
+                    <div className="absolute top-[18px] left-6 right-6 h-[2px] bg-gray-200 z-0"></div>
+                    {[1, 2, 3, 4].map((stepNum) => {
+                      const isActive = currentStep === stepNum;
+                      const isCompleted = currentStep > stepNum;
+                      
+                      return (
+                        <div key={stepNum} className="flex flex-col items-center relative z-10 bg-white px-1">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-[15px] mb-1.5 transition-all
+                            ${isCompleted ? "bg-[#6200EA] text-white border-2 border-[#6200EA]" : 
+                              isActive ? "bg-white border-[2px] border-red-500 text-red-500" : 
+                              "bg-white border-[2px] border-gray-200 text-gray-300"}`}>
+                            {isCompleted ? "✓" : stepNum}
+                          </div>
+                          <span className={`text-[10px] font-bold text-center 
+                            ${isActive ? "text-gray-900" : isCompleted ? "text-[#6200EA]" : "text-gray-400"}`}>
+                            Step {stepNum}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
+
+                  <button onClick={handleMainAction} disabled={isProcessing} className={`w-full text-white font-bold text-[16px] py-4.5 rounded-[18px] shadow-sm transition-all active:scale-95 flex justify-center items-center gap-2 ${isProcessing ? "bg-gray-400 cursor-not-allowed" : "bg-[#6200EA] hover:bg-[#5000c9]"}`} style={{ minHeight: '56px' }}>
+                    {isProcessing ? "Waiting for Ad..." : "Watch Ads to Unlock Canva Pro"}
+                  </button>
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </>
+              )}
+            </motion.div>
+          </>
+        )}
+
+        {/* ========================================================= */}
+        {/* 💡 PROFESSIONAL BACKUP OPTION (Only shows after 4 steps)  */}
+        {/* ========================================================= */}
+        <AnimatePresence>
+          {currentStep > 4 && !activeSub && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0, marginTop: 0 }} 
+              animate={{ opacity: 1, height: 'auto', marginTop: 20 }} 
+              className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm relative overflow-hidden"
+            >
+              {/* Subtle Background Accent */}
+              <div className="absolute top-0 right-0 w-24 h-24 bg-purple-50 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
+              
+              <div className="flex items-start gap-4 relative z-10">
+                <div className="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center text-xl shrink-0 shadow-sm border border-purple-100">
+                  💡
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-black text-gray-900 text-[15px] mb-1">Link limit reached?</h3>
+                  <p className="text-[11px] text-gray-500 font-medium mb-4 leading-relaxed">
+                    Don't worry! You can still get Canva Pro 100% free by collecting points in our Earn section.
+                  </p>
+                  <button 
+                    onClick={() => navigate('/tasks')} 
+                    className="w-full bg-gray-900 hover:bg-black text-white font-bold text-[12px] py-3 rounded-xl shadow-md active:scale-95 transition-all flex items-center justify-center gap-2"
+                  >
+                    Go to Earn Points <span className="text-[14px]">➔</span>
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Stacked Social / Join Buttons */}
         <div className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100 flex flex-col gap-3">
