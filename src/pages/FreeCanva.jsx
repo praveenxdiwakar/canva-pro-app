@@ -141,7 +141,6 @@ export default function FreeCanva() {
         {/* ========================================================= */}
         {/* 📺 FREE USER CARD                                         */}
         {/* ========================================================= */}
-        {/* Instruction Alert */}
         <div className="bg-white border border-gray-100 rounded-2xl px-4 py-3.5 flex items-center gap-3 shadow-sm">
           <span className="text-2xl drop-shadow-sm">📢</span>
           <p className="text-[12px] text-gray-700 leading-snug font-medium">
@@ -206,32 +205,39 @@ export default function FreeCanva() {
         </motion.div>
 
         {/* ========================================================= */}
-        {/* 💡 PROFESSIONAL BACKUP OPTION (Perfectly Centered)        */}
+        {/* 💡 PROFESSIONAL BACKUP OPTION (Only shows after 4 steps)  */}
         {/* ========================================================= */}
         <AnimatePresence>
           {currentStep > 4 && (
             <motion.div 
               initial={{ opacity: 0, height: 0, marginTop: 0 }} 
               animate={{ opacity: 1, height: 'auto', marginTop: 20 }} 
-              className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm relative overflow-hidden text-center"
+              className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm relative overflow-hidden"
             >
               {/* Subtle Background Accent */}
               <div className="absolute top-0 right-0 w-24 h-24 bg-purple-50 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
               
-              <div className="relative z-10 flex flex-col items-center">
-                <div className="w-12 h-12 rounded-full bg-purple-50 flex items-center justify-center text-2xl mb-3 shadow-sm border border-purple-100">
-                  💡
+              <div className="flex flex-col gap-4 relative z-10">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center text-xl shrink-0 shadow-sm border border-purple-100">
+                    💡
+                  </div>
+                  <div className="flex-1 mt-0.5">
+                    <h3 className="font-black text-gray-900 text-[15px] mb-1">Link limit reached?</h3>
+                    <p className="text-[11px] text-gray-500 font-medium leading-relaxed">
+                      Don't worry! You can still get Canva Pro 100% free by collecting points in our Earn section.
+                    </p>
+                  </div>
                 </div>
-                <h3 className="font-black text-gray-900 text-[16px] mb-1.5">Link limit reached?</h3>
-                <p className="text-[12px] text-gray-500 font-medium mb-5 leading-relaxed max-w-[260px]">
-                  Don't worry! You can still get Canva Pro 100% free by collecting points in our Earn section.
-                </p>
-                <button 
-                  onClick={() => navigate('/tasks')} 
-                  className="bg-gray-900 hover:bg-black text-white font-bold text-[13px] px-6 py-3.5 rounded-xl shadow-md active:scale-95 transition-all flex items-center justify-center gap-2"
-                >
-                  Go to Earn Points <span className="text-[16px]">➔</span>
-                </button>
+                
+                <div className="flex justify-center w-full">
+                  <button 
+                    onClick={() => navigate('/tasks')} 
+                    className="w-full bg-gray-900 hover:bg-black text-white font-bold text-[12px] py-3.5 rounded-xl shadow-md active:scale-95 transition-all flex items-center justify-center gap-2"
+                  >
+                    Go to Earn Points <span className="text-[14px]">➔</span>
+                  </button>
+                </div>
               </div>
             </motion.div>
           )}
