@@ -11,8 +11,8 @@ export default function Profile() {
   const { user } = useTelegram();
   const navigate = useNavigate();
   
-  // Initialize the hook. Swipe Right -> Pro Users (/prousers) | Swipe Left -> Nowhere (null)
-  const swipeHandlers = useSwipeNavigation('/prousers', null);
+  // Initialize the hook. Swipe Right -> Pro Users (/pro-users) | Swipe Left -> Nowhere (null)
+  const swipeHandlers = useSwipeNavigation('/pro-users', null);
 
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [history, setHistory] = useState([]);

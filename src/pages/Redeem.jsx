@@ -9,8 +9,8 @@ export default function Redeem() {
   const { user, setUser } = useTelegram();
   const navigate = useNavigate();
   
-  // Initialize the hook. Swipe Right -> Tasks (/tasks) | Swipe Left -> Pro Users (/prousers)
-  const swipeHandlers = useSwipeNavigation('/tasks', '/prousers'); 
+  // Initialize the hook. Swipe Right -> Tasks (/tasks) | Swipe Left -> Pro Users (/pro-users)
+  const swipeHandlers = useSwipeNavigation('/tasks', '/pro-users'); 
   
   const [loading, setLoading] = useState(false);
   
