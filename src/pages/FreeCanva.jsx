@@ -18,7 +18,7 @@ export default function FreeCanva() {
   const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
-    // 1. Fetch available Free Canva link
+    // 1. Fetch available Free Canva link strictly for Tier 0 (Free Canva)
     supabase.from('canva_links').select('*').eq('tier_id', 0).then(({ data }) => {
       if (data && data.length > 0) {
         const available = data.find(l => l.used_slots < l.total_slots);
