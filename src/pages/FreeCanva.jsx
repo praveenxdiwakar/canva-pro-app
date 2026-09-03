@@ -19,7 +19,7 @@ export default function FreeCanva() {
 
   useEffect(() => {
     // 1. Fetch available Free Canva link
-    supabase.from('canva_links').select('*').then(({ data }) => {
+    supabase.from('canva_links').select('*').eq('tier_id', 0).then(({ data }) => {
       if (data && data.length > 0) {
         const available = data.find(l => l.used_slots < l.total_slots);
         if (available) setCanvaLink(available.url || available.invitelink);

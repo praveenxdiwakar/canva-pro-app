@@ -112,7 +112,7 @@ export default function Redeem() {
         setLoading(false); return;
       }
 
-      const { data: links, error: linkErr } = await supabase.from('canva_links').select('*');
+      const { data: links, error: linkErr } = await supabase.from('canva_links').select('*').eq('tier_id', tierId);
       if (linkErr) throw new Error(`DB Error (Links): ${linkErr.message}`);
       
       const availableLink = links?.find(l => l.used_slots < l.total_slots);
