@@ -19,10 +19,11 @@ export default function Admin() {
   const [isTasksOpen, setIsTasksOpen] = useState(false);
   const [isLinksOpen, setIsLinksOpen] = useState(false);
   
-  // Links State
+  // 🔗 UPGRADED Links State (Added tier_id and edit capabilities)
   const [links, setLinks] = useState([]);
-  const [newLink, setNewLink] = useState({ name: '', url: '', totalSlots: 100 });
-  const [addingLink, setAddingLink] = useState(false);
+  const [newLink, setNewLink] = useState({ name: '', url: '', totalSlots: 100, tier_id: 1 });
+  const [editingLinkId, setEditingLinkId] = useState(null);
+  const [savingLink, setSavingLink] = useState(false);
 
   // Dynamic Tasks State
   const [customTasks, setCustomTasks] = useState([]);
@@ -35,31 +36,26 @@ export default function Admin() {
     // ==========================================
     // REAL-TIME DATABASE SUBSCRIPTIONS
     // ==========================================
-    
     const usersSubscription = supabase.channel('users-channel')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'users' }, () => {
         setTotalUsers(prev => prev + 1);
-      })
-      .subscribe();
+      }).subscribe();
 
     const redemptionsSubscription = supabase.channel('redemptions-channel')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'redemptions' }, () => {
         setTotalRedemptions(prev => prev + 1);
         fetchLinks();
-      })
-      .subscribe();
+      }).subscribe();
 
     const linksSubscription = supabase.channel('links-channel')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'canva_links' }, () => {
         fetchLinks();
-      })
-      .subscribe();
+      }).subscribe();
 
     const tasksSubscription = supabase.channel('tasks-channel')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'dynamic_tasks' }, () => {
         fetchTasks();
-      })
-      .subscribe();
+      }).subscribe();
 
     return () => {
       supabase.removeChannel(usersSubscription);
@@ -70,24 +66,16 @@ export default function Admin() {
   }, []);
 
   const fetchInitialData = async () => {
-    // ✅ User's confirmed working count fetch
     try {
       const { data, count, error } = await supabase.from('users').select('*', { count: 'exact' });
-      if (!error) {
-        setTotalUsers(count !== null ? count : (data?.length || 0));
-      } else {
-        console.error("Error fetching users:", error);
-      }
-    } catch (err) { console.error(err); }
+      if (!error) setTotalUsers(count !== null ? count : (data?.length || 0));
+    } catch (err) {}
 
     try {
       const { data, count, error } = await supabase.from('redemptions').select('*', { count: 'exact' });
-      if (!error) {
-        setTotalRedemptions(count !== null ? count : (data?.length || 0));
-      }
-    } catch (err) { console.error(err); }
+      if (!error) setTotalRedemptions(count !== null ? count : (data?.length || 0));
+    } catch (err) {}
 
-    // Get Ad Zone Setting
     try {
       const { data: adData } = await supabase.from('app_settings').select('value').eq('key', 'MONETAG_ZONE_ID').maybeSingle();
       if (adData) setZoneId(adData.value);
@@ -116,30 +104,56 @@ export default function Admin() {
       const { error } = await supabase.from('app_settings').upsert({ key: 'MONETAG_ZONE_ID', value: zoneId });
       if (error) throw error;
       alert("✅ Monetag Ad Zone saved successfully!");
-      setIsEditingZone(false); // Lock it back after saving
-    } catch (err) {
-      alert(`❌ Error saving Ad Zone: ${err.message}`);
-    }
+      setIsEditingZone(false); 
+    } catch (err) { alert(`❌ Error saving Ad Zone: ${err.message}`); }
     setSavingZone(false);
   };
 
-  const handleAddLink = async () => {
+  // 🔗 UPGRADED: Handles both Add (Insert) and Edit (Update)
+  const handleSaveLink = async () => {
     if (!newLink.name || !newLink.url) return alert("Please fill out both Name and URL.");
-    setAddingLink(true);
+    setSavingLink(true);
     try {
-      const { error } = await supabase.from('canva_links').insert([{
+      const payload = {
         name: newLink.name,
         url: newLink.url,
         invitelink: newLink.url,
         total_slots: parseInt(newLink.totalSlots) || 100,
-        used_slots: 0
-      }]);
-      if (error) throw error;
-      setNewLink({ name: '', url: '', totalSlots: 100 });
+        tier_id: parseInt(newLink.tier_id) || 1 // 1=7 Days, 2=15 Days, 3=30 Days
+      };
+
+      if (editingLinkId) {
+        // Update Existing Link
+        const { error } = await supabase.from('canva_links').update(payload).eq('id', editingLinkId);
+        if (error) throw error;
+        alert("✅ Link updated successfully!");
+      } else {
+        // Insert New Link
+        payload.used_slots = 0;
+        const { error } = await supabase.from('canva_links').insert([payload]);
+        if (error) throw error;
+        alert("✅ Link added successfully!");
+      }
+      
+      // Reset Form
+      setNewLink({ name: '', url: '', totalSlots: 100, tier_id: 1 });
+      setEditingLinkId(null);
     } catch (err) {
-      alert(`❌ Error saving link: ${err.message}`);
+      alert(`❌ Error saving link: ${err.message}. Make sure your Supabase table has a 'tier_id' column!`);
     }
-    setAddingLink(false);
+    setSavingLink(false);
+  };
+
+  // 🔗 NEW: Populates the form to edit an existing link
+  const handleEditClick = (link) => {
+    setNewLink({
+      name: link.name,
+      url: link.url || link.invitelink,
+      totalSlots: link.total_slots,
+      tier_id: link.tier_id || 1
+    });
+    setEditingLinkId(link.id);
+    setIsLinksOpen(true);
   };
 
   const handleAddCustomTask = async () => {
@@ -150,9 +164,7 @@ export default function Admin() {
       if (error) throw error;
       setNewTask({ title: '', description: '', icon: '📱', action_url: '', points_reward: 5, requires_ad: true, is_daily: false });
       alert("✅ Custom task added instantly!");
-    } catch (err) {
-      alert(`❌ Error saving task: ${err.message}`);
-    }
+    } catch (err) { alert(`❌ Error saving task: ${err.message}`); }
     setAddingTask(false);
   };
 
@@ -160,9 +172,7 @@ export default function Admin() {
     if (!window.confirm("Are you sure you want to delete this item?")) return;
     try {
       await supabase.from(table).delete().eq('id', id);
-    } catch (err) {
-      alert(`Error deleting from ${table}.`);
-    }
+    } catch (err) { alert(`Error deleting from ${table}.`); }
   };
 
   return (
@@ -179,22 +189,13 @@ export default function Admin() {
         <motion.div animate={{ y: [0, 10, 0], opacity: [0.2, 0.6, 0.2] }} transition={{ repeat: Infinity, duration: 5, ease: "easeInOut", delay: 1 }} className="absolute bottom-8 right-12 text-white/40 text-[14px] select-none z-10">✦</motion.div>
 
         <div className="relative z-20 flex items-center justify-center gap-1.5 drop-shadow-xl mt-2">
-          <h1 className="text-[52px] font-bold text-white tracking-tighter" style={{ fontFamily: 'Georgia, serif' }}>
-            Canva
-          </h1>
-          <motion.div 
-            initial={{ scale: 0.8, rotate: 0 }}
-            animate={{ scale: 1, rotate: 3 }}
-            transition={{ type: "spring", bounce: 0.5, delay: 0.2 }}
-            className="bg-gradient-to-tr from-[#FFD700] via-[#F59E0B] to-[#FFD700] text-[#5B3A00] font-black text-[11px] px-2 py-0.5 rounded-[6px] uppercase tracking-widest shadow-[0_4px_10px_rgba(245,158,11,0.4)] -mt-8 border border-yellow-200/50"
-          >
-            Pro
-          </motion.div>
+          <h1 className="text-[52px] font-bold text-white tracking-tighter" style={{ fontFamily: 'Georgia, serif' }}>Canva</h1>
+          <motion.div initial={{ scale: 0.8, rotate: 0 }} animate={{ scale: 1, rotate: 3 }} transition={{ type: "spring", bounce: 0.5, delay: 0.2 }} className="bg-gradient-to-tr from-[#FFD700] via-[#F59E0B] to-[#FFD700] text-[#5B3A00] font-black text-[11px] px-2 py-0.5 rounded-[6px] uppercase tracking-widest shadow-[0_4px_10px_rgba(245,158,11,0.4)] -mt-8 border border-yellow-200/50">Pro</motion.div>
         </div>
       </div>
 
       {/* ========================================================= */}
-      {/* 📍 ADMIN HEADER BAR (Header Bottom)                       */}
+      {/* 📍 ADMIN HEADER BAR                                       */}
       {/* ========================================================= */}
       <div className="bg-white px-4 py-4 flex items-center gap-3 shadow-sm border-b border-gray-100 relative z-30">
         <button onClick={() => navigate('/profile')} className="text-gray-500 hover:bg-gray-100 p-1.5 rounded-lg active:scale-95 transition-all">
@@ -222,206 +223,32 @@ export default function Admin() {
         </div>
 
         {/* ========================================================= */}
-        {/* 📡 INTERACTIVE MONETAG SETTINGS (EDIT ON LEFT, SAVE ON RIGHT) */}
+        {/* 📡 MONETAG SETTINGS                                       */}
         {/* ========================================================= */}
         <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100">
           <h2 className="font-black text-[14px] text-gray-800 flex items-center gap-2 mb-4">📡 Monetag Ad Settings</h2>
-          
           <div className="relative flex items-center">
-            
-            {/* Inline Action Button (Positioned on the LEFT) */}
             <div className="absolute left-2 flex items-center gap-1 z-10">
               <AnimatePresence mode="wait">
                 {!isEditingZone ? (
-                  <motion.button 
-                    key="editBtn"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    onClick={() => setIsEditingZone(true)}
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-200 transition-colors"
-                  >
-                    ✏️
-                  </motion.button>
+                  <motion.button key="editBtn" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }} onClick={() => setIsEditingZone(true)} className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-200 transition-colors">✏️</motion.button>
                 ) : (
-                  <motion.button 
-                    key="cancelBtn"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    onClick={() => {
-                      setIsEditingZone(false);
-                      fetchInitialData(); // Reset value on cancel
-                    }}
-                    className="w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors text-[10px]"
-                  >
-                    ❌
-                  </motion.button>
+                  <motion.button key="cancelBtn" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }} onClick={() => { setIsEditingZone(false); fetchInitialData(); }} className="w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors text-[10px]">❌</motion.button>
                 )}
               </AnimatePresence>
             </div>
-
-            <input 
-              type="text" 
-              value={zoneId}
-              onChange={(e) => setZoneId(e.target.value)}
-              disabled={!isEditingZone}
-              placeholder="Enter Zone ID (e.g. 9773650)" 
-              className={`w-full border text-sm font-bold rounded-xl pl-12 py-3.5 outline-none transition-all ${
-                isEditingZone 
-                  ? 'bg-white border-purple-400 shadow-[0_0_0_4px_rgba(167,139,250,0.1)] text-gray-900 pr-20' 
-                  : 'bg-gray-50 border-gray-200 text-gray-500 shadow-inner pr-4'
-              }`}
-            />
-
-            {/* Save Button (Positioned on the RIGHT, only when editing) */}
+            <input type="text" value={zoneId} onChange={(e) => setZoneId(e.target.value)} disabled={!isEditingZone} placeholder="Enter Zone ID" className={`w-full border text-sm font-bold rounded-xl pl-12 py-3.5 outline-none transition-all ${isEditingZone ? 'bg-white border-purple-400 shadow-[0_0_0_4px_rgba(167,139,250,0.1)] text-gray-900 pr-20' : 'bg-gray-50 border-gray-200 text-gray-500 shadow-inner pr-4'}`} />
             <AnimatePresence>
               {isEditingZone && (
-                <motion.button 
-                  key="saveBtn"
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                  onClick={handleSaveZone}
-                  disabled={savingZone}
-                  className="absolute right-2 bg-gradient-to-r from-[#E65100] to-[#FF9800] text-white font-black px-4 py-2 rounded-lg shadow-sm active:scale-95 transition-transform text-xs z-10"
-                >
-                  {savingZone ? '...' : 'Save'}
-                </motion.button>
+                <motion.button key="saveBtn" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }} onClick={handleSaveZone} disabled={savingZone} className="absolute right-2 bg-gradient-to-r from-[#E65100] to-[#FF9800] text-white font-black px-4 py-2 rounded-lg shadow-sm active:scale-95 transition-transform text-xs z-10">{savingZone ? '...' : 'Save'}</motion.button>
               )}
             </AnimatePresence>
           </div>
-          
-          <p className="text-[10px] text-gray-400 font-medium mt-3 ml-1">
-            {isEditingZone ? '🔓 Editing unlocked. Click Save when done.' : '🔒 Click the pencil icon on the left to edit your Zone ID.'}
-          </p>
+          <p className="text-[10px] text-gray-400 font-medium mt-3 ml-1">{isEditingZone ? '🔓 Editing unlocked. Click Save when done.' : '🔒 Click the pencil icon on the left to edit your Zone ID.'}</p>
         </div>
 
         {/* ========================================================= */}
-        {/* 🚀 DYNAMIC TASK GENERATOR (DROPDOWN ACCORDION)            */}
-        {/* ========================================================= */}
-        <div className={`bg-white rounded-[24px] p-5 shadow-sm border-2 transition-all ${isTasksOpen ? 'border-blue-100' : 'border-gray-100'} overflow-hidden`}>
-          
-          <div className="flex justify-between items-center cursor-pointer select-none" onClick={() => setIsTasksOpen(!isTasksOpen)}>
-            <div>
-              <h2 className="font-black text-[14px] text-gray-800 flex items-center gap-2">🚀 Custom Tasks</h2>
-              <p className="text-[10px] text-gray-400 font-medium mt-0.5">{customTasks.length} active tasks</p>
-            </div>
-            {!isTasksOpen ? (
-              <span className="text-[#3B82F6] font-black text-[11px] bg-blue-50 px-3 py-1.5 rounded-full">Tap to Expand ➔</span>
-            ) : (
-              <button className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 font-black hover:bg-gray-200 transition-colors">✕</button>
-            )}
-          </div>
-
-          <AnimatePresence>
-            {isTasksOpen && (
-              <motion.div 
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="mt-5 pt-5 border-t border-gray-100"
-              >
-                {/* Add Task Form */}
-                <div className="bg-blue-50/50 rounded-2xl p-4 border border-blue-100 mb-5 space-y-3">
-                  <div className="flex gap-2">
-                    <input 
-                      type="text" 
-                      placeholder="Emoji (📱)" 
-                      value={newTask.icon}
-                      onChange={(e) => setNewTask({...newTask, icon: e.target.value})}
-                      className="w-16 text-center bg-white border border-gray-200 text-gray-900 rounded-xl px-2 py-3 text-lg outline-none focus:border-blue-400"
-                    />
-                    <input 
-                      type="text" 
-                      placeholder="Task Title (e.g. Download App)" 
-                      value={newTask.title}
-                      onChange={(e) => setNewTask({...newTask, title: e.target.value})}
-                      className="flex-1 bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400"
-                    />
-                  </div>
-                  
-                  <input 
-                    type="text" 
-                    placeholder="Description (e.g. Install & Open the app)" 
-                    value={newTask.description}
-                    onChange={(e) => setNewTask({...newTask, description: e.target.value})}
-                    className="w-full bg-white border border-gray-200 text-gray-900 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400"
-                  />
-                  
-                  <input 
-                    type="text" 
-                    placeholder="Action URL (e.g. https://play.google.com/...)" 
-                    value={newTask.action_url}
-                    onChange={(e) => setNewTask({...newTask, action_url: e.target.value})}
-                    className="w-full bg-white border border-gray-200 text-gray-900 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400"
-                  />
-                  
-                  <div className="flex gap-3 items-end">
-                    <div className="flex-1">
-                      <label className="text-[10px] font-bold text-gray-500 ml-1 block mb-1">Points Reward</label>
-                      <input 
-                        type="number" 
-                        value={newTask.points_reward}
-                        onChange={(e) => setNewTask({...newTask, points_reward: parseInt(e.target.value) || 0})}
-                        className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1.5 flex-1 pb-1">
-                      <label className="flex items-center gap-2 text-[10px] font-bold text-gray-600 cursor-pointer">
-                        <input type="checkbox" checked={newTask.requires_ad} onChange={(e) => setNewTask({...newTask, requires_ad: e.target.checked})} className="accent-blue-600 w-4 h-4" /> 
-                        Require Ad
-                      </label>
-                      <label className="flex items-center gap-2 text-[10px] font-bold text-gray-600 cursor-pointer">
-                        <input type="checkbox" checked={newTask.is_daily} onChange={(e) => setNewTask({...newTask, is_daily: e.target.checked})} className="accent-blue-600 w-4 h-4" /> 
-                        Daily Task
-                      </label>
-                    </div>
-                  </div>
-                  
-                  <button 
-                    onClick={handleAddCustomTask}
-                    disabled={addingTask}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded-xl shadow-md active:scale-95 transition-all mt-2"
-                  >
-                    {addingTask ? 'Saving...' : '➕ Create Custom Task'}
-                  </button>
-                </div>
-
-                {/* Active Tasks List */}
-                <div className="space-y-3">
-                  {customTasks.length === 0 ? (
-                    <div className="text-center py-4 border-2 border-dashed border-gray-100 rounded-xl">
-                      <p className="text-[12px] text-gray-400 font-medium">No custom tasks yet.</p>
-                    </div>
-                  ) : (
-                    customTasks.map(task => (
-                      <div key={task.id} className="bg-white border border-gray-200 rounded-xl p-3 flex justify-between items-center relative overflow-hidden">
-                        <div className="flex gap-3 items-center">
-                          <div className="text-xl bg-gray-50 p-2 rounded-lg border border-gray-100">
-                            {task.icon}
-                          </div>
-                          <div>
-                            <h3 className="font-black text-[13px] text-gray-900 leading-tight">{task.title}</h3>
-                            <p className="text-[10px] text-gray-400 font-medium mt-0.5">
-                              <span className="text-yellow-500 font-bold">+{task.points_reward} pts</span> • {task.is_daily ? 'Daily' : 'One-time'} • {task.requires_ad ? 'Ads On' : 'No Ads'}
-                            </p>
-                          </div>
-                        </div>
-                        <button onClick={() => deleteRecord('dynamic_tasks', task.id)} className="w-8 h-8 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-xs hover:bg-red-100 transition-colors">
-                          ✕
-                        </button>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* ========================================================= */}
-        {/* 🔗 MANAGE CANVA LINKS (DROPDOWN ACCORDION)                */}
+        {/* 🔗 TIERED CANVA LINKS MANAGER (EDIT, UPDATE, REMOVE)      */}
         {/* ========================================================= */}
         <div className={`bg-white rounded-[24px] p-5 shadow-sm border-2 transition-all ${isLinksOpen ? 'border-purple-100' : 'border-gray-100'} overflow-hidden`}>
           
@@ -439,17 +266,22 @@ export default function Admin() {
 
           <AnimatePresence>
             {isLinksOpen && (
-              <motion.div 
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="mt-5 pt-5 border-t border-gray-100"
-              >
-                {/* Add Link Form */}
-                <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 mb-5 space-y-3">
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mt-5 pt-5 border-t border-gray-100">
+                
+                {/* Add / Edit Link Form */}
+                <div className={`rounded-2xl p-4 border mb-5 space-y-3 transition-colors ${editingLinkId ? 'bg-indigo-50 border-indigo-200' : 'bg-gray-50 border-gray-100'}`}>
+                  <div className="flex justify-between items-center mb-1">
+                    <h3 className={`font-black text-[13px] ${editingLinkId ? 'text-indigo-900' : 'text-gray-700'}`}>
+                      {editingLinkId ? '✏️ Edit Existing Link' : '➕ Add New Link'}
+                    </h3>
+                    {editingLinkId && (
+                      <button onClick={() => { setEditingLinkId(null); setNewLink({ name: '', url: '', totalSlots: 100, tier_id: 1 }); }} className="text-[10px] text-indigo-500 font-bold hover:underline px-2">Cancel Edit</button>
+                    )}
+                  </div>
+
                   <input 
                     type="text" 
-                    placeholder="Link Name (e.g. Team Alpha - August)" 
+                    placeholder="Link Name (e.g. Team Alpha)" 
                     value={newLink.name}
                     onChange={(e) => setNewLink({...newLink, name: e.target.value})}
                     className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-400"
@@ -461,7 +293,22 @@ export default function Admin() {
                     onChange={(e) => setNewLink({...newLink, url: e.target.value})}
                     className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-400"
                   />
+                  
                   <div className="flex gap-3 items-end">
+                    {/* Tier Assignment Dropdown */}
+                    <div className="flex-[2]">
+                      <label className="text-[10px] font-bold text-gray-500 ml-1 mb-1 block">Tier (Duration)</label>
+                      <select 
+                        value={newLink.tier_id}
+                        onChange={(e) => setNewLink({...newLink, tier_id: e.target.value})}
+                        className="w-full bg-white border border-gray-200 text-gray-900 text-[12px] font-bold rounded-xl px-3 py-3 outline-none focus:border-purple-400"
+                      >
+                        <option value={1}>7 Days (Starter)</option>
+                        <option value={2}>15 Days (Quick Access)</option>
+                        <option value={3}>30 Days (Most Popular)</option>
+                      </select>
+                    </div>
+
                     <div className="flex-1">
                       <label className="text-[10px] font-bold text-gray-500 ml-1 mb-1 block">Max Slots</label>
                       <input 
@@ -471,14 +318,15 @@ export default function Admin() {
                         className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-400"
                       />
                     </div>
-                    <button 
-                      onClick={handleAddLink}
-                      disabled={addingLink}
-                      className="flex-[2] bg-[#6200EA] text-white font-black py-3 rounded-xl shadow-md active:scale-95 transition-transform"
-                    >
-                      {addingLink ? 'Saving...' : 'Save Link'}
-                    </button>
                   </div>
+
+                  <button 
+                    onClick={handleSaveLink}
+                    disabled={savingLink}
+                    className={`w-full font-black py-3.5 rounded-xl shadow-md active:scale-95 transition-transform mt-2 ${editingLinkId ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-[#6200EA] text-white hover:bg-[#5000c9]'}`}
+                  >
+                    {savingLink ? 'Saving...' : editingLinkId ? '💾 Update Link' : '➕ Save Link'}
+                  </button>
                 </div>
 
                 {/* Active Links List */}
@@ -491,20 +339,37 @@ export default function Admin() {
                     links.map(link => {
                       const percentage = Math.min(100, Math.round((link.used_slots / link.total_slots) * 100));
                       const isFull = link.used_slots >= link.total_slots;
+                      
+                      // Identify Tier badge details
+                      const tierLabel = link.tier_id === 3 ? '30 Days' : link.tier_id === 2 ? '15 Days' : '7 Days';
+                      const tierColor = link.tier_id === 3 ? 'bg-orange-100 text-orange-700 border-orange-200' : link.tier_id === 2 ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-green-100 text-green-700 border-green-200';
 
                       return (
-                        <div key={link.id} className="bg-white border border-gray-200 rounded-2xl p-4 relative overflow-hidden">
+                        <div key={link.id} className={`bg-white border rounded-2xl p-4 relative overflow-hidden transition-all ${editingLinkId === link.id ? 'border-indigo-400 shadow-md ring-2 ring-indigo-50' : 'border-gray-200'}`}>
+                          
                           <div className="flex justify-between items-start mb-2">
-                            <div className="pr-8">
-                              <h3 className="font-black text-[13px] text-gray-900 leading-tight mb-0.5">{link.name}</h3>
-                              <p className="text-[10px] text-gray-400 font-medium truncate max-w-[200px]">{link.url}</p>
+                            <div className="pr-16">
+                              <div className="flex items-center gap-2 mb-1.5">
+                                <h3 className="font-black text-[13px] text-gray-900 leading-tight">{link.name}</h3>
+                                <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase border ${tierColor}`}>
+                                  {tierLabel}
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-gray-400 font-medium truncate max-w-[200px]">{link.url || link.invitelink}</p>
                             </div>
-                            <button onClick={() => deleteRecord('canva_links', link.id)} className="w-7 h-7 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-xs absolute top-3 right-3 hover:bg-red-100 transition-colors">
-                              ✕
-                            </button>
+                            
+                            {/* Action Buttons (Edit & Delete) */}
+                            <div className="absolute top-3 right-3 flex gap-1.5">
+                              <button onClick={() => handleEditClick(link)} className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center text-xs hover:bg-indigo-100 transition-colors border border-indigo-100">
+                                ✏️
+                              </button>
+                              <button onClick={() => deleteRecord('canva_links', link.id)} className="w-8 h-8 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-xs hover:bg-red-100 transition-colors border border-red-100">
+                                ✕
+                              </button>
+                            </div>
                           </div>
 
-                          <div className="flex justify-between items-center mb-1.5 mt-3">
+                          <div className="flex justify-between items-center mb-1.5 mt-4">
                             <span className={`text-[10px] font-bold ${isFull ? 'text-red-500' : 'text-gray-600'}`}>
                               {link.used_slots} / {link.total_slots} slots used
                             </span>
@@ -516,6 +381,68 @@ export default function Admin() {
                         </div>
                       )
                     })
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* ========================================================= */}
+        {/* 🚀 DYNAMIC TASK GENERATOR                                 */}
+        {/* ========================================================= */}
+        <div className={`bg-white rounded-[24px] p-5 shadow-sm border-2 transition-all ${isTasksOpen ? 'border-blue-100' : 'border-gray-100'} overflow-hidden`}>
+          <div className="flex justify-between items-center cursor-pointer select-none" onClick={() => setIsTasksOpen(!isTasksOpen)}>
+            <div>
+              <h2 className="font-black text-[14px] text-gray-800 flex items-center gap-2">🚀 Custom Tasks</h2>
+              <p className="text-[10px] text-gray-400 font-medium mt-0.5">{customTasks.length} active tasks</p>
+            </div>
+            {!isTasksOpen ? (
+              <span className="text-[#3B82F6] font-black text-[11px] bg-blue-50 px-3 py-1.5 rounded-full">Tap to Expand ➔</span>
+            ) : (
+              <button className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 font-black hover:bg-gray-200 transition-colors">✕</button>
+            )}
+          </div>
+
+          <AnimatePresence>
+            {isTasksOpen && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mt-5 pt-5 border-t border-gray-100">
+                <div className="bg-blue-50/50 rounded-2xl p-4 border border-blue-100 mb-5 space-y-3">
+                  <div className="flex gap-2">
+                    <input type="text" placeholder="Emoji (📱)" value={newTask.icon} onChange={(e) => setNewTask({...newTask, icon: e.target.value})} className="w-16 text-center bg-white border border-gray-200 text-gray-900 rounded-xl px-2 py-3 text-lg outline-none focus:border-blue-400" />
+                    <input type="text" placeholder="Task Title" value={newTask.title} onChange={(e) => setNewTask({...newTask, title: e.target.value})} className="flex-1 bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400" />
+                  </div>
+                  <input type="text" placeholder="Description" value={newTask.description} onChange={(e) => setNewTask({...newTask, description: e.target.value})} className="w-full bg-white border border-gray-200 text-gray-900 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400" />
+                  <input type="text" placeholder="Action URL" value={newTask.action_url} onChange={(e) => setNewTask({...newTask, action_url: e.target.value})} className="w-full bg-white border border-gray-200 text-gray-900 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400" />
+                  <div className="flex gap-3 items-end">
+                    <div className="flex-1">
+                      <label className="text-[10px] font-bold text-gray-500 ml-1 block mb-1">Points Reward</label>
+                      <input type="number" value={newTask.points_reward} onChange={(e) => setNewTask({...newTask, points_reward: parseInt(e.target.value) || 0})} className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400" />
+                    </div>
+                    <div className="flex flex-col gap-1.5 flex-1 pb-1">
+                      <label className="flex items-center gap-2 text-[10px] font-bold text-gray-600 cursor-pointer"><input type="checkbox" checked={newTask.requires_ad} onChange={(e) => setNewTask({...newTask, requires_ad: e.target.checked})} className="accent-blue-600 w-4 h-4" /> Require Ad</label>
+                      <label className="flex items-center gap-2 text-[10px] font-bold text-gray-600 cursor-pointer"><input type="checkbox" checked={newTask.is_daily} onChange={(e) => setNewTask({...newTask, is_daily: e.target.checked})} className="accent-blue-600 w-4 h-4" /> Daily Task</label>
+                    </div>
+                  </div>
+                  <button onClick={handleAddCustomTask} disabled={addingTask} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded-xl shadow-md active:scale-95 transition-all mt-2">{addingTask ? 'Saving...' : '➕ Create Custom Task'}</button>
+                </div>
+
+                <div className="space-y-3">
+                  {customTasks.length === 0 ? (
+                    <div className="text-center py-4 border-2 border-dashed border-gray-100 rounded-xl"><p className="text-[12px] text-gray-400 font-medium">No custom tasks yet.</p></div>
+                  ) : (
+                    customTasks.map(task => (
+                      <div key={task.id} className="bg-white border border-gray-200 rounded-xl p-3 flex justify-between items-center relative overflow-hidden">
+                        <div className="flex gap-3 items-center">
+                          <div className="text-xl bg-gray-50 p-2 rounded-lg border border-gray-100">{task.icon}</div>
+                          <div>
+                            <h3 className="font-black text-[13px] text-gray-900 leading-tight">{task.title}</h3>
+                            <p className="text-[10px] text-gray-400 font-medium mt-0.5"><span className="text-yellow-500 font-bold">+{task.points_reward} pts</span> • {task.is_daily ? 'Daily' : 'One-time'} • {task.requires_ad ? 'Ads On' : 'No Ads'}</p>
+                          </div>
+                        </div>
+                        <button onClick={() => deleteRecord('dynamic_tasks', task.id)} className="w-8 h-8 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-xs hover:bg-red-100 transition-colors">✕</button>
+                      </div>
+                    ))
                   )}
                 </div>
               </motion.div>
