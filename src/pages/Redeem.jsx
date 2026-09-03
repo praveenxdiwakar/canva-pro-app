@@ -126,7 +126,13 @@ export default function Redeem() {
       const newPoints = currentPoints - cost;
       const finalUrl = availableLink.url || availableLink.invitelink;
 
-      const expiresAt = new Date();
+      // 🌟 MAGIC STACKING LOGIC: If activeSub exists, append the new days to its expiration!
+      let baseDate = new Date();
+      if (activeSub && new Date(activeSub.expires_at) > baseDate) {
+        baseDate = new Date(activeSub.expires_at);
+      }
+      
+      const expiresAt = new Date(baseDate);
       expiresAt.setDate(expiresAt.getDate() + days);
 
       const newRedemption = {
@@ -159,7 +165,14 @@ export default function Redeem() {
       // Update UI & Celebrate
       setUser({ ...user, points: newPoints });
       setActiveSub(newRedemption); 
-      setCelebration({ isOpen: true, message: `You successfully unlocked Canva Pro for ${days} Days!`, link: finalUrl, days });
+      setCelebration({ 
+        isOpen: true, 
+        message: activeSub 
+          ? `Awesome! We successfully extended your Canva Pro access by ${days} Days! 🥳` 
+          : `You successfully unlocked Canva Pro for ${days} Days!`, 
+        link: finalUrl, 
+        days 
+      });
 
     } catch (err) {
       console.error(err);
@@ -225,116 +238,125 @@ export default function Redeem() {
         
         {loadingSub ? (
           <div className="text-center py-10 text-gray-400 font-bold">Checking subscription status...</div>
-        ) : activeSub ? (
-          
-          /* ========================================================= */
-          /* 🌟 HIGHLIGHTED PREMIUM ANIMATED ACTIVE TIER CARD          */
-          /* ========================================================= */
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }} 
-            animate={{ opacity: 1, scale: 1 }} 
-            className={`bg-gradient-to-br ${activeTier.gradient} rounded-[28px] p-6 shadow-xl text-center relative overflow-hidden border-2 border-white/40 text-white`}
-          >
-            {/* Background Glows */}
-            <div className="absolute top-0 right-0 w-36 h-36 bg-white/15 rounded-full blur-2xl pointer-events-none -mr-10 -mt-10"></div>
-            <div className="absolute bottom-0 left-0 w-36 h-36 bg-black/10 rounded-full blur-2xl pointer-events-none -ml-10 -mb-10"></div>
-
-            <div className="relative z-10">
-              <div className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-md px-3.5 py-1.5 rounded-full text-[11px] font-black uppercase tracking-wider mb-3 shadow-inner">
-                <span>👑</span> {activeTier.durationDays} Days Pro Active
-              </div>
-
-              <h2 className="text-2xl font-black mb-1 drop-shadow-sm">{activeTier.title} Plan Unlocked</h2>
-              <p className="text-white/80 text-xs font-medium mb-6">Enjoy uninterrupted access to premium Canva features.</p>
-              
-              <div className="bg-black/25 backdrop-blur-md rounded-2xl p-4 mb-6 inline-block mx-auto border border-white/20 shadow-inner">
-                <div className="text-[10px] text-white/70 font-bold uppercase tracking-widest mb-1">Time Remaining</div>
-                <div className="text-white font-black text-2xl tracking-wider font-mono drop-shadow">{timeLeft || "Calculating..."}</div>
-              </div>
-
-              <button 
-                onClick={() => openExternalLink(activeSub.invite_link)} 
-                className="w-full bg-white text-gray-900 font-black text-[15px] py-4 rounded-2xl shadow-xl active:scale-95 transition-transform flex justify-center items-center gap-2 hover:bg-gray-50"
-              >
-                <span className="text-xl">✨</span> OPEN CANVA PRO
-              </button>
-              
-              <p className="text-[10px] text-white/70 font-medium mt-4">
-                You can redeem a new package once this countdown expires.
-              </p>
-            </div>
-          </motion.div>
-
         ) : (
-
-          /* ========================================================= */
-          /* TIERS LIST (7, 15, 30 Days Selection)                     */
-          /* ========================================================= */
           <>
-            <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 -mx-4 px-4 no-page-swipe" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-              {tiers.map(tier => {
-                const progress = Math.min(100, Math.round((currentPoints / tier.pointsCost) * 100));
-                const missing = Math.max(0, tier.pointsCost - currentPoints);
-                const canRedeem = missing === 0;
+            {/* ========================================================= */}
+            {/* 🌟 HIGHLIGHTED PREMIUM ANIMATED ACTIVE TIER CARD          */}
+            {/* ========================================================= */}
+            {activeSub && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }} 
+                animate={{ opacity: 1, scale: 1 }} 
+                className={`bg-gradient-to-br ${activeTier.gradient} rounded-[28px] p-6 shadow-xl text-center relative overflow-hidden border-2 border-white/40 text-white mb-6`}
+              >
+                {/* Background Glows */}
+                <div className="absolute top-0 right-0 w-36 h-36 bg-white/15 rounded-full blur-2xl pointer-events-none -mr-10 -mt-10"></div>
+                <div className="absolute bottom-0 left-0 w-36 h-36 bg-black/10 rounded-full blur-2xl pointer-events-none -ml-10 -mb-10"></div>
 
-                return (
-                  <div key={tier.id} className="snap-center shrink-0 w-[85%] bg-white rounded-[24px] p-5 shadow-sm border border-gray-100 relative overflow-hidden">
-                    {tier.badge && (
-                      <div className="absolute top-5 right-5 bg-orange-50 text-orange-600 font-black text-[9px] px-2.5 py-1.5 rounded-md uppercase tracking-wider flex items-center gap-1">
-                        {tier.badge}
-                      </div>
-                    )}
+                <div className="relative z-10">
+                  <div className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-md px-3.5 py-1.5 rounded-full text-[11px] font-black uppercase tracking-wider mb-3 shadow-inner">
+                    <span>👑</span> {activeTier.durationDays} Days Pro Active
+                  </div>
 
-                    <div className="flex justify-between items-start mb-5">
-                      <div className="flex gap-3.5">
-                        <div className="w-[52px] h-[52px] rounded-2xl border-2 border-gray-100 flex flex-col items-center justify-center text-gray-400 bg-gray-50">
-                          <span className="text-xl font-black leading-none text-gray-700">{tier.durationDays}</span>
-                          <span className="text-[7px] font-bold uppercase tracking-widest mt-0.5">Days</span>
+                  <h2 className="text-2xl font-black mb-1 drop-shadow-sm">{activeTier.title} Plan Unlocked</h2>
+                  <p className="text-white/80 text-xs font-medium mb-6">Enjoy uninterrupted access to premium Canva features.</p>
+                  
+                  <div className="bg-black/25 backdrop-blur-md rounded-2xl p-4 mb-6 inline-block mx-auto border border-white/20 shadow-inner">
+                    <div className="text-[10px] text-white/70 font-bold uppercase tracking-widest mb-1">Time Remaining</div>
+                    <div className="text-white font-black text-2xl tracking-wider font-mono drop-shadow">{timeLeft || "Calculating..."}</div>
+                  </div>
+
+                  <button 
+                    onClick={() => openExternalLink(activeSub.invite_link)} 
+                    className="w-full bg-white text-gray-900 font-black text-[15px] py-4 rounded-2xl shadow-xl active:scale-95 transition-transform flex justify-center items-center gap-2 hover:bg-gray-50"
+                  >
+                    <span className="text-xl">✨</span> OPEN CANVA PRO
+                  </button>
+                  
+                  <p className="text-[10.5px] text-white/90 font-bold mt-4 tracking-wide">
+                    💡 Want more time? Stack a new plan below to extend access!
+                  </p>
+                </div>
+              </motion.div>
+            )}
+
+            {/* ========================================================= */}
+            {/* TIERS LIST (7, 15, 30 Days Selection)                     */}
+            {/* ========================================================= */}
+            <div className="relative">
+              {activeSub && (
+                <div className="flex items-center gap-2 mb-5">
+                  <div className="h-[1px] bg-gray-200 flex-1"></div>
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Extend Your Access</span>
+                  <div className="h-[1px] bg-gray-200 flex-1"></div>
+                </div>
+              )}
+
+              <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 -mx-4 px-4 no-page-swipe" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                {tiers.map(tier => {
+                  const progress = Math.min(100, Math.round((currentPoints / tier.pointsCost) * 100));
+                  const missing = Math.max(0, tier.pointsCost - currentPoints);
+                  const canRedeem = missing === 0;
+
+                  return (
+                    <div key={tier.id} className="snap-center shrink-0 w-[85%] bg-white rounded-[24px] p-5 shadow-sm border border-gray-100 relative overflow-hidden">
+                      {tier.badge && (
+                        <div className="absolute top-5 right-5 bg-orange-50 text-orange-600 font-black text-[9px] px-2.5 py-1.5 rounded-md uppercase tracking-wider flex items-center gap-1">
+                          {tier.badge}
                         </div>
-                        <div>
-                          <h3 className="font-black text-gray-900 text-[17px] leading-tight mb-0.5">Canva Pro</h3>
-                          <p className="text-[11px] text-gray-500 font-medium mb-1.5">{tier.subtitle}</p>
-                          <div className="flex items-baseline gap-1">
-                            <span className="text-[22px] font-black text-gray-900 leading-none">{tier.pointsCost}</span>
-                            <span className="text-[10px] font-bold text-gray-500">points</span>
+                      )}
+
+                      <div className="flex justify-between items-start mb-5">
+                        <div className="flex gap-3.5">
+                          <div className="w-[52px] h-[52px] rounded-2xl border-2 border-gray-100 flex flex-col items-center justify-center text-gray-400 bg-gray-50">
+                            <span className="text-xl font-black leading-none text-gray-700">{tier.durationDays}</span>
+                            <span className="text-[7px] font-bold uppercase tracking-widest mt-0.5">Days</span>
+                          </div>
+                          <div>
+                            <h3 className="font-black text-gray-900 text-[17px] leading-tight mb-0.5">Canva Pro</h3>
+                            <p className="text-[11px] text-gray-500 font-medium mb-1.5">{tier.subtitle}</p>
+                            <div className="flex items-baseline gap-1">
+                              <span className="text-[22px] font-black text-gray-900 leading-none">{tier.pointsCost}</span>
+                              <span className="text-[10px] font-bold text-gray-500">points</span>
+                            </div>
                           </div>
                         </div>
+                        {!tier.badge && <span className="text-[10px] text-gray-300 font-bold uppercase tracking-wider mt-1">{tier.title}</span>}
                       </div>
-                      {!tier.badge && <span className="text-[10px] text-gray-300 font-bold uppercase tracking-wider mt-1">{tier.title}</span>}
-                    </div>
-                    
-                    <div className="flex justify-between items-center mb-1.5">
-                      <span className="text-[11px] font-bold text-gray-700">{currentPoints} / {tier.pointsCost} pts</span>
-                      <span className="text-[10px] font-medium text-gray-400">{canRedeem ? 'Ready to claim!' : `Need ${missing} more`}</span>
-                    </div>
-                    <div className="w-full bg-gray-100 rounded-full h-1.5 mb-5 overflow-hidden">
-                      <div className="bg-gray-300 h-1.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
-                    </div>
+                      
+                      <div className="flex justify-between items-center mb-1.5">
+                        <span className="text-[11px] font-bold text-gray-700">{currentPoints} / {tier.pointsCost} pts</span>
+                        <span className="text-[10px] font-medium text-gray-400">{canRedeem ? 'Ready to claim!' : `Need ${missing} more`}</span>
+                      </div>
+                      <div className="w-full bg-gray-100 rounded-full h-1.5 mb-5 overflow-hidden">
+                        <div className="bg-gray-300 h-1.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                      </div>
 
-                    {canRedeem ? (
-                      <button 
-                        onClick={() => setConfirmModal({ isOpen: true, tierId: tier.id, cost: tier.pointsCost, days: tier.durationDays })}
-                        disabled={loading}
-                        className="w-full bg-[#8B5CF6] hover:bg-[#7C3AED] active:scale-[0.98] text-white font-bold py-3.5 rounded-xl text-[13px] shadow-md transition-all flex items-center justify-center gap-2"
-                      >
-                        {loading ? 'Processing...' : '🎁 Unlock Now'}
-                      </button>
-                    ) : (
-                      <button disabled className="w-full border-2 border-dashed border-gray-200 text-gray-400 font-bold py-3.5 rounded-xl text-[12px] flex items-center justify-center gap-1.5 bg-gray-50/50">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                        Need {missing} more points
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            
-            {/* Swipe Indicator Dots */}
-            <div className="flex justify-center gap-1.5 mb-4 mt-[-5px]">
-               {tiers.map((_, idx) => (
-                 <div key={idx} className="w-1.5 h-1.5 rounded-full bg-gray-300"></div>
-               ))}
+                      {canRedeem ? (
+                        <button 
+                          onClick={() => setConfirmModal({ isOpen: true, tierId: tier.id, cost: tier.pointsCost, days: tier.durationDays })}
+                          disabled={loading}
+                          className="w-full bg-[#8B5CF6] hover:bg-[#7C3AED] active:scale-[0.98] text-white font-bold py-3.5 rounded-xl text-[13px] shadow-md transition-all flex items-center justify-center gap-2"
+                        >
+                          {loading ? 'Processing...' : activeSub ? `➕ Extend ${tier.durationDays} Days` : '🎁 Unlock Now'}
+                        </button>
+                      ) : (
+                        <button disabled className="w-full border-2 border-dashed border-gray-200 text-gray-400 font-bold py-3.5 rounded-xl text-[12px] flex items-center justify-center gap-1.5 bg-gray-50/50">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                          Need {missing} more points
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              
+              {/* Swipe Indicator Dots */}
+              <div className="flex justify-center gap-1.5 mb-4 mt-[-5px]">
+                 {tiers.map((_, idx) => (
+                   <div key={idx} className="w-1.5 h-1.5 rounded-full bg-gray-300"></div>
+                 ))}
+              </div>
             </div>
             
             {/* KEEP EARNING SECTION */}
@@ -370,10 +392,10 @@ export default function Redeem() {
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl text-center">
               <div className="text-4xl mb-3">💎</div>
               <h3 className="text-lg font-black text-gray-900 mb-2">Confirm Redemption</h3>
-              <p className="text-sm text-gray-500 font-medium mb-6">Are you sure you want to spend <span className="font-black text-purple-600">{confirmModal.cost} points</span> to unlock {confirmModal.days} Days of Canva Pro?</p>
+              <p className="text-sm text-gray-500 font-medium mb-6">Are you sure you want to spend <span className="font-black text-purple-600">{confirmModal.cost} points</span> to {activeSub ? 'extend your access by' : 'unlock'} {confirmModal.days} Days of Canva Pro?</p>
               <div className="flex gap-3">
                 <button onClick={() => setConfirmModal({ isOpen: false, tierId: null, cost: 0, days: 0 })} className="flex-1 bg-gray-100 text-gray-600 font-bold py-3 rounded-xl text-sm active:scale-95">Cancel</button>
-                <button onClick={executeRedemption} className="flex-1 bg-purple-600 text-white font-bold py-3 rounded-xl text-sm active:scale-95 shadow-md">Yes, Unlock!</button>
+                <button onClick={executeRedemption} className="flex-1 bg-purple-600 text-white font-bold py-3 rounded-xl text-sm active:scale-95 shadow-md">Yes, {activeSub ? 'Extend!' : 'Unlock!'}</button>
               </div>
             </motion.div>
           </div>
