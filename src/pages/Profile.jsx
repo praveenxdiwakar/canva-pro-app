@@ -4,15 +4,21 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import LeaderboardModal from '../components/LeaderboardModal';
 import { fetchUserHistory } from '../api/users';
-import { supabase } from '../api/supabase'; // ✅ Added Supabase Import for Referrals
+import { supabase } from '../api/supabase';
+import { useSwipeNavigation } from '../hooks/useSwipeNavigation'; // ✅ STEP 1: Imported the swipe hook
 
 export default function Profile() {
   const { user } = useTelegram();
   const navigate = useNavigate();
+  
+  // ✅ STEP 2: Initialize the hook. Swipe Right -> Pro Users (/prousers) | Swipe Left -> Nowhere (null)
+  // Ensure '/prousers' perfectly matches the route path in your App.jsx!
+  const swipeHandlers = useSwipeNavigation('/prousers', null);
+
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [history, setHistory] = useState([]);
   
-  // ✅ ADDED: States for Live Stats
+  // States for Live Stats
   const [taskStats, setTaskStats] = useState({ ads: 0, spins: 0 });
   const [referralsCount, setReferralsCount] = useState(0);
 
@@ -21,7 +27,7 @@ export default function Profile() {
       // 1. Fetch History
       fetchUserHistory(user.telegramId).then(setHistory);
 
-      // 2. ✅ Fetch Local Tasks (Today's Ads & Spins)
+      // 2. Fetch Local Tasks (Today's Ads & Spins)
       const savedTasks = localStorage.getItem(`tasks_${user.telegramId}`);
       if (savedTasks) {
         try {
@@ -38,7 +44,7 @@ export default function Profile() {
         }
       }
 
-      // 3. ✅ Fetch Invites (Referrals) from Database
+      // 3. Fetch Invites (Referrals) from Database
       const fetchReferrals = async () => {
         try {
           const { count, error } = await supabase
@@ -71,7 +77,8 @@ export default function Profile() {
   };
 
   return (
-    <div className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24 relative overflow-x-hidden">
+    {/* ✅ STEP 3: Attached {...swipeHandlers} to the main container */}
+    <div {...swipeHandlers} className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24 relative overflow-x-hidden">
       
       {/* ========================================================= */}
       {/* 🌟 UPGRADED PREMIUM HEADER BANNER 🌟                        */}
@@ -174,7 +181,6 @@ export default function Profile() {
           </div>
           
           <div className="grid grid-cols-3 gap-2.5">
-            {/* ✅ FIXED: Inserted real data variables instead of hardcoded strings */}
             {[
               { val: taskStats.ads, label: "Today's Ads", icon: "📺" },
               { val: taskStats.spins, label: "Today's Spins", icon: "🎡" },

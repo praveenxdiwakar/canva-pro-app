@@ -4,11 +4,15 @@ import { useTelegram } from '../contexts/TelegramContext';
 import { useTasks } from '../hooks/useTasks';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../api/supabase';
+import { useSwipeNavigation } from '../hooks/useSwipeNavigation'; // ✅ STEP 1: Imported the swipe hook
 
 export default function Tasks() {
   const { user, setUser } = useTelegram();
   const { updatePoints, processCheckIn } = useTasks();
   const navigate = useNavigate();
+  
+  // ✅ STEP 2: Initialize the hook. Swipe Right -> Free Canva (/) | Swipe Left -> Redeem (/redeem)
+  const swipeHandlers = useSwipeNavigation('/', '/redeem');
   
   // States
   const [isSpinOpen, setIsSpinOpen] = useState(false);
@@ -25,7 +29,7 @@ export default function Tasks() {
   // Dynamic Admin Tasks State
   const [dynamicTasks, setDynamicTasks] = useState([]);
 
-  // ✅ Task Completion Tracker (Upgraded with Math Lock Timer)
+  // Task Completion Tracker (Upgraded with Math Lock Timer)
   const [taskState, setTaskState] = useState({
     ads1: 0, ads1LockUntil: null,
     ads2: 0, ads2LockUntil: null,
@@ -35,7 +39,7 @@ export default function Tasks() {
     lastDate: new Date().toDateString()
   });
   
-  // ✅ Live Timers for the UI
+  // Live Timers for the UI
   const [timers, setTimers] = useState({ spins: "", ads1: "", ads2: "", math: "" });
   const [verifying, setVerifying] = useState(null);
 
@@ -188,7 +192,6 @@ export default function Tasks() {
     });
   };
 
-  // ✅ UPDATED MATH HANDLER
   const handleMathSubmit = () => {
     if (taskState.mathLockUntil) return alert(`⏳ Please wait ${timers.math} before solving again!`);
     if (taskState.math >= 5) return alert("✅ Limit reached! Wait for the timer.");
@@ -307,7 +310,8 @@ export default function Tasks() {
   };
 
   return (
-    <div className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24 relative overflow-x-hidden">
+    {/* ✅ STEP 3: Attached {...swipeHandlers} to the main container */}
+    <div {...swipeHandlers} className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24 relative overflow-x-hidden">
       
       {/* ========================================================= */}
       {/* 🌟 UPGRADED PREMIUM HEADER BANNER 🌟                        */}

@@ -2,9 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../api/supabase';
 import { useTelegram } from '../contexts/TelegramContext';
+import { useSwipeNavigation } from '../hooks/useSwipeNavigation'; // ✅ STEP 1: Imported the swipe hook
 
 export default function ProUsers() {
   const { user: currentUser } = useTelegram(); // Pulls live profile from Telegram
+  
+  // ✅ STEP 2: Initialize the hook. Swipe Right -> Redeem (/redeem) | Swipe Left -> Profile (/profile)
+  const swipeHandlers = useSwipeNavigation('/redeem', '/profile'); 
+
   const [loading, setLoading] = useState(true);
   const [proUsers, setProUsers] = useState([]);
   const [filter, setFilter] = useState('all'); // 'all', 'active', 'expiring', 'expired'
@@ -109,7 +114,8 @@ export default function ProUsers() {
   ];
 
   return (
-    <div className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24 relative overflow-x-hidden">
+    {/* ✅ STEP 3: Attached {...swipeHandlers} to the main container */}
+    <div {...swipeHandlers} className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24 relative overflow-x-hidden">
       
       {/* ========================================================= */}
       {/* 🌟 UPGRADED PREMIUM HEADER BANNER 🌟                        */}
@@ -151,8 +157,8 @@ export default function ProUsers() {
           View all members who have successfully redeemed Canva Pro using their points.
         </p>
 
-        {/* Filter Tabs */}
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide -mx-1 px-1">
+        {/* Filter Tabs - Protected from page swiping */}
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide -mx-1 px-1 no-page-swipe">
           {tabs.map(tab => {
             const isActive = filter === tab.id;
             return (

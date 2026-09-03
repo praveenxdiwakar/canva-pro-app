@@ -3,10 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTelegram } from '../contexts/TelegramContext';
 import { supabase } from '../api/supabase';
+import { useSwipeNavigation } from '../hooks/useSwipeNavigation'; // ✅ STEP 1: Imported the swipe hook
 
 export default function Redeem() {
   const { user, setUser } = useTelegram();
   const navigate = useNavigate();
+  
+  // ✅ STEP 2: Initialize the hook. Swipe Right -> Tasks (/tasks) | Swipe Left -> Pro Users (/prousers)
+  // Check your App.jsx to ensure the route for Pro Users is exactly '/prousers' (or change this string to match).
+  const swipeHandlers = useSwipeNavigation('/tasks', '/prousers'); 
   
   const [loading, setLoading] = useState(false);
   
@@ -20,7 +25,7 @@ export default function Redeem() {
   const [errorModal, setErrorModal] = useState({ isOpen: false, message: "" });
   const [celebration, setCelebration] = useState({ isOpen: false, message: "", link: "", days: 0 });
 
-  // ✅ UPDATED: Hardcoded Static Tiers with new pricing
+  // Hardcoded Static Tiers with new pricing
   const tiers = [
     { id: 1, durationDays: 7, pointsCost: 49, title: "Starter", subtitle: "7 Days Full Access" },
     { id: 2, durationDays: 15, pointsCost: 89, title: "Quick Access", subtitle: "15 Days Full Access" },
@@ -28,7 +33,6 @@ export default function Redeem() {
   ];
 
   const currentPoints = user?.points || 0;
-  // ✅ UPDATED: First reward cost matches the new Starter tier
   const firstRewardCost = 49;
   const mainProgress = Math.min(100, Math.round((currentPoints / firstRewardCost) * 100));
 
@@ -165,7 +169,8 @@ export default function Redeem() {
   };
 
   return (
-    <div className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24 relative overflow-x-hidden">
+    {/* ✅ STEP 3: Attached {...swipeHandlers} to the main container */}
+    <div {...swipeHandlers} className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24 relative overflow-x-hidden">
       
       {/* ========================================================= */}
       {/* 🌟 UPGRADED PREMIUM HEADER BANNER 🌟                        */}
@@ -263,62 +268,72 @@ export default function Redeem() {
 
           /* TIERS LIST */
           <>
-            {tiers.map(tier => {
-              const progress = Math.min(100, Math.round((currentPoints / tier.pointsCost) * 100));
-              const missing = Math.max(0, tier.pointsCost - currentPoints);
-              const canRedeem = missing === 0;
+            {/* ✅ STEP 4: Added the no-page-swipe class to protect horizontal scrolling inside the slider! */}
+            <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 -mx-4 px-4 no-page-swipe" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              {tiers.map(tier => {
+                const progress = Math.min(100, Math.round((currentPoints / tier.pointsCost) * 100));
+                const missing = Math.max(0, tier.pointsCost - currentPoints);
+                const canRedeem = missing === 0;
 
-              return (
-                <div key={tier.id} className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100 relative overflow-hidden">
-                  {tier.badge && (
-                    <div className="absolute top-5 right-5 bg-orange-50 text-orange-600 font-black text-[9px] px-2.5 py-1.5 rounded-md uppercase tracking-wider flex items-center gap-1">
-                      {tier.badge}
-                    </div>
-                  )}
-
-                  <div className="flex justify-between items-start mb-5">
-                    <div className="flex gap-3.5">
-                      <div className="w-[52px] h-[52px] rounded-2xl border-2 border-gray-100 flex flex-col items-center justify-center text-gray-400 bg-gray-50">
-                        <span className="text-xl font-black leading-none text-gray-700">{tier.durationDays}</span>
-                        <span className="text-[7px] font-bold uppercase tracking-widest mt-0.5">Days</span>
+                return (
+                  <div key={tier.id} className="snap-center shrink-0 w-[85%] bg-white rounded-[24px] p-5 shadow-sm border border-gray-100 relative overflow-hidden">
+                    {tier.badge && (
+                      <div className="absolute top-5 right-5 bg-orange-50 text-orange-600 font-black text-[9px] px-2.5 py-1.5 rounded-md uppercase tracking-wider flex items-center gap-1">
+                        {tier.badge}
                       </div>
-                      <div>
-                        <h3 className="font-black text-gray-900 text-[17px] leading-tight mb-0.5">Canva Pro</h3>
-                        <p className="text-[11px] text-gray-500 font-medium mb-1.5">{tier.subtitle}</p>
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-[22px] font-black text-gray-900 leading-none">{tier.pointsCost}</span>
-                          <span className="text-[10px] font-bold text-gray-500">points</span>
+                    )}
+
+                    <div className="flex justify-between items-start mb-5">
+                      <div className="flex gap-3.5">
+                        <div className="w-[52px] h-[52px] rounded-2xl border-2 border-gray-100 flex flex-col items-center justify-center text-gray-400 bg-gray-50">
+                          <span className="text-xl font-black leading-none text-gray-700">{tier.durationDays}</span>
+                          <span className="text-[7px] font-bold uppercase tracking-widest mt-0.5">Days</span>
+                        </div>
+                        <div>
+                          <h3 className="font-black text-gray-900 text-[17px] leading-tight mb-0.5">Canva Pro</h3>
+                          <p className="text-[11px] text-gray-500 font-medium mb-1.5">{tier.subtitle}</p>
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-[22px] font-black text-gray-900 leading-none">{tier.pointsCost}</span>
+                            <span className="text-[10px] font-bold text-gray-500">points</span>
+                          </div>
                         </div>
                       </div>
+                      {!tier.badge && <span className="text-[10px] text-gray-300 font-bold uppercase tracking-wider mt-1">{tier.title}</span>}
                     </div>
-                    {!tier.badge && <span className="text-[10px] text-gray-300 font-bold uppercase tracking-wider mt-1">{tier.title}</span>}
-                  </div>
-                  
-                  <div className="flex justify-between items-center mb-1.5">
-                    <span className="text-[11px] font-bold text-gray-700">{currentPoints} / {tier.pointsCost} pts</span>
-                    <span className="text-[10px] font-medium text-gray-400">{canRedeem ? 'Ready to claim!' : `Need ${missing} more`}</span>
-                  </div>
-                  <div className="w-full bg-gray-100 rounded-full h-1.5 mb-5 overflow-hidden">
-                    <div className="bg-gray-300 h-1.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
-                  </div>
+                    
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className="text-[11px] font-bold text-gray-700">{currentPoints} / {tier.pointsCost} pts</span>
+                      <span className="text-[10px] font-medium text-gray-400">{canRedeem ? 'Ready to claim!' : `Need ${missing} more`}</span>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-1.5 mb-5 overflow-hidden">
+                      <div className="bg-gray-300 h-1.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                    </div>
 
-                  {canRedeem ? (
-                    <button 
-                      onClick={() => setConfirmModal({ isOpen: true, tierId: tier.id, cost: tier.pointsCost, days: tier.durationDays })}
-                      disabled={loading}
-                      className="w-full bg-[#8B5CF6] hover:bg-[#7C3AED] active:scale-[0.98] text-white font-bold py-3.5 rounded-xl text-[13px] shadow-md transition-all flex items-center justify-center gap-2"
-                    >
-                      {loading ? 'Processing...' : '🎁 Unlock Now'}
-                    </button>
-                  ) : (
-                    <button disabled className="w-full border-2 border-dashed border-gray-200 text-gray-400 font-bold py-3.5 rounded-xl text-[12px] flex items-center justify-center gap-1.5 bg-gray-50/50">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                      Need {missing} more points
-                    </button>
-                  )}
-                </div>
-              );
-            })}
+                    {canRedeem ? (
+                      <button 
+                        onClick={() => setConfirmModal({ isOpen: true, tierId: tier.id, cost: tier.pointsCost, days: tier.durationDays })}
+                        disabled={loading}
+                        className="w-full bg-[#8B5CF6] hover:bg-[#7C3AED] active:scale-[0.98] text-white font-bold py-3.5 rounded-xl text-[13px] shadow-md transition-all flex items-center justify-center gap-2"
+                      >
+                        {loading ? 'Processing...' : '🎁 Unlock Now'}
+                      </button>
+                    ) : (
+                      <button disabled className="w-full border-2 border-dashed border-gray-200 text-gray-400 font-bold py-3.5 rounded-xl text-[12px] flex items-center justify-center gap-1.5 bg-gray-50/50">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                        Need {missing} more points
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            
+            {/* Swipe Indicator Dots */}
+            <div className="flex justify-center gap-1.5 mb-4 mt-[-5px]">
+               {tiers.map((_, idx) => (
+                 <div key={idx} className="w-1.5 h-1.5 rounded-full bg-gray-300"></div>
+               ))}
+            </div>
             
             {/* KEEP EARNING SECTION */}
             <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100 mt-4">
