@@ -19,9 +19,9 @@ export default function Admin() {
   const [isTasksOpen, setIsTasksOpen] = useState(false);
   const [isLinksOpen, setIsLinksOpen] = useState(false);
   
-  // 🔗 UPGRADED Links State (Added tier_id and edit capabilities)
+  // Links State
   const [links, setLinks] = useState([]);
-  const [newLink, setNewLink] = useState({ name: '', url: '', totalSlots: 100, tier_id: 1 });
+  const [newLink, setNewLink] = useState({ name: '', url: '', totalSlots: 100, tier_id: 0 }); // Default to 0 (Free Canva)
   const [editingLinkId, setEditingLinkId] = useState(null);
   const [savingLink, setSavingLink] = useState(false);
 
@@ -33,29 +33,10 @@ export default function Admin() {
   useEffect(() => {
     fetchInitialData();
 
-    // ==========================================
-    // REAL-TIME DATABASE SUBSCRIPTIONS
-    // ==========================================
-    const usersSubscription = supabase.channel('users-channel')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'users' }, () => {
-        setTotalUsers(prev => prev + 1);
-      }).subscribe();
-
-    const redemptionsSubscription = supabase.channel('redemptions-channel')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'redemptions' }, () => {
-        setTotalRedemptions(prev => prev + 1);
-        fetchLinks();
-      }).subscribe();
-
-    const linksSubscription = supabase.channel('links-channel')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'canva_links' }, () => {
-        fetchLinks();
-      }).subscribe();
-
-    const tasksSubscription = supabase.channel('tasks-channel')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'dynamic_tasks' }, () => {
-        fetchTasks();
-      }).subscribe();
+    const usersSubscription = supabase.channel('users-channel').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'users' }, () => { setTotalUsers(prev => prev + 1); }).subscribe();
+    const redemptionsSubscription = supabase.channel('redemptions-channel').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'redemptions' }, () => { setTotalRedemptions(prev => prev + 1); fetchLinks(); }).subscribe();
+    const linksSubscription = supabase.channel('links-channel').on('postgres_changes', { event: '*', schema: 'public', table: 'canva_links' }, () => { fetchLinks(); }).subscribe();
+    const tasksSubscription = supabase.channel('tasks-channel').on('postgres_changes', { event: '*', schema: 'public', table: 'dynamic_tasks' }, () => { fetchTasks(); }).subscribe();
 
     return () => {
       supabase.removeChannel(usersSubscription);
@@ -70,12 +51,10 @@ export default function Admin() {
       const { data, count, error } = await supabase.from('users').select('*', { count: 'exact' });
       if (!error) setTotalUsers(count !== null ? count : (data?.length || 0));
     } catch (err) {}
-
     try {
       const { data, count, error } = await supabase.from('redemptions').select('*', { count: 'exact' });
       if (!error) setTotalRedemptions(count !== null ? count : (data?.length || 0));
     } catch (err) {}
-
     try {
       const { data: adData } = await supabase.from('app_settings').select('value').eq('key', 'MONETAG_ZONE_ID').maybeSingle();
       if (adData) setZoneId(adData.value);
@@ -95,8 +74,6 @@ export default function Admin() {
     if (data) setCustomTasks(data);
   };
 
-  // --- ACTIONS ---
-
   const handleSaveZone = async () => {
     if (!zoneId) return alert("Please enter a valid Zone ID.");
     setSavingZone(true);
@@ -109,7 +86,6 @@ export default function Admin() {
     setSavingZone(false);
   };
 
-  // 🔗 UPGRADED: Handles both Add (Insert) and Edit (Update)
   const handleSaveLink = async () => {
     if (!newLink.name || !newLink.url) return alert("Please fill out both Name and URL.");
     setSavingLink(true);
@@ -119,38 +95,34 @@ export default function Admin() {
         url: newLink.url,
         invitelink: newLink.url,
         total_slots: parseInt(newLink.totalSlots) || 100,
-        tier_id: parseInt(newLink.tier_id) || 1 // 1=7 Days, 2=15 Days, 3=30 Days
+        tier_id: parseInt(newLink.tier_id) || 0 // 0=Free, 1=7 Days, 2=15 Days, 3=30 Days
       };
 
       if (editingLinkId) {
-        // Update Existing Link
         const { error } = await supabase.from('canva_links').update(payload).eq('id', editingLinkId);
         if (error) throw error;
         alert("✅ Link updated successfully!");
       } else {
-        // Insert New Link
         payload.used_slots = 0;
         const { error } = await supabase.from('canva_links').insert([payload]);
         if (error) throw error;
         alert("✅ Link added successfully!");
       }
       
-      // Reset Form
-      setNewLink({ name: '', url: '', totalSlots: 100, tier_id: 1 });
+      setNewLink({ name: '', url: '', totalSlots: 100, tier_id: 0 });
       setEditingLinkId(null);
     } catch (err) {
-      alert(`❌ Error saving link: ${err.message}. Make sure your Supabase table has a 'tier_id' column!`);
+      alert(`❌ Error saving link: ${err.message}`);
     }
     setSavingLink(false);
   };
 
-  // 🔗 NEW: Populates the form to edit an existing link
   const handleEditClick = (link) => {
     setNewLink({
       name: link.name,
       url: link.url || link.invitelink,
       totalSlots: link.total_slots,
-      tier_id: link.tier_id || 1
+      tier_id: link.tier_id || 0
     });
     setEditingLinkId(link.id);
     setIsLinksOpen(true);
@@ -170,61 +142,41 @@ export default function Admin() {
 
   const deleteRecord = async (table, id) => {
     if (!window.confirm("Are you sure you want to delete this item?")) return;
-    try {
-      await supabase.from(table).delete().eq('id', id);
-    } catch (err) { alert(`Error deleting from ${table}.`); }
+    try { await supabase.from(table).delete().eq('id', id); } catch (err) { alert(`Error deleting from ${table}.`); }
   };
 
   return (
     <div className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24 relative overflow-x-hidden">
       
-      {/* ========================================================= */}
-      {/* 🌟 UPGRADED PREMIUM HEADER BANNER 🌟                        */}
-      {/* ========================================================= */}
       <div className="relative w-full h-[150px] bg-gradient-to-br from-[#00C4CC] via-[#7B2CBF] to-[#6200EA] flex items-center justify-center overflow-hidden">
         <div className="absolute top-[-20px] left-[-20px] w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none z-0"></div>
         <div className="absolute bottom-[-30px] right-[-10px] w-40 h-40 bg-[#00E5FF]/20 rounded-full blur-[40px] pointer-events-none z-0"></div>
-        
         <motion.div animate={{ y: [0, -10, 0], opacity: [0.3, 0.8, 0.3] }} transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }} className="absolute top-6 left-10 text-white/50 text-[10px] select-none z-10">✨</motion.div>
         <motion.div animate={{ y: [0, 10, 0], opacity: [0.2, 0.6, 0.2] }} transition={{ repeat: Infinity, duration: 5, ease: "easeInOut", delay: 1 }} className="absolute bottom-8 right-12 text-white/40 text-[14px] select-none z-10">✦</motion.div>
-
         <div className="relative z-20 flex items-center justify-center gap-1.5 drop-shadow-xl mt-2">
           <h1 className="text-[52px] font-bold text-white tracking-tighter" style={{ fontFamily: 'Georgia, serif' }}>Canva</h1>
           <motion.div initial={{ scale: 0.8, rotate: 0 }} animate={{ scale: 1, rotate: 3 }} transition={{ type: "spring", bounce: 0.5, delay: 0.2 }} className="bg-gradient-to-tr from-[#FFD700] via-[#F59E0B] to-[#FFD700] text-[#5B3A00] font-black text-[11px] px-2 py-0.5 rounded-[6px] uppercase tracking-widest shadow-[0_4px_10px_rgba(245,158,11,0.4)] -mt-8 border border-yellow-200/50">Pro</motion.div>
         </div>
       </div>
 
-      {/* ========================================================= */}
-      {/* 📍 ADMIN HEADER BAR                                       */}
-      {/* ========================================================= */}
       <div className="bg-white px-4 py-4 flex items-center gap-3 shadow-sm border-b border-gray-100 relative z-30">
-        <button onClick={() => navigate('/profile')} className="text-gray-500 hover:bg-gray-100 p-1.5 rounded-lg active:scale-95 transition-all">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-        </button>
-        <h1 className="text-[16px] font-black text-gray-900 flex items-center gap-2">
-          <span className="text-[18px]">⚙️</span> Master Admin
-        </h1>
+        <button onClick={() => navigate('/profile')} className="text-gray-500 hover:bg-gray-100 p-1.5 rounded-lg active:scale-95 transition-all"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg></button>
+        <h1 className="text-[16px] font-black text-gray-900 flex items-center gap-2"><span className="text-[18px]">⚙️</span> Master Admin</h1>
       </div>
 
       <div className="px-4 pt-5 space-y-4 relative z-30">
         
-        {/* Real-time Stats Grid */}
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-white rounded-[20px] p-5 shadow-sm border border-gray-100 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-16 h-16 bg-purple-50 rounded-full blur-2xl -mr-6 -mt-6 z-0 pointer-events-none"></div>
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 relative z-10">Total Users</p>
             <div className="text-3xl font-black text-[#6200EA] relative z-10">{totalUsers.toLocaleString()}</div>
           </div>
           <div className="bg-white rounded-[20px] p-5 shadow-sm border border-gray-100 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-16 h-16 bg-orange-50 rounded-full blur-2xl -mr-6 -mt-6 z-0 pointer-events-none"></div>
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 relative z-10">Redemptions</p>
             <div className="text-3xl font-black text-[#E65100] relative z-10">{totalRedemptions.toLocaleString()}</div>
           </div>
         </div>
 
-        {/* ========================================================= */}
-        {/* 📡 MONETAG SETTINGS                                       */}
-        {/* ========================================================= */}
         <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100">
           <h2 className="font-black text-[14px] text-gray-800 flex items-center gap-2 mb-4">📡 Monetag Ad Settings</h2>
           <div className="relative flex items-center">
@@ -244,14 +196,9 @@ export default function Admin() {
               )}
             </AnimatePresence>
           </div>
-          <p className="text-[10px] text-gray-400 font-medium mt-3 ml-1">{isEditingZone ? '🔓 Editing unlocked. Click Save when done.' : '🔒 Click the pencil icon on the left to edit your Zone ID.'}</p>
         </div>
 
-        {/* ========================================================= */}
-        {/* 🔗 TIERED CANVA LINKS MANAGER (EDIT, UPDATE, REMOVE)      */}
-        {/* ========================================================= */}
         <div className={`bg-white rounded-[24px] p-5 shadow-sm border-2 transition-all ${isLinksOpen ? 'border-purple-100' : 'border-gray-100'} overflow-hidden`}>
-          
           <div className="flex justify-between items-center cursor-pointer select-none" onClick={() => setIsLinksOpen(!isLinksOpen)}>
             <div>
               <h2 className="font-black text-[14px] text-gray-800 flex items-center gap-2">🔗 Canva Links</h2>
@@ -268,111 +215,75 @@ export default function Admin() {
             {isLinksOpen && (
               <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mt-5 pt-5 border-t border-gray-100">
                 
-                {/* Add / Edit Link Form */}
                 <div className={`rounded-2xl p-4 border mb-5 space-y-3 transition-colors ${editingLinkId ? 'bg-indigo-50 border-indigo-200' : 'bg-gray-50 border-gray-100'}`}>
                   <div className="flex justify-between items-center mb-1">
                     <h3 className={`font-black text-[13px] ${editingLinkId ? 'text-indigo-900' : 'text-gray-700'}`}>
                       {editingLinkId ? '✏️ Edit Existing Link' : '➕ Add New Link'}
                     </h3>
                     {editingLinkId && (
-                      <button onClick={() => { setEditingLinkId(null); setNewLink({ name: '', url: '', totalSlots: 100, tier_id: 1 }); }} className="text-[10px] text-indigo-500 font-bold hover:underline px-2">Cancel Edit</button>
+                      <button onClick={() => { setEditingLinkId(null); setNewLink({ name: '', url: '', totalSlots: 100, tier_id: 0 }); }} className="text-[10px] text-indigo-500 font-bold hover:underline px-2">Cancel Edit</button>
                     )}
                   </div>
 
-                  <input 
-                    type="text" 
-                    placeholder="Link Name (e.g. Team Alpha)" 
-                    value={newLink.name}
-                    onChange={(e) => setNewLink({...newLink, name: e.target.value})}
-                    className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-400"
-                  />
-                  <input 
-                    type="text" 
-                    placeholder="https://canva.com/brand/join/..." 
-                    value={newLink.url}
-                    onChange={(e) => setNewLink({...newLink, url: e.target.value})}
-                    className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-400"
-                  />
+                  <input type="text" placeholder="Link Name (e.g. Team Alpha)" value={newLink.name} onChange={(e) => setNewLink({...newLink, name: e.target.value})} className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-400" />
+                  <input type="text" placeholder="https://canva.com/brand/join/..." value={newLink.url} onChange={(e) => setNewLink({...newLink, url: e.target.value})} className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-400" />
                   
                   <div className="flex gap-3 items-end">
-                    {/* Tier Assignment Dropdown */}
                     <div className="flex-[2]">
-                      <label className="text-[10px] font-bold text-gray-500 ml-1 mb-1 block">Tier (Duration)</label>
+                      <label className="text-[10px] font-bold text-gray-500 ml-1 mb-1 block">Category / Tier</label>
                       <select 
                         value={newLink.tier_id}
-                        onChange={(e) => setNewLink({...newLink, tier_id: e.target.value})}
+                        onChange={(e) => setNewLink({...newLink, tier_id: parseInt(e.target.value)})}
                         className="w-full bg-white border border-gray-200 text-gray-900 text-[12px] font-bold rounded-xl px-3 py-3 outline-none focus:border-purple-400"
                       >
-                        <option value={1}>7 Days (Starter)</option>
-                        <option value={2}>15 Days (Quick Access)</option>
-                        <option value={3}>30 Days (Most Popular)</option>
+                        <option value={0}>Free Canva (Ad Unlock)</option>
+                        <option value={1}>7 Days (Redeem points)</option>
+                        <option value={2}>15 Days (Redeem points)</option>
+                        <option value={3}>30 Days (Redeem points)</option>
                       </select>
                     </div>
 
                     <div className="flex-1">
                       <label className="text-[10px] font-bold text-gray-500 ml-1 mb-1 block">Max Slots</label>
-                      <input 
-                        type="number" 
-                        value={newLink.totalSlots}
-                        onChange={(e) => setNewLink({...newLink, totalSlots: e.target.value})}
-                        className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-400"
-                      />
+                      <input type="number" value={newLink.totalSlots} onChange={(e) => setNewLink({...newLink, totalSlots: e.target.value})} className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-400" />
                     </div>
                   </div>
 
-                  <button 
-                    onClick={handleSaveLink}
-                    disabled={savingLink}
-                    className={`w-full font-black py-3.5 rounded-xl shadow-md active:scale-95 transition-transform mt-2 ${editingLinkId ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-[#6200EA] text-white hover:bg-[#5000c9]'}`}
-                  >
+                  <button onClick={handleSaveLink} disabled={savingLink} className={`w-full font-black py-3.5 rounded-xl shadow-md active:scale-95 transition-transform mt-2 ${editingLinkId ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-[#6200EA] text-white hover:bg-[#5000c9]'}`}>
                     {savingLink ? 'Saving...' : editingLinkId ? '💾 Update Link' : '➕ Save Link'}
                   </button>
                 </div>
 
-                {/* Active Links List */}
                 <div className="space-y-3">
                   {links.length === 0 ? (
-                    <div className="text-center py-4 border-2 border-dashed border-gray-100 rounded-xl">
-                      <p className="text-[12px] text-gray-400 font-medium">No active links found.</p>
-                    </div>
+                    <div className="text-center py-4 border-2 border-dashed border-gray-100 rounded-xl"><p className="text-[12px] text-gray-400 font-medium">No active links found.</p></div>
                   ) : (
                     links.map(link => {
                       const percentage = Math.min(100, Math.round((link.used_slots / link.total_slots) * 100));
                       const isFull = link.used_slots >= link.total_slots;
                       
-                      // Identify Tier badge details
-                      const tierLabel = link.tier_id === 3 ? '30 Days' : link.tier_id === 2 ? '15 Days' : '7 Days';
-                      const tierColor = link.tier_id === 3 ? 'bg-orange-100 text-orange-700 border-orange-200' : link.tier_id === 2 ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-green-100 text-green-700 border-green-200';
+                      const tierLabel = link.tier_id === 3 ? '30 Days' : link.tier_id === 2 ? '15 Days' : link.tier_id === 1 ? '7 Days' : 'Free Canva';
+                      const tierColor = link.tier_id === 3 ? 'bg-orange-100 text-orange-700 border-orange-200' : link.tier_id === 2 ? 'bg-blue-100 text-blue-700 border-blue-200' : link.tier_id === 1 ? 'bg-green-100 text-green-700 border-green-200' : 'bg-purple-100 text-purple-700 border-purple-200';
 
                       return (
                         <div key={link.id} className={`bg-white border rounded-2xl p-4 relative overflow-hidden transition-all ${editingLinkId === link.id ? 'border-indigo-400 shadow-md ring-2 ring-indigo-50' : 'border-gray-200'}`}>
-                          
                           <div className="flex justify-between items-start mb-2">
                             <div className="pr-16">
                               <div className="flex items-center gap-2 mb-1.5">
                                 <h3 className="font-black text-[13px] text-gray-900 leading-tight">{link.name}</h3>
-                                <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase border ${tierColor}`}>
-                                  {tierLabel}
-                                </span>
+                                <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase border ${tierColor}`}>{tierLabel}</span>
                               </div>
                               <p className="text-[10px] text-gray-400 font-medium truncate max-w-[200px]">{link.url || link.invitelink}</p>
                             </div>
                             
-                            {/* Action Buttons (Edit & Delete) */}
                             <div className="absolute top-3 right-3 flex gap-1.5">
-                              <button onClick={() => handleEditClick(link)} className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center text-xs hover:bg-indigo-100 transition-colors border border-indigo-100">
-                                ✏️
-                              </button>
-                              <button onClick={() => deleteRecord('canva_links', link.id)} className="w-8 h-8 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-xs hover:bg-red-100 transition-colors border border-red-100">
-                                ✕
-                              </button>
+                              <button onClick={() => handleEditClick(link)} className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center text-xs hover:bg-indigo-100 transition-colors border border-indigo-100">✏️</button>
+                              <button onClick={() => deleteRecord('canva_links', link.id)} className="w-8 h-8 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-xs hover:bg-red-100 transition-colors border border-red-100">✕</button>
                             </div>
                           </div>
 
                           <div className="flex justify-between items-center mb-1.5 mt-4">
-                            <span className={`text-[10px] font-bold ${isFull ? 'text-red-500' : 'text-gray-600'}`}>
-                              {link.used_slots} / {link.total_slots} slots used
-                            </span>
+                            <span className={`text-[10px] font-bold ${isFull ? 'text-red-500' : 'text-gray-600'}`}>{link.used_slots} / {link.total_slots} slots used</span>
                             <span className="text-[10px] font-black text-[#6200EA]">{percentage}%</span>
                           </div>
                           <div className="w-full bg-gray-100 rounded-full h-1.5">
@@ -388,9 +299,6 @@ export default function Admin() {
           </AnimatePresence>
         </div>
 
-        {/* ========================================================= */}
-        {/* 🚀 DYNAMIC TASK GENERATOR                                 */}
-        {/* ========================================================= */}
         <div className={`bg-white rounded-[24px] p-5 shadow-sm border-2 transition-all ${isTasksOpen ? 'border-blue-100' : 'border-gray-100'} overflow-hidden`}>
           <div className="flex justify-between items-center cursor-pointer select-none" onClick={() => setIsTasksOpen(!isTasksOpen)}>
             <div>
