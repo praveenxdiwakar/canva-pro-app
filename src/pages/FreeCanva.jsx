@@ -18,7 +18,7 @@ export default function FreeCanva() {
   const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
-    // 1. Fetch available Free Canva link strictly for Tier 0 (Free Canva)
+    // 1. Fetch available Free Canva link (strictly Tier 0)
     supabase.from('canva_links').select('*').eq('tier_id', 0).then(({ data }) => {
       if (data && data.length > 0) {
         const available = data.find(l => l.used_slots < l.total_slots);
@@ -43,7 +43,7 @@ export default function FreeCanva() {
       }
     });
 
-    // 3. Inject Confetti Script for the "Woo Hoo" step
+    // 3. Inject Canvas Confetti Library CDN
     if (!document.getElementById('confetti-script')) {
       const script = document.createElement('script');
       script.id = 'confetti-script';
@@ -53,15 +53,35 @@ export default function FreeCanva() {
     }
   }, []);
 
-  // Trigger confetti when hitting step 5
+  // Trigger custom side-firing confetti animation when hitting step 6 (after completing 5 steps)
   useEffect(() => {
-    if (currentStep > 4 && window.confetti) {
-      window.confetti({
-        particleCount: 150,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#6200EA', '#00E5FF', '#FFD700']
-      });
+    if (currentStep > 5 && window.confetti) {
+      var duration = 3000;
+      var end = Date.now() + duration;
+
+      (function frame() {
+        // Shoot confetti from the left edge
+        window.confetti({
+          particleCount: 5,
+          angle: 60,
+          spread: 55,
+          origin: { x: 0 },
+          colors: ['#f48fb1', '#ce93d8', '#6200EA']
+        });
+        
+        // Shoot confetti from the right edge
+        window.confetti({
+          particleCount: 5,
+          angle: 120,
+          spread: 55,
+          origin: { x: 1 },
+          colors: ['#f48fb1', '#ce93d8', '#6200EA']
+        });
+
+        if (Date.now() < end) {
+          requestAnimationFrame(frame);
+        }
+      }());
     }
   }, [currentStep]);
 
@@ -103,7 +123,7 @@ export default function FreeCanva() {
   };
 
   return (
-    <div {...swipeHandlers} className="flex flex-col min-h-[calc(100dvh-5rem)] bg-[#f5f5f5] pb-24 relative overflow-hidden">
+    <div {...swipeHandlers} className="flex flex-col min-h-[calc(100dvh-5rem)] bg-[#fdf2f8] pb-24 relative overflow-hidden">
       
       {/* ========================================================= */}
       {/* 🌟 PREMIUM HEADER BANNER 🌟                               */}
@@ -133,7 +153,7 @@ export default function FreeCanva() {
           </motion.div>
         </div>
         
-        <div className="absolute bottom-0 left-0 w-full h-8 bg-gradient-to-t from-[#f5f5f5] to-transparent z-10"></div>
+        <div className="absolute bottom-0 left-0 w-full h-8 bg-gradient-to-t from-[#fdf2f8] to-transparent z-10"></div>
       </div>
 
       <div className="px-4 pt-4 pb-4 space-y-5 relative z-30">
@@ -141,28 +161,28 @@ export default function FreeCanva() {
         {/* ========================================================= */}
         {/* 📺 FREE USER CARD                                         */}
         {/* ========================================================= */}
-        <div className="bg-white border border-gray-100 rounded-2xl px-4 py-3.5 flex items-center gap-3 shadow-sm">
+        <div className="bg-white border border-pink-100 rounded-2xl px-4 py-3.5 flex items-center gap-3 shadow-sm">
           <span className="text-2xl drop-shadow-sm">📢</span>
           <p className="text-[12px] text-gray-700 leading-snug font-medium">
-            Complete 4 steps, the Canva Pro button will be unlocked. Then click again to open Canva Pro.
+            Complete all 5 steps to unlock your Canva Pro button instantly!
           </p>
         </div>
 
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl px-5 py-6 border border-gray-100 shadow-sm">
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl px-5 py-6 border border-pink-100 shadow-sm">
           
-          {currentStep > 4 ? (
+          {currentStep > 5 ? (
             
             /* 🎉 INLINE WOO HOO ANIMATION 🎉 */
             <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center py-4 relative">
               <motion.div animate={{ y: [0, -15, 0] }} transition={{ repeat: Infinity, duration: 1.5 }} className="text-6xl mb-4">🎉</motion.div>
-              <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#6200EA] to-[#00E5FF] mb-2 uppercase tracking-wide">Woo Hoo!</h2>
-              <p className="text-gray-500 font-bold mb-6 text-sm">You completed all steps! Here is your link.</p>
+              <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#6200EA] to-[#f48fb1] mb-2 uppercase tracking-wide">Woo Hoo!</h2>
+              <p className="text-gray-500 font-bold mb-6 text-sm">You completed all 5 steps! Here is your link.</p>
               <button 
                 onClick={() => {
                   if (canvaLink) openExternalLink(canvaLink);
                   else alert("All slots full!");
                 }} 
-                className="w-full bg-[#6200EA] text-white font-black text-[16px] py-4 rounded-2xl shadow-lg active:scale-95 transition-transform flex justify-center items-center gap-2"
+                className="w-full bg-[#f48fb1] hover:bg-[#e06d95] text-white font-black text-[16px] py-4 rounded-2xl shadow-lg active:scale-95 transition-transform flex justify-center items-center gap-2"
               >
                 Open Canva Pro
               </button>
@@ -170,26 +190,26 @@ export default function FreeCanva() {
 
           ) : (
 
-            /* 🟢 4-STEP PROGRESS UI */
+            /* 🟢 5-STEP PROGRESS UI */
             <div className="space-y-6">
               
-              {/* Custom Step Indicator */}
-              <div className="flex justify-between items-center relative w-full mb-6 mt-2 px-2">
-                <div className="absolute top-[18px] left-6 right-6 h-[2px] bg-gray-200 z-0"></div>
-                {[1, 2, 3, 4].map((stepNum) => {
+              {/* Custom Step Indicator for 5 Steps */}
+              <div className="flex justify-between items-center relative w-full mb-6 mt-2 px-1">
+                <div className="absolute top-[18px] left-4 right-4 h-[2px] bg-gray-200 z-0"></div>
+                {[1, 2, 3, 4, 5].map((stepNum) => {
                   const isActive = currentStep === stepNum;
                   const isCompleted = currentStep > stepNum;
                   
                   return (
-                    <div key={stepNum} className="flex flex-col items-center relative z-10 bg-white px-1">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-[15px] mb-1.5 transition-all
-                        ${isCompleted ? "bg-[#6200EA] text-white border-2 border-[#6200EA]" : 
-                          isActive ? "bg-white border-[2px] border-red-500 text-red-500" : 
+                    <div key={stepNum} className="flex flex-col items-center relative z-10 bg-white px-0.5">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-[13px] mb-1.5 transition-all
+                        ${isCompleted ? "bg-[#f48fb1] text-white border-2 border-[#f48fb1]" : 
+                          isActive ? "bg-white border-[2px] border-[#f48fb1] text-[#f48fb1]" : 
                           "bg-white border-[2px] border-gray-200 text-gray-300"}`}>
                         {isCompleted ? "✓" : stepNum}
                       </div>
-                      <span className={`text-[10px] font-bold text-center 
-                        ${isActive ? "text-gray-900" : isCompleted ? "text-[#6200EA]" : "text-gray-400"}`}>
+                      <span className={`text-[9px] font-bold text-center 
+                        ${isActive ? "text-gray-900" : isCompleted ? "text-[#f48fb1]" : "text-gray-400"}`}>
                         Step {stepNum}
                       </span>
                     </div>
@@ -197,29 +217,29 @@ export default function FreeCanva() {
                 })}
               </div>
 
-              <button onClick={handleMainAction} disabled={isProcessing} className={`w-full text-white font-bold text-[16px] py-4.5 rounded-[18px] shadow-sm transition-all active:scale-95 flex justify-center items-center gap-2 ${isProcessing ? "bg-gray-400 cursor-not-allowed" : "bg-[#6200EA] hover:bg-[#5000c9]"}`} style={{ minHeight: '56px' }}>
-                {isProcessing ? "Waiting for Ad..." : "Watch Ads to Unlock Canva Pro"}
+              <button onClick={handleMainAction} disabled={isProcessing} className={`w-full text-white font-bold text-[16px] py-4.5 rounded-[18px] shadow-sm transition-all active:scale-95 flex justify-center items-center gap-2 ${isProcessing ? "bg-gray-400 cursor-not-allowed" : "bg-[#f48fb1] hover:bg-[#e06d95]"}`} style={{ minHeight: '56px' }}>
+                {isProcessing ? "Waiting for Ad..." : `Watch Ad (Step ${currentStep}/5)`}
               </button>
             </div>
           )}
         </motion.div>
 
         {/* ========================================================= */}
-        {/* 💡 PROFESSIONAL BACKUP OPTION (Only shows after 4 steps)  */}
+        {/* 💡 PROFESSIONAL BACKUP OPTION (Only shows after 5 steps)  */}
         {/* ========================================================= */}
         <AnimatePresence>
-          {currentStep > 4 && (
+          {currentStep > 5 && (
             <motion.div 
               initial={{ opacity: 0, height: 0, marginTop: 0 }} 
               animate={{ opacity: 1, height: 'auto', marginTop: 20 }} 
-              className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm relative overflow-hidden"
+              className="bg-white rounded-3xl p-5 border border-pink-100 shadow-sm relative overflow-hidden"
             >
               {/* Subtle Background Accent */}
-              <div className="absolute top-0 right-0 w-24 h-24 bg-purple-50 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
+              <div className="absolute top-0 right-0 w-24 h-24 bg-pink-50 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
               
               <div className="flex flex-col gap-4 relative z-10">
                 <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center text-xl shrink-0 shadow-sm border border-purple-100">
+                  <div className="w-10 h-10 rounded-full bg-pink-50 flex items-center justify-center text-xl shrink-0 shadow-sm border border-pink-100">
                     💡
                   </div>
                   <div className="flex-1 mt-0.5">
@@ -244,7 +264,7 @@ export default function FreeCanva() {
         </AnimatePresence>
 
         {/* Stacked Social / Join Buttons */}
-        <div className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100 flex flex-col gap-3">
+        <div className="bg-white rounded-3xl p-4 shadow-sm border border-pink-100 flex flex-col gap-3">
           <button onClick={() => openExternalLink('https://t.me/CanvaProMiniApp')} className="w-full bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white font-bold py-4 rounded-[16px] flex justify-center items-center gap-2 active:scale-95 transition-transform text-[14px]">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
             Join Channel
@@ -259,7 +279,7 @@ export default function FreeCanva() {
         </div>
 
         {/* Features / Benefits Card */}
-        <div className="bg-white rounded-3xl px-4 py-6 border border-gray-100 shadow-sm text-center">
+        <div className="bg-white rounded-3xl px-4 py-6 border border-pink-100 shadow-sm text-center">
           <h3 className="text-[11px] font-black text-gray-400 tracking-[0.15em] mb-5 uppercase">What You Get</h3>
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-[#F3E8FF] rounded-[20px] p-3 flex flex-col items-center justify-center gap-2 h-[90px]">
