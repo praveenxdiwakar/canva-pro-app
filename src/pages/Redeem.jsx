@@ -3,14 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTelegram } from '../contexts/TelegramContext';
 import { supabase } from '../api/supabase';
-import { useSwipeNavigation } from '../hooks/useSwipeNavigation'; // ✅ STEP 1: Imported the swipe hook
+import { useSwipeNavigation } from '../hooks/useSwipeNavigation'; 
 
 export default function Redeem() {
   const { user, setUser } = useTelegram();
   const navigate = useNavigate();
   
-  // ✅ STEP 2: Initialize the hook. Swipe Right -> Tasks (/tasks) | Swipe Left -> Pro Users (/prousers)
-  // Check your App.jsx to ensure the route for Pro Users is exactly '/prousers' (or change this string to match).
+  // Initialize the hook. Swipe Right -> Tasks (/tasks) | Swipe Left -> Pro Users (/prousers)
   const swipeHandlers = useSwipeNavigation('/tasks', '/prousers'); 
   
   const [loading, setLoading] = useState(false);
@@ -169,8 +168,8 @@ export default function Redeem() {
   };
 
   return (
-    {/* ✅ STEP 3: Attached {...swipeHandlers} to the main container */}
     <div {...swipeHandlers} className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24 relative overflow-x-hidden">
+      {/* ✅ Attached {...swipeHandlers} safely to the main container */}
       
       {/* ========================================================= */}
       {/* 🌟 UPGRADED PREMIUM HEADER BANNER 🌟                        */}
@@ -268,7 +267,7 @@ export default function Redeem() {
 
           /* TIERS LIST */
           <>
-            {/* ✅ STEP 4: Added the no-page-swipe class to protect horizontal scrolling inside the slider! */}
+            {/* Added the no-page-swipe class to protect horizontal scrolling inside the slider! */}
             <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 -mx-4 px-4 no-page-swipe" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
               {tiers.map(tier => {
                 const progress = Math.min(100, Math.round((currentPoints / tier.pointsCost) * 100));

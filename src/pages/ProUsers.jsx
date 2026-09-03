@@ -2,17 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../api/supabase';
 import { useTelegram } from '../contexts/TelegramContext';
-import { useSwipeNavigation } from '../hooks/useSwipeNavigation'; // ✅ STEP 1: Imported the swipe hook
+import { useSwipeNavigation } from '../hooks/useSwipeNavigation'; 
 
 export default function ProUsers() {
-  const { user: currentUser } = useTelegram(); // Pulls live profile from Telegram
+  const { user: currentUser } = useTelegram(); 
   
-  // ✅ STEP 2: Initialize the hook. Swipe Right -> Redeem (/redeem) | Swipe Left -> Profile (/profile)
+  // Initialize the hook. Swipe Right -> Redeem (/redeem) | Swipe Left -> Profile (/profile)
   const swipeHandlers = useSwipeNavigation('/redeem', '/profile'); 
 
   const [loading, setLoading] = useState(true);
   const [proUsers, setProUsers] = useState([]);
-  const [filter, setFilter] = useState('all'); // 'all', 'active', 'expiring', 'expired'
+  const [filter, setFilter] = useState('all'); 
 
   useEffect(() => {
     fetchProUsers();
@@ -43,7 +43,6 @@ export default function ProUsers() {
             return uId === rId && rId !== "";
           }) || {};
           
-          // ✨ MAGIC FIX: If this redemption belongs to the current user, inject live Telegram data! ✨
           if (currentUser && String(currentUser.telegramId) === rId) {
              userProfile = {
                 first_name: currentUser.firstName,
@@ -69,7 +68,6 @@ export default function ProUsers() {
     setLoading(false);
   };
 
-  // Helper to determine status & time left
   const calculateStatus = (expiresAtStr) => {
     if (!expiresAtStr) return { status: 'expired', label: 'Expired', color: 'bg-red-50 text-red-600 border-red-200', timeText: 'Access Ended' };
 
@@ -114,8 +112,8 @@ export default function ProUsers() {
   ];
 
   return (
-    {/* ✅ STEP 3: Attached {...swipeHandlers} to the main container */}
     <div {...swipeHandlers} className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24 relative overflow-x-hidden">
+      {/* ✅ Attached {...swipeHandlers} safely inside the main container */}
       
       {/* ========================================================= */}
       {/* 🌟 UPGRADED PREMIUM HEADER BANNER 🌟                        */}

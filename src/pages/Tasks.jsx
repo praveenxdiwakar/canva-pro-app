@@ -4,14 +4,14 @@ import { useTelegram } from '../contexts/TelegramContext';
 import { useTasks } from '../hooks/useTasks';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../api/supabase';
-import { useSwipeNavigation } from '../hooks/useSwipeNavigation'; // ✅ STEP 1: Imported the swipe hook
+import { useSwipeNavigation } from '../hooks/useSwipeNavigation'; 
 
 export default function Tasks() {
   const { user, setUser } = useTelegram();
   const { updatePoints, processCheckIn } = useTasks();
   const navigate = useNavigate();
   
-  // ✅ STEP 2: Initialize the hook. Swipe Right -> Free Canva (/) | Swipe Left -> Redeem (/redeem)
+  // Initialize the hook. Swipe Right -> Free Canva (/) | Swipe Left -> Redeem (/redeem)
   const swipeHandlers = useSwipeNavigation('/', '/redeem');
   
   // States
@@ -310,8 +310,8 @@ export default function Tasks() {
   };
 
   return (
-    {/* ✅ STEP 3: Attached {...swipeHandlers} to the main container */}
     <div {...swipeHandlers} className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24 relative overflow-x-hidden">
+      {/* ✅ Attached {...swipeHandlers} safely inside the main container */}
       
       {/* ========================================================= */}
       {/* 🌟 UPGRADED PREMIUM HEADER BANNER 🌟                        */}

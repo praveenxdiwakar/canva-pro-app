@@ -5,14 +5,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import LeaderboardModal from '../components/LeaderboardModal';
 import { fetchUserHistory } from '../api/users';
 import { supabase } from '../api/supabase';
-import { useSwipeNavigation } from '../hooks/useSwipeNavigation'; // ✅ STEP 1: Imported the swipe hook
+import { useSwipeNavigation } from '../hooks/useSwipeNavigation'; 
 
 export default function Profile() {
   const { user } = useTelegram();
   const navigate = useNavigate();
   
-  // ✅ STEP 2: Initialize the hook. Swipe Right -> Pro Users (/prousers) | Swipe Left -> Nowhere (null)
-  // Ensure '/prousers' perfectly matches the route path in your App.jsx!
+  // Initialize the hook. Swipe Right -> Pro Users (/prousers) | Swipe Left -> Nowhere (null)
   const swipeHandlers = useSwipeNavigation('/prousers', null);
 
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
@@ -77,8 +76,8 @@ export default function Profile() {
   };
 
   return (
-    {/* ✅ STEP 3: Attached {...swipeHandlers} to the main container */}
     <div {...swipeHandlers} className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24 relative overflow-x-hidden">
+      {/* ✅ Attached {...swipeHandlers} to the main container */}
       
       {/* ========================================================= */}
       {/* 🌟 UPGRADED PREMIUM HEADER BANNER 🌟                        */}

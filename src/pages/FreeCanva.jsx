@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../api/supabase';
 import { useTelegram } from '../contexts/TelegramContext';
-import { useSwipeNavigation } from '../hooks/useSwipeNavigation'; // ✅ STEP 1: Imported the swipe hook
+import { useSwipeNavigation } from '../hooks/useSwipeNavigation'; 
 
 export default function FreeCanva() {
   const { user } = useTelegram();
   
-  // ✅ STEP 2: Initialize the hook. Swipe Right -> Nowhere (null) | Swipe Left -> Tasks (/tasks)
+  // Swipe Right -> Nowhere (null) | Swipe Left -> Tasks (/tasks)
   const swipeHandlers = useSwipeNavigation(null, '/tasks'); 
   
   const [currentStep, setCurrentStep] = useState(1);
@@ -21,11 +21,10 @@ export default function FreeCanva() {
   const [timeLeft, setTimeLeft] = useState("");
 
   useEffect(() => {
-    // 1. Check for Active Premium Subscriptions (WITH LOCAL BACKUP)
+    // 1. Check for Active Premium Subscriptions
     if (user?.telegramId) {
       const tgIdStr = String(user.telegramId);
 
-      // --- INSTANT LOCAL LOAD ---
       const localPremium = localStorage.getItem(`canva_premium_${tgIdStr}`);
       if (localPremium) {
         const parsed = JSON.parse(localPremium);
@@ -35,7 +34,6 @@ export default function FreeCanva() {
         }
       }
 
-      // --- CLOUD SYNC ---
       supabase
         .from('redemptions')
         .select('*')
@@ -82,14 +80,13 @@ export default function FreeCanva() {
     });
   }, [user?.telegramId]);
 
-  // Premium Countdown Timer Logic
   useEffect(() => {
     if (!activeSub) return;
     const interval = setInterval(() => {
       const difference = new Date(activeSub.expires_at) - new Date();
       if (difference <= 0) {
         clearInterval(interval);
-        setActiveSub(null); // Sub expired, revert to free version!
+        setActiveSub(null); 
         if (user?.telegramId) localStorage.removeItem(`canva_premium_${String(user.telegramId)}`);
         setTimeLeft("");
       } else {
@@ -141,8 +138,8 @@ export default function FreeCanva() {
   };
 
   return (
-    {/* ✅ STEP 3: Attached {...swipeHandlers} to the main container */}
     <div {...swipeHandlers} className="flex flex-col min-h-[calc(100dvh-5rem)] bg-[#f5f5f5] pb-24 relative overflow-hidden">
+      {/* ✅ Attached {...swipeHandlers} safely inside the main container */}
       
       {/* ========================================================= */}
       {/* 🌟 UPGRADED PREMIUM HEADER BANNER 🌟                        */}
@@ -172,7 +169,6 @@ export default function FreeCanva() {
           </motion.div>
         </div>
         
-        {/* Seamless Bottom Fade (Blends banner smoothly into the gray app background) */}
         <div className="absolute bottom-0 left-0 w-full h-8 bg-gradient-to-t from-[#f5f5f5] to-transparent z-10"></div>
       </div>
 
@@ -182,9 +178,6 @@ export default function FreeCanva() {
           <div className="bg-white rounded-[24px] p-6 text-center text-gray-400 font-bold shadow-sm">Loading Access...</div>
         ) : activeSub ? (
           
-          /* ========================================================= */
-          /* 💎 VIP PREMIUM CARD (With Live Countdown)                 */
-          /* ========================================================= */
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-gradient-to-br from-[#FFD700] to-[#F59E0B] rounded-[24px] px-5 py-8 border border-yellow-300 shadow-lg text-center relative overflow-hidden">
             <div className="absolute top-0 right-0 -mt-2 -mr-2 text-7xl opacity-20">👑</div>
             <h2 className="text-2xl font-black text-white mb-1 drop-shadow-sm relative z-10">Premium Unlocked!</h2>
@@ -202,11 +195,7 @@ export default function FreeCanva() {
 
         ) : (
 
-          /* ========================================================= */
-          /* 📺 FREE USER CARD                                         */
-          /* ========================================================= */
           <>
-            {/* Instruction Alert */}
             <div className="bg-white border border-gray-100 rounded-2xl px-4 py-3.5 flex items-center gap-3 shadow-sm">
               <span className="text-2xl drop-shadow-sm">📢</span>
               <p className="text-[12px] text-gray-700 leading-snug font-medium">
@@ -218,7 +207,6 @@ export default function FreeCanva() {
               
               {currentStep > 4 ? (
                 
-                /* 🎉 INLINE WOO HOO ANIMATION 🎉 */
                 <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center py-4 relative">
                   <motion.div animate={{ y: [0, -15, 0] }} transition={{ repeat: Infinity, duration: 1.5 }} className="text-6xl mb-4">🎉</motion.div>
                   <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#6200EA] to-[#00E5FF] mb-2 uppercase tracking-wide">Woo Hoo!</h2>
@@ -236,10 +224,7 @@ export default function FreeCanva() {
 
               ) : (
 
-                /* 🟢 4-STEP PROGRESS UI */
                 <div className="space-y-6">
-                  
-                  {/* Custom Step Indicator matching screenshot */}
                   <div className="flex justify-between items-center relative w-full mb-6 mt-2 px-2">
                     <div className="absolute top-[18px] left-6 right-6 h-[2px] bg-gray-200 z-0"></div>
                     {[1, 2, 3, 4].map((stepNum) => {
@@ -272,7 +257,6 @@ export default function FreeCanva() {
           </>
         )}
 
-        {/* Stacked Social / Join Buttons */}
         <div className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100 flex flex-col gap-3">
           <button onClick={() => openExternalLink('https://t.me/CanvaProMiniApp')} className="w-full bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white font-bold py-4 rounded-[16px] flex justify-center items-center gap-2 active:scale-95 transition-transform text-[14px]">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
@@ -287,7 +271,6 @@ export default function FreeCanva() {
           </button>
         </div>
 
-        {/* Features / Benefits Card */}
         <div className="bg-white rounded-3xl px-4 py-6 border border-gray-100 shadow-sm text-center">
           <h3 className="text-[11px] font-black text-gray-400 tracking-[0.15em] mb-5 uppercase">What You Get</h3>
           <div className="grid grid-cols-3 gap-3">
@@ -309,7 +292,6 @@ export default function FreeCanva() {
           </div>
         </div>
 
-        {/* Footer Credit */}
         <div className="text-center pt-2 pb-6">
           <p className="text-[13px] font-black text-[#6200EA] mb-0.5">Made with ❤️ by Frager</p>
           <p className="text-[11px] text-gray-400 font-medium">v2.0.0</p>
