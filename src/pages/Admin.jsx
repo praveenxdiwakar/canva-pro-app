@@ -6,6 +6,9 @@ import { supabase } from '../api/supabase';
 export default function Admin() {
   const navigate = useNavigate();
   
+  // Loading State
+  const [isLoading, setIsLoading] = useState(true);
+
   // Stats State
   const [totalUsers, setTotalUsers] = useState(0);
   const [totalRedemptions, setTotalRedemptions] = useState(0);
@@ -47,21 +50,23 @@ export default function Admin() {
   }, []);
 
   const fetchInitialData = async () => {
+    setIsLoading(true); // Start loading
     try {
-      const { data, count, error } = await supabase.from('users').select('*', { count: 'exact' });
-      if (!error) setTotalUsers(count !== null ? count : (data?.length || 0));
-    } catch (err) {}
-    try {
-      const { data, count, error } = await supabase.from('redemptions').select('*', { count: 'exact' });
-      if (!error) setTotalRedemptions(count !== null ? count : (data?.length || 0));
-    } catch (err) {}
-    try {
+      const { data: uData, count: uCount, error: uErr } = await supabase.from('users').select('*', { count: 'exact' });
+      if (!uErr) setTotalUsers(uCount !== null ? uCount : (uData?.length || 0));
+      
+      const { data: rData, count: rCount, error: rErr } = await supabase.from('redemptions').select('*', { count: 'exact' });
+      if (!rErr) setTotalRedemptions(rCount !== null ? rCount : (rData?.length || 0));
+      
       const { data: adData } = await supabase.from('app_settings').select('value').eq('key', 'MONETAG_ZONE_ID').maybeSingle();
       if (adData) setZoneId(adData.value);
-    } catch (err) {}
 
-    fetchLinks();
-    fetchTasks();
+      await fetchLinks();
+      await fetchTasks();
+    } catch (err) {
+      console.error("Error fetching initial data:", err);
+    }
+    setIsLoading(false); // Stop loading
   };
 
   const fetchLinks = async () => {
@@ -148,6 +153,7 @@ export default function Admin() {
   return (
     <div className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24 relative overflow-x-hidden">
       
+      {/* HEADER: ALWAYS VISIBLE */}
       <div className="relative w-full h-[150px] bg-gradient-to-br from-[#00C4CC] via-[#7B2CBF] to-[#6200EA] flex items-center justify-center overflow-hidden">
         <div className="absolute top-[-20px] left-[-20px] w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none z-0"></div>
         <div className="absolute bottom-[-30px] right-[-10px] w-40 h-40 bg-[#00E5FF]/20 rounded-full blur-[40px] pointer-events-none z-0"></div>
@@ -159,205 +165,230 @@ export default function Admin() {
         </div>
       </div>
 
+      {/* MASTER ADMIN BAR: ALWAYS VISIBLE */}
       <div className="bg-white px-4 py-4 flex items-center gap-3 shadow-sm border-b border-gray-100 relative z-30">
         <button onClick={() => navigate('/profile')} className="text-gray-500 hover:bg-gray-100 p-1.5 rounded-lg active:scale-95 transition-all"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg></button>
         <h1 className="text-[16px] font-black text-gray-900 flex items-center gap-2"><span className="text-[18px]">⚙️</span> Master Admin</h1>
       </div>
 
+      {/* DYNAMIC CONTENT AREA */}
       <div className="px-4 pt-5 space-y-4 relative z-30">
         
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-white rounded-[20px] p-5 shadow-sm border border-gray-100 relative overflow-hidden">
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 relative z-10">Total Users</p>
-            <div className="text-3xl font-black text-[#6200EA] relative z-10">{totalUsers.toLocaleString()}</div>
-          </div>
-          <div className="bg-white rounded-[20px] p-5 shadow-sm border border-gray-100 relative overflow-hidden">
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 relative z-10">Redemptions</p>
-            <div className="text-3xl font-black text-[#E65100] relative z-10">{totalRedemptions.toLocaleString()}</div>
-          </div>
-        </div>
+        {isLoading ? (
+          /* ========================================================= */
+          /* ⏳ LOADING SCREEN                                         */
+          /* ========================================================= */
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            className="flex flex-col items-center justify-center py-20"
+          >
+            <motion.div 
+              animate={{ rotate: 360 }} 
+              transition={{ repeat: Infinity, duration: 1, ease: "linear" }} 
+              className="w-12 h-12 border-4 border-[#6200EA] border-t-transparent rounded-full shadow-lg mb-4"
+            ></motion.div>
+            <p className="text-gray-500 font-black text-[11px] uppercase tracking-[0.2em]">Syncing Data...</p>
+          </motion.div>
+        ) : (
+          /* ========================================================= */
+          /* ✅ FULL ADMIN DASHBOARD (Renders when loading is done)    */
+          /* ========================================================= */
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+            
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-white rounded-[20px] p-5 shadow-sm border border-gray-100 relative overflow-hidden">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 relative z-10">Total Users</p>
+                <div className="text-3xl font-black text-[#6200EA] relative z-10">{totalUsers.toLocaleString()}</div>
+              </div>
+              <div className="bg-white rounded-[20px] p-5 shadow-sm border border-gray-100 relative overflow-hidden">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 relative z-10">Redemptions</p>
+                <div className="text-3xl font-black text-[#E65100] relative z-10">{totalRedemptions.toLocaleString()}</div>
+              </div>
+            </div>
 
-        <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100">
-          <h2 className="font-black text-[14px] text-gray-800 flex items-center gap-2 mb-4">📡 Monetag Ad Settings</h2>
-          <div className="relative flex items-center">
-            <div className="absolute left-2 flex items-center gap-1 z-10">
-              <AnimatePresence mode="wait">
-                {!isEditingZone ? (
-                  <motion.button key="editBtn" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }} onClick={() => setIsEditingZone(true)} className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-200 transition-colors">✏️</motion.button>
+            <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100">
+              <h2 className="font-black text-[14px] text-gray-800 flex items-center gap-2 mb-4">📡 Monetag Ad Settings</h2>
+              <div className="relative flex items-center">
+                <div className="absolute left-2 flex items-center gap-1 z-10">
+                  <AnimatePresence mode="wait">
+                    {!isEditingZone ? (
+                      <motion.button key="editBtn" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }} onClick={() => setIsEditingZone(true)} className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-200 transition-colors">✏️</motion.button>
+                    ) : (
+                      <motion.button key="cancelBtn" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }} onClick={() => { setIsEditingZone(false); fetchInitialData(); }} className="w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors text-[10px]">❌</motion.button>
+                    )}
+                  </AnimatePresence>
+                </div>
+                <input type="text" value={zoneId} onChange={(e) => setZoneId(e.target.value)} disabled={!isEditingZone} placeholder="Enter Zone ID" className={`w-full border text-sm font-bold rounded-xl pl-12 py-3.5 outline-none transition-all ${isEditingZone ? 'bg-white border-purple-400 shadow-[0_0_0_4px_rgba(167,139,250,0.1)] text-gray-900 pr-20' : 'bg-gray-50 border-gray-200 text-gray-500 shadow-inner pr-4'}`} />
+                <AnimatePresence>
+                  {isEditingZone && (
+                    <motion.button key="saveBtn" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }} onClick={handleSaveZone} disabled={savingZone} className="absolute right-2 bg-gradient-to-r from-[#E65100] to-[#FF9800] text-white font-black px-4 py-2 rounded-lg shadow-sm active:scale-95 transition-transform text-xs z-10">{savingZone ? '...' : 'Save'}</motion.button>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+
+            <div className={`bg-white rounded-[24px] p-5 shadow-sm border-2 transition-all ${isLinksOpen ? 'border-purple-100' : 'border-gray-100'} overflow-hidden`}>
+              <div className="flex justify-between items-center cursor-pointer select-none" onClick={() => setIsLinksOpen(!isLinksOpen)}>
+                <div>
+                  <h2 className="font-black text-[14px] text-gray-800 flex items-center gap-2">🔗 Canva Links</h2>
+                  <p className="text-[10px] text-gray-400 font-medium mt-0.5">{links.length} active links</p>
+                </div>
+                {!isLinksOpen ? (
+                  <span className="text-[#6200EA] font-black text-[11px] bg-purple-50 px-3 py-1.5 rounded-full">Tap to Expand ➔</span>
                 ) : (
-                  <motion.button key="cancelBtn" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }} onClick={() => { setIsEditingZone(false); fetchInitialData(); }} className="w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors text-[10px]">❌</motion.button>
+                  <button className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 font-black hover:bg-gray-200 transition-colors">✕</button>
+                )}
+              </div>
+
+              <AnimatePresence>
+                {isLinksOpen && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mt-5 pt-5 border-t border-gray-100">
+                    
+                    <div className={`rounded-2xl p-4 border mb-5 space-y-3 transition-colors ${editingLinkId ? 'bg-indigo-50 border-indigo-200' : 'bg-gray-50 border-gray-100'}`}>
+                      <div className="flex justify-between items-center mb-1">
+                        <h3 className={`font-black text-[13px] ${editingLinkId ? 'text-indigo-900' : 'text-gray-700'}`}>
+                          {editingLinkId ? '✏️ Edit Existing Link' : '➕ Add New Link'}
+                        </h3>
+                        {editingLinkId && (
+                          <button onClick={() => { setEditingLinkId(null); setNewLink({ name: '', url: '', totalSlots: 100, tier_id: 0 }); }} className="text-[10px] text-indigo-500 font-bold hover:underline px-2">Cancel Edit</button>
+                        )}
+                      </div>
+
+                      <input type="text" placeholder="Link Name (e.g. Team Alpha)" value={newLink.name} onChange={(e) => setNewLink({...newLink, name: e.target.value})} className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-400" />
+                      <input type="text" placeholder="https://canva.com/brand/join/..." value={newLink.url} onChange={(e) => setNewLink({...newLink, url: e.target.value})} className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-400" />
+                      
+                      <div className="flex gap-3 items-end">
+                        <div className="flex-[2]">
+                          <label className="text-[10px] font-bold text-gray-500 ml-1 mb-1 block">Category / Tier</label>
+                          <select 
+                            value={newLink.tier_id}
+                            onChange={(e) => setNewLink({...newLink, tier_id: parseInt(e.target.value)})}
+                            className="w-full bg-white border border-gray-200 text-gray-900 text-[12px] font-bold rounded-xl px-3 py-3 outline-none focus:border-purple-400"
+                          >
+                            <option value={0}>Free Canva (Ad Unlock)</option>
+                            <option value={1}>7 Days (Redeem points)</option>
+                            <option value={2}>15 Days (Redeem points)</option>
+                            <option value={3}>30 Days (Redeem points)</option>
+                          </select>
+                        </div>
+
+                        <div className="flex-1">
+                          <label className="text-[10px] font-bold text-gray-500 ml-1 mb-1 block">Max Slots</label>
+                          <input type="number" value={newLink.totalSlots} onChange={(e) => setNewLink({...newLink, totalSlots: e.target.value})} className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-400" />
+                        </div>
+                      </div>
+
+                      <button onClick={handleSaveLink} disabled={savingLink} className={`w-full font-black py-3.5 rounded-xl shadow-md active:scale-95 transition-transform mt-2 ${editingLinkId ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-[#6200EA] text-white hover:bg-[#5000c9]'}`}>
+                        {savingLink ? 'Saving...' : editingLinkId ? '💾 Update Link' : '➕ Save Link'}
+                      </button>
+                    </div>
+
+                    <div className="space-y-3">
+                      {links.length === 0 ? (
+                        <div className="text-center py-4 border-2 border-dashed border-gray-100 rounded-xl"><p className="text-[12px] text-gray-400 font-medium">No active links found.</p></div>
+                      ) : (
+                        links.map(link => {
+                          const percentage = Math.min(100, Math.round((link.used_slots / link.total_slots) * 100));
+                          const isFull = link.used_slots >= link.total_slots;
+                          
+                          const tierLabel = link.tier_id === 3 ? '30 Days' : link.tier_id === 2 ? '15 Days' : link.tier_id === 1 ? '7 Days' : 'Free Canva';
+                          const tierColor = link.tier_id === 3 ? 'bg-orange-100 text-orange-700 border-orange-200' : link.tier_id === 2 ? 'bg-blue-100 text-blue-700 border-blue-200' : link.tier_id === 1 ? 'bg-green-100 text-green-700 border-green-200' : 'bg-purple-100 text-purple-700 border-purple-200';
+
+                          return (
+                            <div key={link.id} className={`bg-white border rounded-2xl p-4 relative overflow-hidden transition-all ${editingLinkId === link.id ? 'border-indigo-400 shadow-md ring-2 ring-indigo-50' : 'border-gray-200'}`}>
+                              <div className="flex justify-between items-start mb-2">
+                                <div className="pr-16">
+                                  <div className="flex items-center gap-2 mb-1.5">
+                                    <h3 className="font-black text-[13px] text-gray-900 leading-tight">{link.name}</h3>
+                                    <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase border ${tierColor}`}>{tierLabel}</span>
+                                  </div>
+                                  <p className="text-[10px] text-gray-400 font-medium truncate max-w-[200px]">{link.url || link.invitelink}</p>
+                                </div>
+                                
+                                <div className="absolute top-3 right-3 flex gap-1.5">
+                                  <button onClick={() => handleEditClick(link)} className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center text-xs hover:bg-indigo-100 transition-colors border border-indigo-100">✏️</button>
+                                  <button onClick={() => deleteRecord('canva_links', link.id)} className="w-8 h-8 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-xs hover:bg-red-100 transition-colors border border-red-100">✕</button>
+                                </div>
+                              </div>
+
+                              <div className="flex justify-between items-center mb-1.5 mt-4">
+                                <span className={`text-[10px] font-bold ${isFull ? 'text-red-500' : 'text-gray-600'}`}>{link.used_slots} / {link.total_slots} slots used</span>
+                                <span className="text-[10px] font-black text-[#6200EA]">{percentage}%</span>
+                              </div>
+                              <div className="w-full bg-gray-100 rounded-full h-1.5">
+                                <div className={`h-1.5 rounded-full transition-all ${isFull ? 'bg-red-500' : 'bg-[#6200EA]'}`} style={{ width: `${percentage}%` }}></div>
+                              </div>
+                            </div>
+                          )
+                        })
+                      )}
+                    </div>
+                  </motion.div>
                 )}
               </AnimatePresence>
             </div>
-            <input type="text" value={zoneId} onChange={(e) => setZoneId(e.target.value)} disabled={!isEditingZone} placeholder="Enter Zone ID" className={`w-full border text-sm font-bold rounded-xl pl-12 py-3.5 outline-none transition-all ${isEditingZone ? 'bg-white border-purple-400 shadow-[0_0_0_4px_rgba(167,139,250,0.1)] text-gray-900 pr-20' : 'bg-gray-50 border-gray-200 text-gray-500 shadow-inner pr-4'}`} />
-            <AnimatePresence>
-              {isEditingZone && (
-                <motion.button key="saveBtn" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }} onClick={handleSaveZone} disabled={savingZone} className="absolute right-2 bg-gradient-to-r from-[#E65100] to-[#FF9800] text-white font-black px-4 py-2 rounded-lg shadow-sm active:scale-95 transition-transform text-xs z-10">{savingZone ? '...' : 'Save'}</motion.button>
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
 
-        <div className={`bg-white rounded-[24px] p-5 shadow-sm border-2 transition-all ${isLinksOpen ? 'border-purple-100' : 'border-gray-100'} overflow-hidden`}>
-          <div className="flex justify-between items-center cursor-pointer select-none" onClick={() => setIsLinksOpen(!isLinksOpen)}>
-            <div>
-              <h2 className="font-black text-[14px] text-gray-800 flex items-center gap-2">🔗 Canva Links</h2>
-              <p className="text-[10px] text-gray-400 font-medium mt-0.5">{links.length} active links</p>
-            </div>
-            {!isLinksOpen ? (
-              <span className="text-[#6200EA] font-black text-[11px] bg-purple-50 px-3 py-1.5 rounded-full">Tap to Expand ➔</span>
-            ) : (
-              <button className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 font-black hover:bg-gray-200 transition-colors">✕</button>
-            )}
-          </div>
-
-          <AnimatePresence>
-            {isLinksOpen && (
-              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mt-5 pt-5 border-t border-gray-100">
-                
-                <div className={`rounded-2xl p-4 border mb-5 space-y-3 transition-colors ${editingLinkId ? 'bg-indigo-50 border-indigo-200' : 'bg-gray-50 border-gray-100'}`}>
-                  <div className="flex justify-between items-center mb-1">
-                    <h3 className={`font-black text-[13px] ${editingLinkId ? 'text-indigo-900' : 'text-gray-700'}`}>
-                      {editingLinkId ? '✏️ Edit Existing Link' : '➕ Add New Link'}
-                    </h3>
-                    {editingLinkId && (
-                      <button onClick={() => { setEditingLinkId(null); setNewLink({ name: '', url: '', totalSlots: 100, tier_id: 0 }); }} className="text-[10px] text-indigo-500 font-bold hover:underline px-2">Cancel Edit</button>
-                    )}
-                  </div>
-
-                  <input type="text" placeholder="Link Name (e.g. Team Alpha)" value={newLink.name} onChange={(e) => setNewLink({...newLink, name: e.target.value})} className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-400" />
-                  <input type="text" placeholder="https://canva.com/brand/join/..." value={newLink.url} onChange={(e) => setNewLink({...newLink, url: e.target.value})} className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-400" />
-                  
-                  <div className="flex gap-3 items-end">
-                    <div className="flex-[2]">
-                      <label className="text-[10px] font-bold text-gray-500 ml-1 mb-1 block">Category / Tier</label>
-                      <select 
-                        value={newLink.tier_id}
-                        onChange={(e) => setNewLink({...newLink, tier_id: parseInt(e.target.value)})}
-                        className="w-full bg-white border border-gray-200 text-gray-900 text-[12px] font-bold rounded-xl px-3 py-3 outline-none focus:border-purple-400"
-                      >
-                        <option value={0}>Free Canva (Ad Unlock)</option>
-                        <option value={1}>7 Days (Redeem points)</option>
-                        <option value={2}>15 Days (Redeem points)</option>
-                        <option value={3}>30 Days (Redeem points)</option>
-                      </select>
-                    </div>
-
-                    <div className="flex-1">
-                      <label className="text-[10px] font-bold text-gray-500 ml-1 mb-1 block">Max Slots</label>
-                      <input type="number" value={newLink.totalSlots} onChange={(e) => setNewLink({...newLink, totalSlots: e.target.value})} className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-400" />
-                    </div>
-                  </div>
-
-                  <button onClick={handleSaveLink} disabled={savingLink} className={`w-full font-black py-3.5 rounded-xl shadow-md active:scale-95 transition-transform mt-2 ${editingLinkId ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-[#6200EA] text-white hover:bg-[#5000c9]'}`}>
-                    {savingLink ? 'Saving...' : editingLinkId ? '💾 Update Link' : '➕ Save Link'}
-                  </button>
+            <div className={`bg-white rounded-[24px] p-5 shadow-sm border-2 transition-all ${isTasksOpen ? 'border-blue-100' : 'border-gray-100'} overflow-hidden`}>
+              <div className="flex justify-between items-center cursor-pointer select-none" onClick={() => setIsTasksOpen(!isTasksOpen)}>
+                <div>
+                  <h2 className="font-black text-[14px] text-gray-800 flex items-center gap-2">🚀 Custom Tasks</h2>
+                  <p className="text-[10px] text-gray-400 font-medium mt-0.5">{customTasks.length} active tasks</p>
                 </div>
+                {!isTasksOpen ? (
+                  <span className="text-[#3B82F6] font-black text-[11px] bg-blue-50 px-3 py-1.5 rounded-full">Tap to Expand ➔</span>
+                ) : (
+                  <button className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 font-black hover:bg-gray-200 transition-colors">✕</button>
+                )}
+              </div>
 
-                <div className="space-y-3">
-                  {links.length === 0 ? (
-                    <div className="text-center py-4 border-2 border-dashed border-gray-100 rounded-xl"><p className="text-[12px] text-gray-400 font-medium">No active links found.</p></div>
-                  ) : (
-                    links.map(link => {
-                      const percentage = Math.min(100, Math.round((link.used_slots / link.total_slots) * 100));
-                      const isFull = link.used_slots >= link.total_slots;
-                      
-                      const tierLabel = link.tier_id === 3 ? '30 Days' : link.tier_id === 2 ? '15 Days' : link.tier_id === 1 ? '7 Days' : 'Free Canva';
-                      const tierColor = link.tier_id === 3 ? 'bg-orange-100 text-orange-700 border-orange-200' : link.tier_id === 2 ? 'bg-blue-100 text-blue-700 border-blue-200' : link.tier_id === 1 ? 'bg-green-100 text-green-700 border-green-200' : 'bg-purple-100 text-purple-700 border-purple-200';
-
-                      return (
-                        <div key={link.id} className={`bg-white border rounded-2xl p-4 relative overflow-hidden transition-all ${editingLinkId === link.id ? 'border-indigo-400 shadow-md ring-2 ring-indigo-50' : 'border-gray-200'}`}>
-                          <div className="flex justify-between items-start mb-2">
-                            <div className="pr-16">
-                              <div className="flex items-center gap-2 mb-1.5">
-                                <h3 className="font-black text-[13px] text-gray-900 leading-tight">{link.name}</h3>
-                                <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase border ${tierColor}`}>{tierLabel}</span>
-                              </div>
-                              <p className="text-[10px] text-gray-400 font-medium truncate max-w-[200px]">{link.url || link.invitelink}</p>
-                            </div>
-                            
-                            <div className="absolute top-3 right-3 flex gap-1.5">
-                              <button onClick={() => handleEditClick(link)} className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center text-xs hover:bg-indigo-100 transition-colors border border-indigo-100">✏️</button>
-                              <button onClick={() => deleteRecord('canva_links', link.id)} className="w-8 h-8 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-xs hover:bg-red-100 transition-colors border border-red-100">✕</button>
-                            </div>
-                          </div>
-
-                          <div className="flex justify-between items-center mb-1.5 mt-4">
-                            <span className={`text-[10px] font-bold ${isFull ? 'text-red-500' : 'text-gray-600'}`}>{link.used_slots} / {link.total_slots} slots used</span>
-                            <span className="text-[10px] font-black text-[#6200EA]">{percentage}%</span>
-                          </div>
-                          <div className="w-full bg-gray-100 rounded-full h-1.5">
-                            <div className={`h-1.5 rounded-full transition-all ${isFull ? 'bg-red-500' : 'bg-[#6200EA]'}`} style={{ width: `${percentage}%` }}></div>
-                          </div>
-                        </div>
-                      )
-                    })
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        <div className={`bg-white rounded-[24px] p-5 shadow-sm border-2 transition-all ${isTasksOpen ? 'border-blue-100' : 'border-gray-100'} overflow-hidden`}>
-          <div className="flex justify-between items-center cursor-pointer select-none" onClick={() => setIsTasksOpen(!isTasksOpen)}>
-            <div>
-              <h2 className="font-black text-[14px] text-gray-800 flex items-center gap-2">🚀 Custom Tasks</h2>
-              <p className="text-[10px] text-gray-400 font-medium mt-0.5">{customTasks.length} active tasks</p>
-            </div>
-            {!isTasksOpen ? (
-              <span className="text-[#3B82F6] font-black text-[11px] bg-blue-50 px-3 py-1.5 rounded-full">Tap to Expand ➔</span>
-            ) : (
-              <button className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 font-black hover:bg-gray-200 transition-colors">✕</button>
-            )}
-          </div>
-
-          <AnimatePresence>
-            {isTasksOpen && (
-              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mt-5 pt-5 border-t border-gray-100">
-                <div className="bg-blue-50/50 rounded-2xl p-4 border border-blue-100 mb-5 space-y-3">
-                  <div className="flex gap-2">
-                    <input type="text" placeholder="Emoji (📱)" value={newTask.icon} onChange={(e) => setNewTask({...newTask, icon: e.target.value})} className="w-16 text-center bg-white border border-gray-200 text-gray-900 rounded-xl px-2 py-3 text-lg outline-none focus:border-blue-400" />
-                    <input type="text" placeholder="Task Title" value={newTask.title} onChange={(e) => setNewTask({...newTask, title: e.target.value})} className="flex-1 bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400" />
-                  </div>
-                  <input type="text" placeholder="Description" value={newTask.description} onChange={(e) => setNewTask({...newTask, description: e.target.value})} className="w-full bg-white border border-gray-200 text-gray-900 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400" />
-                  <input type="text" placeholder="Action URL" value={newTask.action_url} onChange={(e) => setNewTask({...newTask, action_url: e.target.value})} className="w-full bg-white border border-gray-200 text-gray-900 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400" />
-                  <div className="flex gap-3 items-end">
-                    <div className="flex-1">
-                      <label className="text-[10px] font-bold text-gray-500 ml-1 block mb-1">Points Reward</label>
-                      <input type="number" value={newTask.points_reward} onChange={(e) => setNewTask({...newTask, points_reward: parseInt(e.target.value) || 0})} className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400" />
-                    </div>
-                    <div className="flex flex-col gap-1.5 flex-1 pb-1">
-                      <label className="flex items-center gap-2 text-[10px] font-bold text-gray-600 cursor-pointer"><input type="checkbox" checked={newTask.requires_ad} onChange={(e) => setNewTask({...newTask, requires_ad: e.target.checked})} className="accent-blue-600 w-4 h-4" /> Require Ad</label>
-                      <label className="flex items-center gap-2 text-[10px] font-bold text-gray-600 cursor-pointer"><input type="checkbox" checked={newTask.is_daily} onChange={(e) => setNewTask({...newTask, is_daily: e.target.checked})} className="accent-blue-600 w-4 h-4" /> Daily Task</label>
-                    </div>
-                  </div>
-                  <button onClick={handleAddCustomTask} disabled={addingTask} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded-xl shadow-md active:scale-95 transition-all mt-2">{addingTask ? 'Saving...' : '➕ Create Custom Task'}</button>
-                </div>
-
-                <div className="space-y-3">
-                  {customTasks.length === 0 ? (
-                    <div className="text-center py-4 border-2 border-dashed border-gray-100 rounded-xl"><p className="text-[12px] text-gray-400 font-medium">No custom tasks yet.</p></div>
-                  ) : (
-                    customTasks.map(task => (
-                      <div key={task.id} className="bg-white border border-gray-200 rounded-xl p-3 flex justify-between items-center relative overflow-hidden">
-                        <div className="flex gap-3 items-center">
-                          <div className="text-xl bg-gray-50 p-2 rounded-lg border border-gray-100">{task.icon}</div>
-                          <div>
-                            <h3 className="font-black text-[13px] text-gray-900 leading-tight">{task.title}</h3>
-                            <p className="text-[10px] text-gray-400 font-medium mt-0.5"><span className="text-yellow-500 font-bold">+{task.points_reward} pts</span> • {task.is_daily ? 'Daily' : 'One-time'} • {task.requires_ad ? 'Ads On' : 'No Ads'}</p>
-                          </div>
-                        </div>
-                        <button onClick={() => deleteRecord('dynamic_tasks', task.id)} className="w-8 h-8 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-xs hover:bg-red-100 transition-colors">✕</button>
+              <AnimatePresence>
+                {isTasksOpen && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mt-5 pt-5 border-t border-gray-100">
+                    <div className="bg-blue-50/50 rounded-2xl p-4 border border-blue-100 mb-5 space-y-3">
+                      <div className="flex gap-2">
+                        <input type="text" placeholder="Emoji (📱)" value={newTask.icon} onChange={(e) => setNewTask({...newTask, icon: e.target.value})} className="w-16 text-center bg-white border border-gray-200 text-gray-900 rounded-xl px-2 py-3 text-lg outline-none focus:border-blue-400" />
+                        <input type="text" placeholder="Task Title" value={newTask.title} onChange={(e) => setNewTask({...newTask, title: e.target.value})} className="flex-1 bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400" />
                       </div>
-                    ))
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+                      <input type="text" placeholder="Description" value={newTask.description} onChange={(e) => setNewTask({...newTask, description: e.target.value})} className="w-full bg-white border border-gray-200 text-gray-900 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400" />
+                      <input type="text" placeholder="Action URL" value={newTask.action_url} onChange={(e) => setNewTask({...newTask, action_url: e.target.value})} className="w-full bg-white border border-gray-200 text-gray-900 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400" />
+                      <div className="flex gap-3 items-end">
+                        <div className="flex-1">
+                          <label className="text-[10px] font-bold text-gray-500 ml-1 block mb-1">Points Reward</label>
+                          <input type="number" value={newTask.points_reward} onChange={(e) => setNewTask({...newTask, points_reward: parseInt(e.target.value) || 0})} className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-400" />
+                        </div>
+                        <div className="flex flex-col gap-1.5 flex-1 pb-1">
+                          <label className="flex items-center gap-2 text-[10px] font-bold text-gray-600 cursor-pointer"><input type="checkbox" checked={newTask.requires_ad} onChange={(e) => setNewTask({...newTask, requires_ad: e.target.checked})} className="accent-blue-600 w-4 h-4" /> Require Ad</label>
+                          <label className="flex items-center gap-2 text-[10px] font-bold text-gray-600 cursor-pointer"><input type="checkbox" checked={newTask.is_daily} onChange={(e) => setNewTask({...newTask, is_daily: e.target.checked})} className="accent-blue-600 w-4 h-4" /> Daily Task</label>
+                        </div>
+                      </div>
+                      <button onClick={handleAddCustomTask} disabled={addingTask} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded-xl shadow-md active:scale-95 transition-all mt-2">{addingTask ? 'Saving...' : '➕ Create Custom Task'}</button>
+                    </div>
 
+                    <div className="space-y-3">
+                      {customTasks.length === 0 ? (
+                        <div className="text-center py-4 border-2 border-dashed border-gray-100 rounded-xl"><p className="text-[12px] text-gray-400 font-medium">No custom tasks yet.</p></div>
+                      ) : (
+                        customTasks.map(task => (
+                          <div key={task.id} className="bg-white border border-gray-200 rounded-xl p-3 flex justify-between items-center relative overflow-hidden">
+                            <div className="flex gap-3 items-center">
+                              <div className="text-xl bg-gray-50 p-2 rounded-lg border border-gray-100">{task.icon}</div>
+                              <div>
+                                <h3 className="font-black text-[13px] text-gray-900 leading-tight">{task.title}</h3>
+                                <p className="text-[10px] text-gray-400 font-medium mt-0.5"><span className="text-yellow-500 font-bold">+{task.points_reward} pts</span> • {task.is_daily ? 'Daily' : 'One-time'} • {task.requires_ad ? 'Ads On' : 'No Ads'}</p>
+                              </div>
+                            </div>
+                            <button onClick={() => deleteRecord('dynamic_tasks', task.id)} className="w-8 h-8 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-xs hover:bg-red-100 transition-colors">✕</button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </motion.div>
+        )}
       </div>
     </div>
   );

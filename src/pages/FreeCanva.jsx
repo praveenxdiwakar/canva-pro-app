@@ -14,16 +14,22 @@ export default function FreeCanva() {
   
   const [currentStep, setCurrentStep] = useState(1);
   const [canvaLink, setCanvaLink] = useState(null);
+  const [activeLinkObj, setActiveLinkObj] = useState(null); // ✅ NEW: Stores the full database row
+  const [slotUpdated, setSlotUpdated] = useState(false);    // ✅ NEW: Prevents double-counting slots
+  
   const [adZone, setAdZone] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [countdown, setCountdown] = useState(0); // ✅ NEW: 3-Second Countdown State
+  const [countdown, setCountdown] = useState(0); 
 
   useEffect(() => {
     // 1. Fetch available Free Canva link (strictly Tier 0)
     supabase.from('canva_links').select('*').eq('tier_id', 0).then(({ data }) => {
       if (data && data.length > 0) {
         const available = data.find(l => l.used_slots < l.total_slots);
-        if (available) setCanvaLink(available.url || available.invitelink);
+        if (available) {
+          setCanvaLink(available.url || available.invitelink);
+          setActiveLinkObj(available); // ✅ Save the full link object so we can update its ID later
+        }
       }
     });
 
@@ -98,7 +104,30 @@ export default function FreeCanva() {
     }
   };
 
-  // ✅ Trigger the actual ad after the countdown finishes
+  // ✅ NEW: Function to open link AND increment slot logic safely
+  const handleOpenCanva = async () => {
+    if (!canvaLink) {
+      alert("All slots full! Please wait for Admin to add more links.");
+      return;
+    }
+
+    // Open link instantly for the user
+    openExternalLink(canvaLink);
+
+    // Update the slot count in Supabase ONLY ONCE per session
+    if (!slotUpdated && activeLinkObj) {
+      setSlotUpdated(true); // Lock it so double-clicks don't waste slots
+      try {
+        await supabase.from('canva_links')
+          .update({ used_slots: activeLinkObj.used_slots + 1 })
+          .eq('id', activeLinkObj.id);
+      } catch (err) {
+        console.error("Failed to update slot count:", err);
+      }
+    }
+  };
+
+  // Trigger the actual ad after the countdown finishes
   const triggerAdLogic = () => {
     setIsProcessing(true);
     const adFunctionName = `show_${adZone}`;
@@ -122,7 +151,7 @@ export default function FreeCanva() {
     }
   };
 
-  // ✅ Handles button click and starts the 3-second countdown
+  // Handles button click and starts the 3-second countdown
   const handleMainAction = () => {
     if (isProcessing || countdown > 0) return;
     
@@ -195,11 +224,10 @@ export default function FreeCanva() {
               <motion.div animate={{ y: [0, -15, 0] }} transition={{ repeat: Infinity, duration: 1.5 }} className="text-6xl mb-4">🎉</motion.div>
               <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#6200EA] to-[#00C4CC] mb-2 uppercase tracking-wide">Woo Hoo!</h2>
               <p className="text-gray-500 font-bold mb-6 text-sm">You completed all 5 steps! Here is your link.</p>
+              
+              {/* ✅ UPDATED BUTTON TO USE NEW SLOT LOGIC */}
               <button 
-                onClick={() => {
-                  if (canvaLink) openExternalLink(canvaLink);
-                  else alert("All slots full!");
-                }} 
+                onClick={handleOpenCanva} 
                 className="w-full bg-[#6200EA] hover:bg-[#5000c9] text-white font-black text-[16px] py-4 rounded-2xl shadow-lg active:scale-95 transition-transform flex justify-center items-center gap-2"
               >
                 Open Canva Pro
@@ -329,7 +357,9 @@ export default function FreeCanva() {
 
         {/* Footer Credit */}
         <div className="text-center pt-2 pb-6">
-          <p className="text-[13px] font-black text-[#6200EA] mb-0.5">Made with ❤️ by Frager</p>
+          <p className="text-[13px] font-black text-[#6200EA] mb-0.5">
+            Made with ❤️ by <span onClick={() => openExternalLink('https://t.me/NoobFrager')} className="cursor-pointer hover:underline">Frager</span>
+          </p>
           <p className="text-[11px] text-gray-400 font-medium">v2.0.0</p>
         </div>
 

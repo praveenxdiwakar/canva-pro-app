@@ -35,8 +35,17 @@ export default function Redeem() {
   const firstRewardCost = 49;
   const mainProgress = Math.min(100, Math.round((currentPoints / firstRewardCost) * 100));
 
-  // 1. Fetch Active Subscription on Load (WITH LOCAL BACKUP)
+  // 1. Fetch Active Subscription & Inject Confetti Library
   useEffect(() => {
+    // Inject Canvas Confetti Library
+    if (!document.getElementById('confetti-script')) {
+      const script = document.createElement('script');
+      script.id = 'confetti-script';
+      script.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js';
+      script.async = true;
+      document.body.appendChild(script);
+    }
+
     if (user?.telegramId) {
       const tgIdStr = String(user.telegramId);
 
@@ -92,6 +101,30 @@ export default function Redeem() {
     }, 1000);
     return () => clearInterval(interval);
   }, [activeSub, user?.telegramId]);
+
+  // 3. Trigger Canva Pro Colored Confetti when Celebration Modal Opens
+  useEffect(() => {
+    if (celebration.isOpen && window.confetti) {
+      var duration = 3000;
+      var end = Date.now() + duration;
+
+      (function frame() {
+        // Shoot confetti from the left edge
+        window.confetti({
+          particleCount: 5, angle: 60, spread: 55, origin: { x: 0 },
+          colors: ['#6200EA', '#00C4CC', '#FFD700'] 
+        });
+        
+        // Shoot confetti from the right edge
+        window.confetti({
+          particleCount: 5, angle: 120, spread: 55, origin: { x: 1 },
+          colors: ['#6200EA', '#00C4CC', '#FFD700'] 
+        });
+
+        if (Date.now() < end) { requestAnimationFrame(frame); }
+      }());
+    }
+  }, [celebration.isOpen]);
 
   const openExternalLink = (url) => {
     const tg = window.Telegram?.WebApp;
