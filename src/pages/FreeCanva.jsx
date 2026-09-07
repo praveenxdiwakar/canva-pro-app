@@ -221,6 +221,7 @@ export default function FreeCanva() {
                   )}
                 </div>
               ) : (
+                /* Fallback: All Slots Full */
                 <div className="text-red-500 font-bold text-xs py-2">
                   All slots are currently full. Please try again soon!
                 </div>
