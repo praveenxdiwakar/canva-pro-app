@@ -21,12 +21,22 @@ export default function Admin() {
   // Accordion / Dropdown States
   const [isTasksOpen, setIsTasksOpen] = useState(false);
   const [isLinksOpen, setIsLinksOpen] = useState(false);
+  const [isBackupOpen, setIsBackupOpen] = useState(false);
   
   // Links State
   const [links, setLinks] = useState([]);
-  const [newLink, setNewLink] = useState({ name: '', url: '', totalSlots: 100, tier_id: 0 }); // Default to 0 (Free Canva)
+  const [newLink, setNewLink] = useState({ name: '', url: '', totalSlots: 100, tier_id: 0 }); // 0 = Free Canva
   const [editingLinkId, setEditingLinkId] = useState(null);
   const [savingLink, setSavingLink] = useState(false);
+
+  // 🛡️ Free Canva Backup Credentials State
+  const [backupCredentials, setBackupCredentials] = useState({
+    email: '',
+    password: '',
+    totpLink: '',
+    enabled: true
+  });
+  const [savingBackup, setSavingBackup] = useState(false);
 
   // Dynamic Tasks State
   const [customTasks, setCustomTasks] = useState([]);
@@ -50,7 +60,7 @@ export default function Admin() {
   }, []);
 
   const fetchInitialData = async () => {
-    setIsLoading(true); // Start loading
+    setIsLoading(true);
     try {
       const { data: uData, count: uCount, error: uErr } = await supabase.from('users').select('*', { count: 'exact' });
       if (!uErr) setTotalUsers(uCount !== null ? uCount : (uData?.length || 0));
@@ -61,12 +71,26 @@ export default function Admin() {
       const { data: adData } = await supabase.from('app_settings').select('value').eq('key', 'MONETAG_ZONE_ID').maybeSingle();
       if (adData) setZoneId(adData.value);
 
+      // Fetch Free Canva Backup Details
+      const { data: bData } = await supabase.from('app_settings').select('value').eq('key', 'FREE_CANVA_BACKUP').maybeSingle();
+      if (bData && bData.value) {
+        try {
+          const parsed = JSON.parse(bData.value);
+          setBackupCredentials({
+            email: parsed.email || '',
+            password: parsed.password || '',
+            totpLink: parsed.totpLink || '',
+            enabled: parsed.enabled ?? true
+          });
+        } catch (e) {}
+      }
+
       await fetchLinks();
       await fetchTasks();
     } catch (err) {
       console.error("Error fetching initial data:", err);
     }
-    setIsLoading(false); // Stop loading
+    setIsLoading(false);
   };
 
   const fetchLinks = async () => {
@@ -91,6 +115,23 @@ export default function Admin() {
     setSavingZone(false);
   };
 
+  // 🛡️ Save Backup Option Credentials
+  const handleSaveBackupCredentials = async () => {
+    setSavingBackup(true);
+    try {
+      const payload = JSON.stringify(backupCredentials);
+      const { error } = await supabase.from('app_settings').upsert({
+        key: 'FREE_CANVA_BACKUP',
+        value: payload
+      });
+      if (error) throw error;
+      alert("✅ Free Canva Backup Option saved successfully!");
+    } catch (err) {
+      alert(`❌ Error saving backup credentials: ${err.message}`);
+    }
+    setSavingBackup(false);
+  };
+
   const handleSaveLink = async () => {
     if (!newLink.name || !newLink.url) return alert("Please fill out both Name and URL.");
     setSavingLink(true);
@@ -100,7 +141,7 @@ export default function Admin() {
         url: newLink.url,
         invitelink: newLink.url,
         total_slots: parseInt(newLink.totalSlots) || 100,
-        tier_id: parseInt(newLink.tier_id) || 0 // 0=Free, 1=7 Days, 2=15 Days, 3=30 Days
+        tier_id: parseInt(newLink.tier_id) || 0
       };
 
       if (editingLinkId) {
@@ -153,7 +194,7 @@ export default function Admin() {
   return (
     <div className="bg-[#f5f5f5] min-h-[calc(100dvh-5rem)] pb-24 relative overflow-x-hidden">
       
-      {/* HEADER: ALWAYS VISIBLE */}
+      {/* HEADER */}
       <div className="relative w-full h-[150px] bg-gradient-to-br from-[#00C4CC] via-[#7B2CBF] to-[#6200EA] flex items-center justify-center overflow-hidden">
         <div className="absolute top-[-20px] left-[-20px] w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none z-0"></div>
         <div className="absolute bottom-[-30px] right-[-10px] w-40 h-40 bg-[#00E5FF]/20 rounded-full blur-[40px] pointer-events-none z-0"></div>
@@ -165,37 +206,26 @@ export default function Admin() {
         </div>
       </div>
 
-      {/* MASTER ADMIN BAR: ALWAYS VISIBLE */}
       <div className="bg-white px-4 py-4 flex items-center gap-3 shadow-sm border-b border-gray-100 relative z-30">
-        <button onClick={() => navigate('/profile')} className="text-gray-500 hover:bg-gray-100 p-1.5 rounded-lg active:scale-95 transition-all"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg></button>
-        <h1 className="text-[16px] font-black text-gray-900 flex items-center gap-2"><span className="text-[18px]">⚙️</span> Master Admin</h1>
+        <button onClick={() => navigate('/profile')} className="text-gray-500 hover:bg-gray-100 p-1.5 rounded-lg active:scale-95 transition-all">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+        </button>
+        <h1 className="text-[16px] font-black text-gray-900 flex items-center gap-2">
+          <span className="text-[18px]">⚙️</span> Master Admin
+        </h1>
       </div>
 
-      {/* DYNAMIC CONTENT AREA */}
       <div className="px-4 pt-5 space-y-4 relative z-30">
         
         {isLoading ? (
-          /* ========================================================= */
-          /* ⏳ LOADING SCREEN                                         */
-          /* ========================================================= */
-          <motion.div 
-            initial={{ opacity: 0 }} 
-            animate={{ opacity: 1 }} 
-            className="flex flex-col items-center justify-center py-20"
-          >
-            <motion.div 
-              animate={{ rotate: 360 }} 
-              transition={{ repeat: Infinity, duration: 1, ease: "linear" }} 
-              className="w-12 h-12 border-4 border-[#6200EA] border-t-transparent rounded-full shadow-lg mb-4"
-            ></motion.div>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-20">
+            <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} className="w-12 h-12 border-4 border-[#6200EA] border-t-transparent rounded-full shadow-lg mb-4"></motion.div>
             <p className="text-gray-500 font-black text-[11px] uppercase tracking-[0.2em]">Syncing Data...</p>
           </motion.div>
         ) : (
-          /* ========================================================= */
-          /* ✅ FULL ADMIN DASHBOARD (Renders when loading is done)    */
-          /* ========================================================= */
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
             
+            {/* Real-time Stats Grid */}
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-white rounded-[20px] p-5 shadow-sm border border-gray-100 relative overflow-hidden">
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 relative z-10">Total Users</p>
@@ -207,6 +237,7 @@ export default function Admin() {
               </div>
             </div>
 
+            {/* Monetag Ad Settings */}
             <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100">
               <h2 className="font-black text-[14px] text-gray-800 flex items-center gap-2 mb-4">📡 Monetag Ad Settings</h2>
               <div className="relative flex items-center">
@@ -228,6 +259,86 @@ export default function Admin() {
               </div>
             </div>
 
+            {/* ========================================================= */}
+            {/* 🛡️ NEW: FREE CANVA BACKUP OPTION (ACCORDION)              */}
+            {/* ========================================================= */}
+            <div className={`bg-white rounded-[24px] p-5 shadow-sm border-2 transition-all ${isBackupOpen ? 'border-amber-200' : 'border-gray-100'} overflow-hidden`}>
+              <div className="flex justify-between items-center cursor-pointer select-none" onClick={() => setIsBackupOpen(!isBackupOpen)}>
+                <div>
+                  <h2 className="font-black text-[14px] text-gray-800 flex items-center gap-2">🛡️ Free Canva Backup Option</h2>
+                  <p className="text-[10px] text-gray-400 font-medium mt-0.5">Email, Password & TOTP for Free Canva fallback</p>
+                </div>
+                {!isBackupOpen ? (
+                  <span className="text-amber-600 font-black text-[11px] bg-amber-50 px-3 py-1.5 rounded-full">Configure ➔</span>
+                ) : (
+                  <button className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 font-black hover:bg-gray-200 transition-colors">✕</button>
+                )}
+              </div>
+
+              <AnimatePresence>
+                {isBackupOpen && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mt-5 pt-5 border-t border-gray-100">
+                    <div className="bg-amber-50/60 rounded-2xl p-4 border border-amber-200 mb-2 space-y-3">
+                      
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-600 ml-1 mb-1 block">Canva Login Email</label>
+                        <input 
+                          type="email" 
+                          placeholder="e.g. canvaprobackup@gmail.com" 
+                          value={backupCredentials.email} 
+                          onChange={(e) => setBackupCredentials({ ...backupCredentials, email: e.target.value })} 
+                          className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-amber-400" 
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-600 ml-1 mb-1 block">Canva Login Password</label>
+                        <input 
+                          type="text" 
+                          placeholder="e.g. CanvaPassword@123" 
+                          value={backupCredentials.password} 
+                          onChange={(e) => setBackupCredentials({ ...backupCredentials, password: e.target.value })} 
+                          className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-amber-400" 
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-600 ml-1 mb-1 block">TOTP Link or 2FA Key</label>
+                        <input 
+                          type="text" 
+                          placeholder="e.g. https://2fa.live or your 2FA secret key" 
+                          value={backupCredentials.totpLink} 
+                          onChange={(e) => setBackupCredentials({ ...backupCredentials, totpLink: e.target.value })} 
+                          className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-amber-400" 
+                        />
+                      </div>
+
+                      <div className="pt-1 flex items-center justify-between">
+                        <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={backupCredentials.enabled} 
+                            onChange={(e) => setBackupCredentials({ ...backupCredentials, enabled: e.target.checked })} 
+                            className="accent-amber-600 w-4 h-4 rounded" 
+                          />
+                          Enable Backup Login in Free Canva
+                        </label>
+                      </div>
+
+                      <button 
+                        onClick={handleSaveBackupCredentials} 
+                        disabled={savingBackup} 
+                        className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-3.5 rounded-xl shadow-md active:scale-95 transition-all mt-2"
+                      >
+                        {savingBackup ? 'Saving...' : '💾 Save Backup Option'}
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Canva Links Manager */}
             <div className={`bg-white rounded-[24px] p-5 shadow-sm border-2 transition-all ${isLinksOpen ? 'border-purple-100' : 'border-gray-100'} overflow-hidden`}>
               <div className="flex justify-between items-center cursor-pointer select-none" onClick={() => setIsLinksOpen(!isLinksOpen)}>
                 <div>
@@ -244,7 +355,6 @@ export default function Admin() {
               <AnimatePresence>
                 {isLinksOpen && (
                   <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mt-5 pt-5 border-t border-gray-100">
-                    
                     <div className={`rounded-2xl p-4 border mb-5 space-y-3 transition-colors ${editingLinkId ? 'bg-indigo-50 border-indigo-200' : 'bg-gray-50 border-gray-100'}`}>
                       <div className="flex justify-between items-center mb-1">
                         <h3 className={`font-black text-[13px] ${editingLinkId ? 'text-indigo-900' : 'text-gray-700'}`}>
@@ -320,7 +430,7 @@ export default function Admin() {
                                 <div className={`h-1.5 rounded-full transition-all ${isFull ? 'bg-red-500' : 'bg-[#6200EA]'}`} style={{ width: `${percentage}%` }}></div>
                               </div>
                             </div>
-                          )
+                          );
                         })
                       )}
                     </div>
@@ -329,6 +439,7 @@ export default function Admin() {
               </AnimatePresence>
             </div>
 
+            {/* Custom Tasks Manager */}
             <div className={`bg-white rounded-[24px] p-5 shadow-sm border-2 transition-all ${isTasksOpen ? 'border-blue-100' : 'border-gray-100'} overflow-hidden`}>
               <div className="flex justify-between items-center cursor-pointer select-none" onClick={() => setIsTasksOpen(!isTasksOpen)}>
                 <div>
