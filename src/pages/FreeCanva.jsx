@@ -289,11 +289,38 @@ export default function FreeCanva() {
         {/* Stacked Social / Join Buttons */}
         <div className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100 flex flex-col gap-3">
           <button onClick={() => openExternalLink('https://t.me/CanvaProMiniApp')} className="w-full bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white font-bold py-4 rounded-[16px] flex justify-center items-center gap-2 active:scale-95 transition-transform text-[14px]">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
             Join Channel
           </button>
           <button onClick={() => openExternalLink('https://t.me/CanvaProLinkCommunity')} className="w-full bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white font-bold py-4 rounded-[16px] flex justify-center items-center gap-2 active:scale-95 transition-transform text-[14px]">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
             Join Group
           </button>
+          <button onClick={() => openExternalLink('https://t.me/CanvaProLinkCommunity/2')} className="w-full bg-[#F3F4F6] text-gray-700 font-bold py-4 rounded-[16px] text-[14px] flex justify-center items-center gap-1.5 active:bg-gray-200 transition-colors">
+            How to join Canva Pro <span className="text-[16px]">🌿</span>
+          </button>
+        </div>
+
+        {/* Features / Benefits Card */}
+        <div className="bg-white rounded-3xl px-4 py-6 border border-gray-100 shadow-sm text-center">
+          <h3 className="text-[11px] font-black text-gray-400 tracking-[0.15em] mb-5 uppercase">What You Get</h3>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-[#F3E8FF] rounded-[20px] p-3 flex flex-col items-center justify-center gap-2 h-[90px]">
+              <span className="text-2xl drop-shadow-sm">🎨</span>
+              <span className="text-[10px] font-black text-[#7B2CBF] leading-tight">Premium<br/>Templates</span>
+            </div>
+            <div className="bg-[#FEF3C7] rounded-[20px] p-3 flex flex-col items-center justify-center gap-2 h-[90px]">
+              <span className="text-2xl drop-shadow-sm">✨</span>
+              <span className="text-[10px] font-black text-[#D97706] leading-tight">Magic AI<br/>Tools</span>
+            </div>
+            <div className="bg-[#D1FAE5] rounded-[20px] p-3 flex flex-col items-center justify-center gap-2 h-[90px]">
+              <div className="bg-[#10B981] text-white font-black text-[9px] px-2 py-0.5 rounded uppercase tracking-wider">Free</div>
+              <span className="text-[10px] font-black text-[#059669] leading-tight">100% Free</span>
+            </div>
+          </div>
+          <div className="mt-5 text-[11px] text-gray-400 font-medium flex items-center justify-center gap-1.5">
+            <span className="text-yellow-500">🔒</span> No payment required
+          </div>
         </div>
 
         {/* Footer Credit */}
