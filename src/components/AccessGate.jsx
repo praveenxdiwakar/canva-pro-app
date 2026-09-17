@@ -26,7 +26,7 @@ export default function AccessGate({ children }) {
   });
 
   const tasks = [
-    { id: 'bot', title: 'Start Bot', subtitle: '@CanvaProMiniAppBot', url: 'https://t.me/CanvaProMiniAppBot' },
+    { id: 'bot', title: 'Start Bot', subtitle: '@CanvaProMiniAppBot', url: 'https://t.me/CanvaProMiniAppBot?start=verify' },
     { id: 'channel', title: 'Join Channel', subtitle: '@CanvaProMiniApp', url: 'https://t.me/CanvaProMiniApp' },
     { id: 'group', title: 'Join Group', subtitle: '@CanvaProLinkCommunity', url: 'https://t.me/CanvaProLinkCommunity' }
   ];
