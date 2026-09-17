@@ -4,6 +4,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TelegramProvider } from './contexts/TelegramContext';
 import AppLayout from './components/layout/AppLayout';
 
+// 🛑 Import your new Access Gate here
+import AccessGate from './components/AccessGate';
+
 import FreeCanva from './pages/FreeCanva';
 import Tasks from './pages/Tasks';
 import Redeem from './pages/Redeem';
@@ -46,19 +49,22 @@ export default function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <TelegramProvider>
-          <BrowserRouter>
-            <Routes>
-              <Route element={<AppLayout />}>
-                <Route path="/" element={<FreeCanva />} />
-                <Route path="/tasks" element={<Tasks />} />
-                <Route path="/redeem" element={<Redeem />} />
-                <Route path="/pro-users" element={<ProUsers />} />
-                <Route path="/reward-history" element={<RewardHistory />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/admin" element={<Admin />} />
-              </Route>
-            </Routes>
-          </BrowserRouter>
+          {/* 🛑 Wrap everything inside the Access Gate */}
+          <AccessGate>
+            <BrowserRouter>
+              <Routes>
+                <Route element={<AppLayout />}>
+                  <Route path="/" element={<FreeCanva />} />
+                  <Route path="/tasks" element={<Tasks />} />
+                  <Route path="/redeem" element={<Redeem />} />
+                  <Route path="/pro-users" element={<ProUsers />} />
+                  <Route path="/reward-history" element={<RewardHistory />} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/admin" element={<Admin />} />
+                </Route>
+              </Routes>
+            </BrowserRouter>
+          </AccessGate>
         </TelegramProvider>
       </QueryClientProvider>
     </ErrorBoundary>
