@@ -25,11 +25,23 @@ export default function AccessGate({ children }) {
     group: false
   });
 
+  // Task list with the updated ?start=verify bot link
   const tasks = [
     { id: 'bot', title: 'Start Bot', subtitle: '@CanvaProMiniAppBot', url: 'https://t.me/CanvaProMiniAppBot?start=verify' },
     { id: 'channel', title: 'Join Channel', subtitle: '@CanvaProMiniApp', url: 'https://t.me/CanvaProMiniApp' },
     { id: 'group', title: 'Join Group', subtitle: '@CanvaProLinkCommunity', url: 'https://t.me/CanvaProLinkCommunity' }
   ];
+
+  // Helper: Ping Render to check Telegram Live Member Status
+  const pingLiveVerification = useCallback(async () => {
+    if (!tgId) return;
+    try {
+      // This tells your Render bot to instantly check their live Telegram status
+      await fetch(`https://canva-bot-backend.onrender.com/verify?tgId=${tgId}`);
+    } catch (err) {
+      console.error("Live verification ping failed:", err);
+    }
+  }, [tgId]);
 
   // Function to strictly query Supabase for verification status
   const checkDatabaseAccess = useCallback(async () => {
@@ -81,18 +93,22 @@ export default function AccessGate({ children }) {
     }
 
     const tgIdStr = String(tgId);
+    
+    // 1. Check database immediately, AND ping Render for live verification in background
     checkDatabaseAccess();
+    pingLiveVerification();
 
-    // 1. Auto-refresh when user comes back from the Telegram Chat
+    // 2. Auto-refresh when user comes back from the Telegram Chat
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        checkDatabaseAccess();
+        pingLiveVerification(); // Ask bot to check live status again
+        checkDatabaseAccess();  // Pull latest from Supabase
       }
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("focus", checkDatabaseAccess);
 
-    // 2. Realtime listener for instant background updates
+    // 3. Realtime listener for instant background updates from Supabase
     const accessSubscription = supabase
       .channel(`access-gate-${tgIdStr}`)
       .on('postgres_changes', { 
@@ -116,7 +132,7 @@ export default function AccessGate({ children }) {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("focus", checkDatabaseAccess);
     };
-  }, [tgId, checkDatabaseAccess]);
+  }, [tgId, checkDatabaseAccess, pingLiveVerification]);
 
   // Open link and instantly hide the button locally
   const openTelegramLink = (taskId, url) => {
@@ -137,10 +153,14 @@ export default function AccessGate({ children }) {
     setVerifying(true);
     setErrorMsg("");
 
-    const isFullyAuthorized = await checkDatabaseAccess();
+    // Force Render to check Telegram live API before we look at the database
+    await pingLiveVerification();
 
-    setTimeout(() => {
+    // Check Supabase again after giving the bot a moment to update it
+    setTimeout(async () => {
+      const isFullyAuthorized = await checkDatabaseAccess();
       setVerifying(false);
+      
       if (!isFullyAuthorized) {
         const missing = [];
         if (!completed.bot) missing.push("Start Bot");
@@ -153,14 +173,14 @@ export default function AccessGate({ children }) {
             : "Membership not verified yet. Please make sure you joined."
         );
         
-        // Unhide buttons for tasks that failed verification
+        // Unhide buttons for tasks that failed verification so they can try again
         setClicked(prev => ({
           bot: prev.bot && completed.bot,
           channel: prev.channel && completed.channel,
           group: prev.group && completed.group
         }));
       }
-    }, 800);
+    }, 1500); // 1.5 second wait gives the backend time to finish updating
   };
 
   // STRICT CHECK: Every single requirement must be true in the database
