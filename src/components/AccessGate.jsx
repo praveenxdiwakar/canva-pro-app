@@ -192,7 +192,12 @@ export default function AccessGate({ children }) {
   return (
     <div className="min-h-[100dvh] bg-[#0E0E11] text-white flex flex-col font-sans relative overflow-hidden">
       
-      
+      {/* Top Header */}
+      <div className="flex items-center justify-between px-4 py-4 border-b border-white/5">
+        <button className="text-gray-400 hover:text-white p-1">✕</button>
+        <h1 className="text-[16px] font-bold tracking-wide">Verify To Use Mini App</h1>
+        <div className="w-5" />
+      </div>
 
       <div className="flex-1 px-5 pt-8 pb-10 flex flex-col items-center">
         
