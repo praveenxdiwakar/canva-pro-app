@@ -512,7 +512,7 @@ export default function Tasks() {
         <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100 flex justify-between items-center">
           <div className="flex items-center gap-4"><div className="w-[50px] h-[50px] rounded-full bg-blue-50 flex items-center justify-center text-2xl shadow-sm border border-blue-100">📢</div><div><h3 className="font-black text-gray-900 text-[15px] mb-0.5">Join Channel 01</h3><p className="text-[11px] text-gray-500 font-medium">+2 pts · One time</p></div></div>
           <div className="flex gap-2">
-            <button onClick={() => openExternalLink('https://t.me/CanvaProMiniApp')} className="bg-[#3B82F6] text-white font-black px-4 py-2.5 rounded-xl text-[11px] shadow-sm active:scale-95">JOIN</button>
+            <button onClick={() => openExternalLink('https://t.me/FremiumNetwork')} className="bg-[#3B82F6] text-white font-black px-4 py-2.5 rounded-xl text-[11px] shadow-sm active:scale-95">JOIN</button>
             <button onClick={() => handleVerifyChannel('channel1', 2)} disabled={taskState.channel1 || verifying === 'channel1'} className={`font-bold px-3 py-2.5 rounded-xl text-[11px] flex items-center gap-1 border ${taskState.channel1 ? 'bg-green-50 text-green-500 border-green-200' : 'bg-gray-50 text-gray-500 border-gray-200 active:scale-95'}`}>{taskState.channel1 ? '✅ Verified' : verifying === 'channel1' ? '⏳ Wait...' : '✓ Verify'}</button>
           </div>
         </div>
