@@ -11,8 +11,15 @@ export default function AccessGate({ children }) {
   const [verifying, setVerifying] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   
-  // Tasks are FALSE by default and can ONLY be turned true by Supabase
+  // Database confirmed states (TRUE only if bot verified it)
   const [completed, setCompleted] = useState({
+    bot: false,
+    channel: false,
+    group: false
+  });
+
+  // Local clicked states (Hides the button immediately upon click)
+  const [clicked, setClicked] = useState({
     bot: false,
     channel: false,
     group: false
@@ -56,8 +63,6 @@ export default function AccessGate({ children }) {
 
         return botOk && channelOk && groupOk;
       } else {
-        // No row in database yet -> user hasn't completed tasks
-        setCompleted({ bot: false, channel: false, group: false });
         return false;
       }
     } catch (err) {
@@ -68,7 +73,7 @@ export default function AccessGate({ children }) {
     }
   }, [tgId]);
 
-  // Initial load and Realtime Database Listener
+  // Initial load, Auto-Refresh on Return, and Realtime Database Listener
   useEffect(() => {
     if (!tgId) {
       setLoading(false);
@@ -78,7 +83,16 @@ export default function AccessGate({ children }) {
     const tgIdStr = String(tgId);
     checkDatabaseAccess();
 
-    // Listen for real-time DB changes made by your bot
+    // 1. Auto-refresh when user comes back from the Telegram Chat
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkDatabaseAccess();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", checkDatabaseAccess);
+
+    // 2. Realtime listener for instant background updates
     const accessSubscription = supabase
       .channel(`access-gate-${tgIdStr}`)
       .on('postgres_changes', { 
@@ -99,11 +113,15 @@ export default function AccessGate({ children }) {
 
     return () => {
       supabase.removeChannel(accessSubscription);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", checkDatabaseAccess);
     };
   }, [tgId, checkDatabaseAccess]);
 
-  // Open link without falsely marking as done
-  const openTelegramLink = (url) => {
+  // Open link and instantly hide the button locally
+  const openTelegramLink = (taskId, url) => {
+    setClicked(prev => ({ ...prev, [taskId]: true }));
+    
     const tg = window.Telegram?.WebApp;
     if (tg && tg.openTelegramLink) {
       tg.openTelegramLink(url);
@@ -124,7 +142,6 @@ export default function AccessGate({ children }) {
     setTimeout(() => {
       setVerifying(false);
       if (!isFullyAuthorized) {
-        // Find which tasks are still missing
         const missing = [];
         if (!completed.bot) missing.push("Start Bot");
         if (!completed.channel) missing.push("Join Channel");
@@ -132,14 +149,21 @@ export default function AccessGate({ children }) {
 
         setErrorMsg(
           missing.length > 0 
-            ? `Please complete all steps: ${missing.join(', ')}.` 
-            : "Membership not verified yet. Please make sure you joined and try again."
+            ? `Still waiting for verification on: ${missing.join(', ')}.` 
+            : "Membership not verified yet. Please make sure you joined."
         );
+        
+        // Unhide buttons for tasks that failed verification
+        setClicked(prev => ({
+          bot: prev.bot && completed.bot,
+          channel: prev.channel && completed.channel,
+          group: prev.group && completed.group
+        }));
       }
     }, 800);
   };
 
-  // STRICT CHECK: Every single requirement must be true
+  // STRICT CHECK: Every single requirement must be true in the database
   const hasFullAccess = completed.bot && completed.channel && completed.group;
 
   if (loading) return null;
@@ -175,20 +199,31 @@ export default function AccessGate({ children }) {
           <div className="space-y-5 mb-8">
             {tasks.map((task) => {
               const isDone = completed[task.id];
+              const isWaiting = clicked[task.id] && !isDone;
+
               return (
                 <div key={task.id} className="flex items-center gap-4">
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 border-2 transition-colors ${isDone ? 'border-[#10B981] bg-[#10B981]/10' : 'border-gray-600'}`}>
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 border-2 transition-colors ${isDone ? 'border-[#10B981] bg-[#10B981]/10' : isWaiting ? 'border-[#8B5CF6]' : 'border-gray-600'}`}>
                     {isDone && (
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="20 6 9 17 4 12"/>
                       </svg>
                     )}
+                    {isWaiting && (
+                      <motion.div 
+                        animate={{ rotate: 360 }} 
+                        transition={{ repeat: Infinity, duration: 1, ease: "linear" }} 
+                        className="w-3 h-3 border-[2px] border-[#8B5CF6] border-t-transparent rounded-full" 
+                      />
+                    )}
                   </div>
                   <div>
-                    <h4 className={`text-[15px] font-bold ${isDone ? 'text-[#10B981]' : 'text-white'}`}>
+                    <h4 className={`text-[15px] font-bold ${isDone ? 'text-[#10B981]' : isWaiting ? 'text-[#8B5CF6]' : 'text-white'}`}>
                       {task.title}
                     </h4>
-                    <p className="text-xs text-gray-500">{task.subtitle}</p>
+                    <p className="text-xs text-gray-500">
+                      {isWaiting ? "Verifying with Telegram..." : task.subtitle}
+                    </p>
                   </div>
                 </div>
               );
@@ -198,11 +233,12 @@ export default function AccessGate({ children }) {
           {/* Action Buttons */}
           <div className="space-y-3">
             {tasks.map((task) => {
-              if (!completed[task.id]) {
+              // HIDE BUTTON IF DONE OR IF CLICKED
+              if (!completed[task.id] && !clicked[task.id]) {
                 return (
                   <button 
                     key={`btn-${task.id}`}
-                    onClick={() => openTelegramLink(task.url)}
+                    onClick={() => openTelegramLink(task.id, task.url)}
                     className="w-full bg-gradient-to-r from-[#8B5CF6] to-[#6D28D9] hover:opacity-95 text-white font-bold py-3.5 rounded-xl text-[14px] active:scale-[0.98] transition-all tracking-wide"
                   >
                     {task.title.toUpperCase()}
@@ -215,7 +251,7 @@ export default function AccessGate({ children }) {
             <button 
               onClick={handleVerify}
               disabled={verifying}
-              className="w-full bg-[#27272A] hover:bg-[#3F3F46] text-white font-bold py-3.5 rounded-xl text-[14px] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+              className="w-full bg-[#27272A] hover:bg-[#3F3F46] text-white font-bold py-3.5 rounded-xl text-[14px] active:scale-[0.98] transition-all flex items-center justify-center gap-2 mt-2"
             >
               {verifying ? (
                 <motion.div 
@@ -229,7 +265,7 @@ export default function AccessGate({ children }) {
                   <path d="M3 3v5h5"/>
                 </svg>
               )}
-              {verifying ? "VERIFYING WITH DATABASE..." : "CHECK AGAIN"}
+              {verifying ? "VERIFYING..." : "CHECK AGAIN"}
             </button>
           </div>
         </div>
@@ -275,7 +311,6 @@ export default function AccessGate({ children }) {
           </>
         )}
       </AnimatePresence>
-
     </div>
   );
 }
